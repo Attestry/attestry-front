@@ -26,6 +26,9 @@ import ShipmentHistoryDetail from './pages/shipment/ShipmentHistoryDetail';
 import PurchaseClaimView from './pages/claim/PurchaseClaimView';
 import PurchaseClaimAdminView from './pages/claim/PurchaseClaimAdminView';
 import TransferReceiveView from './pages/transfer/TransferReceiveView';
+import ProductDetail from './pages/product/ProductDetail';
+import ShipmentManagement from './pages/shipment/ShipmentManagement';
+import ShipmentHistoryDetail from './pages/shipment/ShipmentHistoryDetail';
 
 const ProtectedRoute = ({ allowedRoles, children }) => {
   const { isAuthenticated, user } = useAuthStore();
