@@ -10,21 +10,42 @@ import MainPage from './pages/main/MainPage';
 import OnboardingView from './pages/onboarding/OnboardingView';
 import PlatformAdminView from './pages/admin/PlatformAdminView';
 import TenantMembershipAdmin from './pages/tenant/TenantMembershipAdmin';
-import TenantTemplateAdmin from './pages/tenant/TenantTemplateAdmin';
 import PlatformTemplateAdmin from './pages/admin/templates/PlatformTemplateAdmin';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import InvitationAccept from './pages/invitations/InvitationAccept';
+import MyPage from './pages/mypage/MyPage';
+import PartnershipAdmin from './pages/partnership/PartnershipAdmin';
+import ProductManagement from './pages/product/ProductManagement';
 
 // Protected Route component that checks role access
 const ProtectedRoute = ({ allowedRoles, children }) => {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, setRole } = useAuthStore();
+  const [isReady, setIsReady] = React.useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated && user && allowedRoles) {
+      if (!allowedRoles.includes(user.role)) {
+        // Find if user has a role that is allowed
+        const fallbackRole = allowedRoles.find(r => user.availableRoles?.includes(r));
+        if (fallbackRole) {
+          setRole(fallbackRole);
+        }
+      }
+    }
+    setIsReady(true);
+  }, [isAuthenticated, user?.role, user?.availableRoles, allowedRoles, setRole]);
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (!user) return <div className="p-20 text-center text-gray-400">세션 로딩 중...</div>;
+  if (!user || !isReady) return <div className="p-20 text-center text-gray-400">권한 확인 중...</div>;
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // If user's role doesn't match the allowed roles, redirect
+    // If they have the role but haven't switched yet, wait for useEffect to switch
+    if (allowedRoles.some(r => user.availableRoles?.includes(r))) {
+      return <div className="p-20 text-center text-gray-400">프로필 전환 중...</div>;
+    }
+
+    // If user's role doesn't match the allowed roles and they don't have it, redirect
     if (user.role === ROLES.USER) {
       return <Navigate to="/" replace />;
     } else if (user.role === ROLES.PLATFORM_ADMIN) {
@@ -79,6 +100,11 @@ const App = () => {
         <Route element={<MainLayout />}>
           <Route path="/" element={<MainPage />} />
           <Route path="/onboarding" element={<OnboardingView />} />
+          <Route path="/mypage" element={
+            <ProtectedRoute>
+              <MyPage />
+            </ProtectedRoute>
+          } />
         </Route>
 
         {/* TENANT & ADMIN ROUTES (Dashboard Layout) */}
@@ -92,11 +118,6 @@ const App = () => {
                 <TenantMembershipAdmin />
               </ProtectedRoute>
             } />
-            <Route path="templates" element={
-              <ProtectedRoute allowedRoles={[ROLES.BRAND, ROLES.RETAIL, ROLES.SERVICE]}>
-                <TenantTemplateAdmin />
-              </ProtectedRoute>
-            } />
           </Route>
 
           {/* Brand Routes */}
@@ -106,9 +127,17 @@ const App = () => {
                 <BrandView />
               </ProtectedRoute>
             } />
-            <Route path="mint" element={<div className="p-8 font-bold">제품 등록 (Mint) 기능 개발중...</div>} />
             <Route path="release" element={<div className="p-8 font-bold">출고 관리 기능 개발중...</div>} />
-            <Route path="delegate" element={<div className="p-8 font-bold">위임 기능 개발중...</div>} />
+            <Route path="delegate" element={
+              <ProtectedRoute allowedRoles={[ROLES.BRAND]}>
+                <PartnershipAdmin />
+              </ProtectedRoute>
+            } />
+            <Route path="products" element={
+              <ProtectedRoute allowedRoles={[ROLES.BRAND]}>
+                <ProductManagement />
+              </ProtectedRoute>
+            } />
             <Route path="*" element={<div className="p-8 font-bold">준비중인 메뉴입니다.</div>} />
           </Route>
 
@@ -121,7 +150,11 @@ const App = () => {
             } />
             <Route path="inventory" element={<div className="p-8 font-bold">보유 제품 관리 기능 개발중...</div>} />
             <Route path="transfer" element={<div className="p-8 font-bold">소유권 이전 기능 개발중...</div>} />
-            <Route path="delegate" element={<div className="p-8 font-bold">위임 기능 개발중...</div>} />
+            <Route path="delegate" element={
+              <ProtectedRoute allowedRoles={[ROLES.RETAIL]}>
+                <PartnershipAdmin />
+              </ProtectedRoute>
+            } />
             <Route path="*" element={<div className="p-8 font-bold">준비중인 메뉴입니다.</div>} />
           </Route>
 
@@ -135,7 +168,11 @@ const App = () => {
             <Route path="requests" element={<div className="p-8 font-bold">서비스 요청 관리 기능 개발중...</div>} />
             <Route path="processing" element={<div className="p-8 font-bold">수신 요청 처리 기능 개발중...</div>} />
             <Route path="history" element={<div className="p-8 font-bold">완료 이력 관리 기능 개발중...</div>} />
-            <Route path="delegate" element={<div className="p-8 font-bold">위임 기능 개발중...</div>} />
+            <Route path="delegate" element={
+              <ProtectedRoute allowedRoles={[ROLES.SERVICE]}>
+                <PartnershipAdmin />
+              </ProtectedRoute>
+            } />
             <Route path="*" element={<div className="p-8 font-bold">준비중인 메뉴입니다.</div>} />
           </Route>
 

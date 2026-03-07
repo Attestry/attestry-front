@@ -12,7 +12,24 @@ export default defineConfig({
       '/onboarding': 'http://localhost:8080',
       '/me': 'http://localhost:8080',
       '/tenants': 'http://localhost:8080',
-      '/admin': 'http://localhost:8080',
+      '/workflows': 'http://localhost:8080',
+      '/products': 'http://localhost:8080',
+      '/admin': {
+        target: 'http://localhost:8080',
+        bypass: (req, res, proxyOptions) => {
+          if (req.headers.accept?.indexOf('text/html') !== -1) {
+            return '/index.html';
+          }
+        }
+      },
+      '/invitations': {
+        target: 'http://localhost:8080',
+        bypass: (req, res, proxyOptions) => {
+          if (req.headers.accept?.indexOf('text/html') !== -1) {
+            return '/index.html';
+          }
+        }
+      },
       '/api/invitations': {
         target: 'http://localhost:8080',
         rewrite: (path) => path.replace(/^\/api/, '')

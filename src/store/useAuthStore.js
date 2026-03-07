@@ -10,9 +10,9 @@ export const ROLES = {
 };
 
 export const TENANT_ROLES = {
-  ADMIN: 'ADMIN',
-  OPERATOR: 'OPERATOR',
-  STAFF: 'STAFF',
+  ADMIN: 'TENANT_OWNER',
+  OPERATOR: 'TENANT_OPERATOR',
+  STAFF: 'TENANT_STAFF',
 };
 
 export const ROLE_THEMES = {
@@ -59,9 +59,12 @@ const useAuthStore = create((set, get) => ({
   platformTemplates: [],
   rootPermissions: [],
   tenantTemplates: [],
-  memberships: [],
+  myMemberships: [],
+  tenantMemberships: [],
   roleBindings: {},
   applications: [],
+  myApplications: [],
+  myAccount: null,
 
   // Update token
   setToken: (token, user = null) => {
@@ -101,19 +104,18 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
-  login: async (email, password, tenantId = null, groupId = null) => {
+  login: async (email, password, tenantId = null) => {
     try {
       set({ error: null });
       const data = await apiFetch('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password, tenantId, groupId }),
+        body: JSON.stringify({ email, password, tenantId }),
       });
 
       const userContext = {
         id: data.userId,
         email,
         tenantId: data.tenantId,
-        groupId: data.groupId,
         role: email.includes('admin') ? ROLES.PLATFORM_ADMIN : ROLES.USER,
         availableRoles: [
           ROLES.USER,
@@ -163,12 +165,11 @@ const useAuthStore = create((set, get) => ({
         const newUser = {
           ...currentUser,
           tenantId: activeMembership?.tenantId ?? currentUser.tenantId ?? null,
-          groupId: activeMembership?.groupId ?? currentUser.groupId ?? null,
           role: nextRole,
           availableRoles,
         };
         localStorage.setItem('user', JSON.stringify(newUser));
-        return { user: newUser };
+        return { user: newUser, myMemberships: memberships || [] };
       });
       return { success: true, data: memberships };
     } catch (error) {
@@ -184,6 +185,19 @@ const useAuthStore = create((set, get) => ({
     }
     get().setToken(null);
   },
+
+  reissueToken: async () => {
+    try {
+      const data = await apiFetch('/auth/token-reissue', { method: 'POST' });
+      // Update store with new token (same user object, but token has new scopes)
+      get().setToken(data.accessToken, get().user);
+      return { success: true, data };
+    } catch (error) {
+      console.error('Token reissue failed:', error.message);
+      return { success: false, message: error.message };
+    }
+  },
+
 
   verifyPhone: async () => {
     try {
@@ -246,12 +260,64 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
+  // --- ACCOUNT ACTIONS ---
+  fetchMyAccount: async () => {
+    try {
+      const data = await apiFetch('/me/account');
+      set({ myAccount: data });
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  updateMyAccount: async (command) => {
+    try {
+      const data = await apiFetch('/me/account', {
+        method: 'PATCH',
+        body: JSON.stringify(command)
+      });
+      set({ myAccount: data });
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
   // Admin APIs for onboarding
+  listMyApplications: async () => {
+    try {
+      const data = await apiFetch(`/onboarding/applications`);
+      set({ myApplications: data || [] });
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  getApplication: async (applicationId) => {
+    try {
+      const data = await apiFetch(`/onboarding/applications/${applicationId}`);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
   listApplications: async (type = '') => {
     try {
       const query = type ? `?type=${type}` : '';
       const data = await apiFetch(`/admin/onboarding/applications${query}`);
       set({ applications: data || [] });
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  getAdminApplication: async (applicationId) => {
+    try {
+      const data = await apiFetch(`/admin/onboarding/applications/${applicationId}`);
       return { success: true, data };
     } catch (error) {
       return { success: false, message: error.message };
@@ -285,7 +351,7 @@ const useAuthStore = create((set, get) => ({
   // --- MEMBERSHIP ADMIN ACTIONS (Matches membership-admin.http) ---
   acceptInvitation: async (invitationId) => {
     try {
-      const data = await apiFetch(`/api/invitations/${invitationId}/accept`, { method: 'POST' });
+      const data = await apiFetch(`/admin/invitations/${invitationId}/accept`, { method: 'POST' });
       return { success: true, data };
     } catch (error) {
       return { success: false, message: error.message };
@@ -296,8 +362,17 @@ const useAuthStore = create((set, get) => ({
     try {
       const { user } = get();
       if (!user?.tenantId) return { success: false };
-      const data = await apiFetch(`/tenants/${user.tenantId}/admin/memberships`);
-      set({ memberships: data || [] });
+      const data = await apiFetch(`/admin/memberships`);
+      set({ tenantMemberships: data || [] });
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  getMembershipDetail: async (membershipId) => {
+    try {
+      const data = await apiFetch(`/admin/memberships/${membershipId}`);
       return { success: true, data };
     } catch (error) {
       return { success: false, message: error.message };
@@ -307,10 +382,16 @@ const useAuthStore = create((set, get) => ({
   inviteMember: async (email, roleCode) => {
     try {
       const { user } = get();
-      if (!user?.tenantId || !user?.groupId) return { success: false };
-      const data = await apiFetch(`/tenants/${user.tenantId}/admin/invitations`, {
+      if (!user?.tenantId) return { success: false };
+
+      // Map roleCode (TENANT_OWNER etc.) back to invitation enum (ADMIN, OPERATOR, STAFF)
+      let inviteRole = 'STAFF';
+      if (roleCode === TENANT_ROLES.ADMIN) inviteRole = 'ADMIN';
+      else if (roleCode === TENANT_ROLES.OPERATOR) inviteRole = 'OPERATOR';
+
+      const data = await apiFetch(`/admin/invitations`, {
         method: 'POST',
-        body: JSON.stringify({ email, groupId: user.groupId, role: roleCode })
+        body: JSON.stringify({ email, role: inviteRole })
       });
       await get().listMemberships();
       return { success: true, data };
@@ -321,8 +402,7 @@ const useAuthStore = create((set, get) => ({
 
   updateMembershipStatus: async (membershipId, status) => {
     try {
-      const { user } = get();
-      await apiFetch(`/tenants/${user.tenantId}/admin/memberships/${membershipId}/status`, {
+      await apiFetch(`/admin/memberships/${membershipId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status })
       });
@@ -335,8 +415,7 @@ const useAuthStore = create((set, get) => ({
 
   assignRole: async (membershipId, roleCode) => {
     try {
-      const { user } = get();
-      await apiFetch(`/tenants/${user.tenantId}/admin/memberships/${membershipId}/roles/${roleCode}`, { method: 'POST' });
+      await apiFetch(`/admin/memberships/${membershipId}/roles/${roleCode}`, { method: 'POST' });
       await get().listMemberships();
       return { success: true };
     } catch (error) {
@@ -346,8 +425,7 @@ const useAuthStore = create((set, get) => ({
 
   revokeRole: async (membershipId, roleCode) => {
     try {
-      const { user } = get();
-      await apiFetch(`/tenants/${user.tenantId}/admin/memberships/${membershipId}/roles/${roleCode}`, { method: 'DELETE' });
+      await apiFetch(`/admin/memberships/${membershipId}/roles/${roleCode}`, { method: 'DELETE' });
       await get().listMemberships();
       return { success: true };
     } catch (error) {
@@ -357,8 +435,7 @@ const useAuthStore = create((set, get) => ({
 
   applyTemplateToMembership: async (membershipId, templateCode, reason = 'Direct assignment') => {
     try {
-      const { user } = get();
-      await apiFetch(`/tenants/${user.tenantId}/admin/memberships/${membershipId}/permission-templates/${templateCode}/apply`, {
+      await apiFetch(`/admin/memberships/${membershipId}/permission-templates/${templateCode}/apply`, {
         method: 'POST',
         body: JSON.stringify({ reason })
       });
@@ -371,8 +448,7 @@ const useAuthStore = create((set, get) => ({
 
   revokeTemplateFromMembership: async (membershipId, templateCode, reason = 'Direct revoke') => {
     try {
-      const { user } = get();
-      await apiFetch(`/tenants/${user.tenantId}/admin/memberships/${membershipId}/permission-templates/${templateCode}/revoke`, {
+      await apiFetch(`/admin/memberships/${membershipId}/permission-templates/${templateCode}/revoke`, {
         method: 'POST',
         body: JSON.stringify({ reason })
       });
@@ -605,6 +681,153 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
+  partnerLinks: [],
+  delegations: [],
+
+  // --- PARTNER LINK ACTIONS ---
+  createPartnerLink: async (data) => {
+    try {
+      const response = await apiFetch('/workflows/partner-links', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      await get().fetchPartnerLinks();
+      return { success: true, data: response };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  fetchPartnerLinks: async (status = '') => {
+    try {
+      const query = status ? `?status=${status}` : '';
+      const data = await apiFetch(`/workflows/partner-links${query}`);
+      set({ partnerLinks: data || [] });
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  approvePartnerLink: async (id) => {
+    try {
+      await apiFetch(`/workflows/admin/partner-links/${id}/approve`, { method: 'POST' });
+      await get().fetchPartnerLinks();
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  rejectPartnerLink: async (id, reason) => {
+    try {
+      await apiFetch(`/workflows/admin/partner-links/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      });
+      await get().fetchPartnerLinks();
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  suspendPartnerLink: async (id) => {
+    try {
+      await apiFetch(`/workflows/partner-links/${id}/suspend`, { method: 'POST' });
+      await get().fetchPartnerLinks();
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  resumePartnerLink: async (id) => {
+    try {
+      await apiFetch(`/workflows/partner-links/${id}/resume`, { method: 'POST' });
+      await get().fetchPartnerLinks();
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  terminatePartnerLink: async (id, reason) => {
+    try {
+      await apiFetch(`/workflows/partner-links/${id}/terminate`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      });
+      await get().fetchPartnerLinks();
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  // --- DELEGATION ACTIONS ---
+  grantDelegation: async (data) => {
+    try {
+      const { user } = get();
+      const response = await apiFetch(`/workflows/tenants/${user.tenantId}/delegations`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      await get().fetchDelegations();
+      return { success: true, data: response };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  grantPassportDelegation: async (partnerLinkId, data) => {
+    try {
+      const { user } = get();
+      const response = await apiFetch(`/workflows/tenants/${user.tenantId}/partners/${partnerLinkId}/passport-delegations`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      await get().fetchDelegations();
+      return { success: true, data: response };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  revokeDelegation: async (id, reason) => {
+    try {
+      await apiFetch(`/workflows/delegations/${id}/revoke`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      });
+      await get().fetchDelegations();
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  fetchDelegations: async () => {
+    try {
+      const { user } = get();
+      if (!user?.tenantId) return { success: false };
+      const data = await apiFetch(`/workflows/tenants/${user.tenantId}/delegations`);
+      set({ delegations: data || [] });
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  searchTenants: async (name) => {
+    try {
+      if (!name) return { success: true, data: [] };
+      const data = await apiFetch(`/workflows/tenants/search?name=${encodeURIComponent(name)}`);
+      return { success: true, data: data || [] };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
 }));
 
 export default useAuthStore;

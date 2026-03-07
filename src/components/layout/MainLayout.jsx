@@ -58,10 +58,10 @@ const MainLayout = () => {
                                 </select>
                             )}
                             <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">
+                                <Link to="/mypage" className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300 transition-colors">
                                     <User size={16} />
-                                </div>
-                                <span className="text-sm font-medium text-gray-700 hidden sm:block">{user?.name}</span>
+                                </Link>
+                                <Link to="/mypage" className="text-sm font-medium text-gray-700 hidden sm:block hover:text-gray-900">{user?.email || '사용자'}</Link>
                             </div>
                             <button onClick={() => {
                                 useAuthStore.getState().logout();

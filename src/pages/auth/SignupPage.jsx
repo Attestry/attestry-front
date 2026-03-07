@@ -24,6 +24,7 @@ const SignupPage = () => {
             const result = await signup(formData.email, formData.password, formData.phone);
             if (result.success) {
                 alert('회원가입이 완료되었습니다. 로그인해주세요.');
+                // Preserve returnTo when going to login
                 const next = safeReturnTo ? `/login?returnTo=${encodeURIComponent(safeReturnTo)}` : '/login';
                 navigate(next);
             } else {

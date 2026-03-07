@@ -1,6 +1,6 @@
 import React from 'react';
 import { Menu, Bell, User, LayoutDashboard, Settings } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import useAuthStore, { ROLE_THEMES, ROLES } from '../../store/useAuthStore';
 
 const TopNav = () => {
@@ -31,7 +31,7 @@ const TopNav = () => {
             <div className="flex items-center gap-4">
                 {user?.availableRoles?.length > 1 && (
                     <select
-                        className="text-sm border rounded-md py-1.5 px-3 bg-white shadow-sm font-medium transition-colors focus:outline-none focus:ring-2"
+                        className="text-sm border border-gray-300 rounded-md py-1.5 px-3 bg-white text-gray-700 font-medium shadow-sm transition-colors hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900"
                         value={user.role}
                         onChange={(e) => {
                             const newRole = e.target.value;
@@ -44,11 +44,14 @@ const TopNav = () => {
                                 navigate(`/${newRole.toLowerCase()}`);
                             }
                         }}
-                        style={{ borderColor: theme.border, color: theme.primary }}
                     >
                         {user.availableRoles.map(r => (
                             <option key={r} value={r}>
-                                전환: {ROLE_THEMES[r]?.name || r}
+                                프로필: {r === ROLES.USER ? '일반 사용자' :
+                                    r === ROLES.BRAND ? '제조 (Brand)' :
+                                        r === ROLES.RETAIL ? '유통 (Retail)' :
+                                            r === ROLES.SERVICE ? '서비스 (Service)' :
+                                                '플랫폼 관리자'}
                             </option>
                         ))}
                     </select>
@@ -58,13 +61,13 @@ const TopNav = () => {
                     <Bell size={20} />
                 </button>
                 <div className="flex items-center gap-2">
-                    <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-white"
+                    <Link to="/mypage"
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-white hover:opacity-80 transition-opacity"
                         style={{ backgroundColor: theme.primary }}
                     >
                         <User size={16} />
-                    </div>
-                    <span className="text-sm font-medium text-gray-700">{user.name}</span>
+                    </Link>
+                    <Link to="/mypage" className="text-sm font-medium text-gray-700 hover:text-gray-900">{user.email || '사용자'}</Link>
                 </div>
                 <button
                     onClick={() => useAuthStore.getState().logout()}

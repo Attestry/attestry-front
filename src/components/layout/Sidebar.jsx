@@ -7,28 +7,24 @@ import useAuthStore, { ROLE_THEMES, ROLES } from '../../store/useAuthStore';
 const SIDEBAR_MENUS = {
     [ROLES.BRAND]: [
         { title: '대시보드', path: '/brand', icon: LayoutDashboard },
-        { title: '제품 등록 (Mint)', path: '/brand/mint', icon: Tag },
         { title: '출고 관리 (Release)', path: '/brand/release', icon: PackageCheck },
-        { title: '위임 기능', path: '/brand/delegate', icon: Briefcase },
+        { title: '파트너십 관리', path: '/brand/delegate', icon: Briefcase },
         { title: '멤버십 관리', path: '/tenant/memberships', icon: Users },
-        { title: '권한 템플릿 관리', path: '/tenant/templates', icon: Briefcase },
     ],
     [ROLES.RETAIL]: [
         { title: '대시보드', path: '/retail', icon: LayoutDashboard },
         { title: '보유 제품 관리', path: '/retail/inventory', icon: PackageCheck },
         { title: '소유권 이전', path: '/retail/transfer', icon: RefreshCw },
-        { title: '위임 기능', path: '/retail/delegate', icon: Briefcase },
+        { title: '파트너십 관리', path: '/retail/delegate', icon: Briefcase },
         { title: '멤버십 관리', path: '/tenant/memberships', icon: Users },
-        { title: '권한 템플릿 관리', path: '/tenant/templates', icon: Briefcase },
     ],
     [ROLES.SERVICE]: [
         { title: '대시보드', path: '/service', icon: LayoutDashboard },
         { title: '서비스 요청 관리', path: '/service/requests', icon: ClipboardList },
         { title: '수신 요청 처리', path: '/service/processing', icon: Wrench },
         { title: '완료 이력 관리', path: '/service/history', icon: FileCheck },
-        { title: '위임 기능', path: '/service/delegate', icon: Briefcase },
+        { title: '파트너십 관리', path: '/service/delegate', icon: Briefcase },
         { title: '멤버십 관리', path: '/tenant/memberships', icon: Users },
-        { title: '권한 템플릿 관리', path: '/tenant/templates', icon: Briefcase },
     ],
     [ROLES.PLATFORM_ADMIN]: [
         { title: '업체 승인 관리', path: '/admin/onboarding', icon: ShieldAlert },
@@ -37,12 +33,26 @@ const SIDEBAR_MENUS = {
 };
 
 const Sidebar = () => {
-    const { user } = useAuthStore();
+    const { user, myMemberships } = useAuthStore();
 
     if (!user) return null;
 
     const theme = ROLE_THEMES[user.role];
-    const menus = SIDEBAR_MENUS[user.role] || [];
+    const currentMembership = myMemberships.find(m => m.tenantId === user?.tenantId) || myMemberships[0];
+    const isBrandGroup = currentMembership?.groupType === 'BRAND';
+
+    let menus = SIDEBAR_MENUS[user.role] ? [...SIDEBAR_MENUS[user.role]] : [];
+
+    // Conditionally add 'Product Management' menu
+    if (user.role === ROLES.BRAND && isBrandGroup) {
+        // Insert after '대시보드'
+        const dashIndex = menus.findIndex(m => m.path === '/brand');
+        if (dashIndex !== -1) {
+            menus.splice(dashIndex + 1, 0, { title: '제품 관리 (Product Passports)', path: '/brand/products', icon: PackageCheck });
+        } else {
+            menus.push({ title: '제품 관리 (Product Passports)', path: '/brand/products', icon: PackageCheck });
+        }
+    }
 
     return (
         <aside className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col h-[calc(100vh-4rem)] sticky top-16">
@@ -81,11 +91,6 @@ const Sidebar = () => {
                 ))}
             </nav>
 
-            <div className="p-4 border-t border-gray-200">
-                <button className="flex items-center justify-center gap-2 w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                    로그아웃
-                </button>
-            </div>
         </aside>
     );
 };
