@@ -219,7 +219,12 @@ const PartnershipAdmin = () => {
                                 {incomingRequests.map(request => (
                                     <div key={request.partnerLinkId} className="bg-white p-4 rounded-xl shadow-sm border border-amber-100 flex flex-col justify-between">
                                         <div>
-                                            <div className="font-bold text-gray-900 mb-1">{request.sourceTenantName || '요청업체'}</div>
+                                            <div className="flex justify-between items-start mb-1">
+                                                <div className="font-bold text-gray-900">{request.sourceTenantName || '요청업체'}</div>
+                                                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px] font-bold">
+                                                    {request.sourceType || '알수없음'}
+                                                </span>
+                                            </div>
                                             <div className="text-[10px] text-gray-400 mb-3">ID: {request.partnerLinkId}</div>
                                             <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-4 bg-gray-50 p-2 rounded-lg">
                                                 <Calendar size={14} className="text-gray-400" />
@@ -278,7 +283,7 @@ const PartnershipAdmin = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[10px] font-bold">
-                                                    {link.partnerType}
+                                                    {link.sourceTenantId === user?.tenantId ? link.partnerType : link.sourceType}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">

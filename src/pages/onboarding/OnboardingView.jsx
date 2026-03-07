@@ -11,7 +11,7 @@ const TYPE_OPTIONS = [
 
 const OnboardingView = () => {
     const [loading, setLoading] = useState(false);
-    const [file, setFile] = useState(null);
+    const [files, setFiles] = useState([]);
     const [selectedType, setSelectedType] = useState(null);
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
@@ -31,45 +31,64 @@ const OnboardingView = () => {
     };
 
     const handleFileChange = (e) => {
-        if (e.target.files && e.target.files[0]) {
-            setFile(e.target.files[0]);
+        if (e.target.files && e.target.files.length > 0) {
+            setFiles(prev => [...prev, ...Array.from(e.target.files)]);
         }
+    };
+
+    const handleRemoveFile = (indexToRemove) => {
+        setFiles(prev => prev.filter((_, idx) => idx !== indexToRemove));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!file) {
-            alert('증빙 서류를 업로드해주세요.');
+        if (files.length === 0) {
+            alert('최소 1개 이상의 증빙 서류를 업로드해주세요.');
             return;
         }
 
         setLoading(true);
         try {
-            // 1. Presign
-            const presignRes = await presignEvidence(file.name, file.type);
-            if (!presignRes.success) throw new Error(presignRes.message);
+            let currentBundleId = null;
+            const uploadTasks = [];
 
-            const { uploadUrl, evidenceBundleId, evidenceFileId } = presignRes.data;
+            // 1. Register all files first (Presign)
+            // This ensures the bundle knows about all files before any are marked 'complete'
+            for (const fileItem of files) {
+                const presignRes = await presignEvidence(fileItem.name, fileItem.type || 'application/octet-stream', currentBundleId);
+                if (!presignRes.success) throw new Error(presignRes.message);
 
-            // 2. Upload to S3 (Mocking/Proxying actual PUT if needed, but fetch works for presigned)
-            // Note: In local dev with proxy, PUT might need special handling if not proxied correctly, 
-            // but usually presigned URLs are full URLs to S3/Cloud Storage.
-            const uploadRes = await fetch(uploadUrl, {
-                method: 'PUT',
-                body: file,
-                headers: { 'Content-Type': file.type }
-            });
-            if (!uploadRes.ok) throw new Error('파일 업로드에 실패했습니다.');
+                const { uploadUrl, evidenceBundleId, evidenceFileId } = presignRes.data;
+                currentBundleId = evidenceBundleId; // Reuse the bundle ID for subsequent files
 
-            // 3. Complete
-            const completeRes = await completeEvidenceUpload(evidenceBundleId, evidenceFileId, file.size);
-            if (!completeRes.success) throw new Error(completeRes.message);
+                uploadTasks.push({
+                    fileItem,
+                    uploadUrl,
+                    evidenceBundleId,
+                    evidenceFileId
+                });
+            }
 
-            // 4. Submit Application
+            // 2. Upload and Complete each file
+            for (const task of uploadTasks) {
+                // Upload to S3
+                const uploadRes = await fetch(task.uploadUrl, {
+                    method: 'PUT',
+                    body: task.fileItem,
+                    headers: { 'Content-Type': task.fileItem.type || 'application/octet-stream' }
+                });
+                if (!uploadRes.ok) throw new Error(`파일 업로드에 실패했습니다: ${task.fileItem.name}`);
+
+                // Complete
+                const completeRes = await completeEvidenceUpload(task.evidenceBundleId, task.evidenceFileId, task.fileItem.size);
+                if (!completeRes.success) throw new Error(completeRes.message);
+            }
+
+            // 3. Submit Application
             const submitRes = await submitApplication({
                 type: selectedType,
                 ...formData,
-                evidenceBundleId
+                evidenceBundleId: currentBundleId
             });
 
             if (submitRes.success) {
@@ -175,8 +194,34 @@ const OnboardingView = () => {
 
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">증빙 서류 (사업자등록증 등)</label>
-                            <input required type="file" onChange={handleFileChange} className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900 text-sm" />
-                            <p className="mt-1 text-xs text-gray-500">PDF, JPG, PNG 형식 지원 (최대 10MB)</p>
+
+                            <div className="mt-1 flex flex-col gap-2">
+                                <label className="flex items-center justify-center w-full bg-gray-50 border border-gray-300 border-dashed rounded-md px-4 py-4 cursor-pointer hover:border-gray-900 transition-colors">
+                                    <span className="text-sm font-medium text-gray-600">파일 첨부하기 (클릭)</span>
+                                    <input required={files.length === 0} type="file" multiple onChange={handleFileChange} className="sr-only" accept=".pdf,.jpg,.jpeg,.png" />
+                                </label>
+                                <p className="text-xs text-gray-500">PDF, JPG, PNG 형식 다중 첨부 지원 (개당 최대 10MB)</p>
+                            </div>
+
+                            {files.length > 0 && (
+                                <ul className="mt-4 space-y-2">
+                                    {files.map((f, idx) => (
+                                        <li key={idx} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-md">
+                                            <div className="flex flex-col overflow-hidden">
+                                                <span className="text-sm font-medium text-gray-900 truncate" title={f.name}>{f.name}</span>
+                                                <span className="text-xs text-gray-500">{(f.size / 1024 / 1024).toFixed(2)} MB</span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveFile(idx)}
+                                                className="text-gray-400 hover:text-red-500 font-bold px-2 py-1 text-xs"
+                                            >
+                                                삭제
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
 
                         <div className="pt-4 mt-6 border-t border-gray-100 flex justify-between">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Package, Search, Calendar, Filter, Download, Plus, FileDigit, Database, Factory, Hash, Code, Loader2, X, UploadCloud, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Package, Search, Calendar, Filter, Download, Plus, FileDigit, Database, Factory, Hash, Code, Loader2, X, UploadCloud, FileText, AlertCircle } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 
 // Role-based utility to fetch with Auth Token
@@ -28,13 +29,20 @@ const fetchWithAuth = async (url, options = {}) => {
 };
 
 const ProductManagement = () => {
+    const navigate = useNavigate();
     const { user, myMemberships } = useAuthStore();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [assetStateFilter, setAssetStateFilter] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
 
     // Modal states
     const [isMintModalOpen, setIsMintModalOpen] = useState(false);
+    const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
+    const [selectedPassportId, setSelectedPassportId] = useState(null);
+    const [voidForm, setVoidForm] = useState({ reason: 'COUNTERFEIT_DETECTED', note: '' });
     const [mintMode, setMintMode] = useState('single'); // 'single' or 'batch'
     const [mintLoading, setMintLoading] = useState(false);
     const fileInputRef = useRef(null);
@@ -59,26 +67,34 @@ const ProductManagement = () => {
         )
         : null;
 
-    // 제품 등록(Mint) 버튼 노출 조건:
-    // 1) 현재 로그인한 tenant membership의 roleCodes에 TENANT_OPERATOR가 있거나
-    // 2) 현재 로그인한 tenant membership의 effectiveScopes에 BRAND_MINT가 있을 때만 허용
-    const hasOperatorRole = currentMembership?.roleCodes?.some(
-        r => String(r).toUpperCase() === 'TENANT_OPERATOR'
-    ) ?? false;
-
-    const hasBrandMintScope = currentMembership?.effectiveScopes?.some((s) => {
+    // DPP 발행(Mint) 버튼 노출 조건:
+    // 오직 현재 로그인한 tenant membership의 effectiveScopes에 BRAND_MINT가 존재할 때만 허용
+    const hasMintPermission = currentMembership?.effectiveScopes?.some((s) => {
         const scope = String(s).toUpperCase();
         return scope === 'BRAND_MINT' || scope === 'SCOPE_BRAND_MINT';
     }) ?? false;
 
-    const hasMintPermission = hasOperatorRole || hasBrandMintScope;
+    // Void 버튼 노출 조건: BRAND_VOID 스코프
+    const hasVoidPermission = currentMembership?.effectiveScopes?.some((s) => {
+        const scope = String(s).toUpperCase();
+        return scope === 'BRAND_VOID' || scope === 'SCOPE_BRAND_VOID';
+    }) ?? false;
 
     const fetchProducts = async () => {
         if (!user?.tenantId) return;
         setLoading(true);
         try {
-            // Updated to fetch paginated response
-            const data = await fetchWithAuth(`/products/minted/passports?page=0&size=100`);
+            const params = new URLSearchParams({ page: 0, size: 20 });
+            if (searchTerm) params.append('keyword', searchTerm);
+            if (assetStateFilter) params.append('assetState', assetStateFilter);
+            if (startDate) params.append('createdFrom', new Date(startDate).toISOString());
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                params.append('createdTo', end.toISOString());
+            }
+
+            const data = await fetchWithAuth(`/products/tenant/passports?${params.toString()}`);
             const allProducts = data?.content || [];
             // 개인 소유(ownerId가 존재)로 넘어간 항목은 브랜드 제품 관리 목록에서 제외
             setProducts(allProducts.filter((item) => !item.ownerId));
@@ -90,8 +106,11 @@ const ProductManagement = () => {
     };
 
     useEffect(() => {
-        fetchProducts();
-    }, [user?.tenantId]);
+        const timer = setTimeout(() => {
+            fetchProducts();
+        }, 300); // Debounce search and filter
+        return () => clearTimeout(timer);
+    }, [user?.tenantId, searchTerm, assetStateFilter, startDate, endDate]);
 
     const handleMintChange = (e) => {
         const { name, value } = e.target;
@@ -183,6 +202,23 @@ const ProductManagement = () => {
         });
     };
 
+    const handleVoidSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await fetchWithAuth(`/products/passports/${selectedPassportId}/void`, {
+                method: 'POST',
+                body: JSON.stringify(voidForm)
+            });
+            alert('제품이 무효화(VOID) 처리되었습니다.');
+            setIsVoidModalOpen(false);
+            setVoidForm({ reason: 'COUNTERFEIT_DETECTED', note: '' });
+            fetchProducts();
+        } catch (error) {
+            console.error(error);
+            alert(`무효화 실패: ${error.message}`);
+        }
+    };
+
     const handleDownloadTemplate = () => {
         const header = "serial_number,model_id,model_name,manufactured_at,production_batch,factory_code,component_root_hash\n";
         const sampleRow = "SN-001,MODEL-01,Sample Product,2026-03-01T00:00:00Z,BATCH-1,FC-1,\n";
@@ -214,11 +250,6 @@ const ProductManagement = () => {
             default: return 'text-gray-400';
         }
     };
-
-    const filteredProducts = products.filter(p =>
-        (p.modelName && p.modelName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (p.serialNumber && p.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
@@ -263,14 +294,31 @@ const ProductManagement = () => {
                     />
                 </div>
                 <div className="flex gap-2">
-                    <button className="flex items-center gap-2 bg-gray-50 text-gray-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-100 transition-colors">
-                        <Filter size={16} />
-                        상태 필터
-                    </button>
-                    <button className="flex items-center gap-2 bg-gray-50 text-gray-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-100 transition-colors">
-                        <Calendar size={16} />
-                        기간 설정
-                    </button>
+                    <select
+                        value={assetStateFilter}
+                        onChange={(e) => setAssetStateFilter(e.target.value)}
+                        className="bg-gray-50 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold border-none outline-none cursor-pointer focus:ring-2 focus:ring-indigo-100"
+                    >
+                        <option value="">모든 상태</option>
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="VOIDED">VOIDED</option>
+                    </select>
+                    <div className="flex items-center gap-1 bg-gray-50 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-indigo-100 border border-transparent">
+                        <Calendar size={16} className="text-gray-400 shrink-0" />
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="bg-transparent border-none text-sm text-gray-600 outline-none p-0 focus:ring-0 cursor-pointer"
+                        />
+                        <span className="text-gray-400 mx-1 text-xs">~</span>
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="bg-transparent border-none text-sm text-gray-600 outline-none p-0 focus:ring-0 cursor-pointer"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -279,56 +327,63 @@ const ProductManagement = () => {
                 <table className="w-full text-left">
                     <thead className="bg-gray-50 border-b border-gray-100">
                         <tr>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">제품 정보 (Model / Serial)</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Passport ID / Asset ID</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">제조일 (Manufactured)</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">상태 (State / Risk)</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">현재 소유자</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">제품 정보</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">DPP ID</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">발행일</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">상태</th>
+                            {hasVoidPermission && <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">관리</th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {loading ? (
                             <tr>
-                                <td colSpan="5" className="px-6 py-12 text-center text-gray-400">데이터를 불러오는 중입니다...</td>
+                                <td colSpan={hasVoidPermission ? "5" : "4"} className="px-6 py-12 text-center text-gray-400">데이터를 불러오는 중입니다...</td>
                             </tr>
-                        ) : filteredProducts.length === 0 ? (
+                        ) : products.length === 0 ? (
                             <tr>
-                                <td colSpan="5" className="px-6 py-12 text-center text-gray-400">
+                                <td colSpan={hasVoidPermission ? "5" : "4"} className="px-6 py-12 text-center text-gray-400">
                                     <Package size={32} className="mx-auto mb-3 opacity-50" />
                                     발행된 제품 내역이 없습니다.
                                 </td>
                             </tr>
                         ) : (
-                            filteredProducts.map((p) => (
+                            products.map((p) => (
                                 <tr key={p.passportId} className="hover:bg-gray-50 transition-colors group">
-                                    <td className="px-6 py-4">
-                                        <div className="font-bold text-gray-900">{p.modelName}</div>
+                                    <td
+                                        className="px-6 py-4 cursor-pointer"
+                                        onClick={() => navigate(`/brand/products/${p.passportId}`)}
+                                    >
+                                        <div className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{p.modelName}</div>
                                         <div className="text-xs text-gray-500 mt-1 uppercase tracking-tight">{p.serialNumber}</div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="text-[11px] font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded inline-block mb-1">P: {p.passportId.substring(0, 16)}...</div>
-                                        <div className="text-[10px] text-gray-400 block">A: {p.assetId}</div>
+                                        <div className="text-[11px] font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded inline-block mb-1">P: {p.passportId ? p.passportId.substring(0, 16) + '...' : '-'}</div>
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="text-sm text-gray-700">
-                                            {p.manufacturedAt ? new Date(p.manufacturedAt).toLocaleDateString() : '-'}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-col gap-1.5 items-start">
-                                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getStatusTheme(p.assetState)}`}>
-                                                {p.assetState}
-                                            </span>
-                                            <span className={`text-[10px] uppercase ${getRiskTheme(p.riskFlag)}`}>
-                                                Risk: {p.riskFlag}
-                                            </span>
+                                            {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '-'}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <span className="text-xs font-medium text-gray-900 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200">
-                                            {p.ownerId || '소유자 없음'}
+                                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getStatusTheme(p.assetState)}`}>
+                                            {p.assetState}
                                         </span>
                                     </td>
+                                    {hasVoidPermission && (
+                                        <td className="px-6 py-4 text-right">
+                                            {p.assetState === 'ACTIVE' && (
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedPassportId(p.passportId);
+                                                        setIsVoidModalOpen(true);
+                                                    }}
+                                                    className="px-3 py-1 bg-white border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors cursor-pointer inline-flex items-center justify-center"
+                                                >
+                                                    무효화 (Void)
+                                                </button>
+                                            )}
+                                        </td>
+                                    )}
                                 </tr>
                             ))
                         )}
@@ -585,6 +640,83 @@ const ProductManagement = () => {
                                 >
                                     {mintLoading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
                                     {mintMode === 'single' ? '개별 발행 (Mint)' : '일괄 발행 (Batch Upload)'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Void Modal */}
+            {isVoidModalOpen && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+                        <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-red-600 flex items-center gap-2">
+                                <AlertCircle size={24} />
+                                제품 무효화 (Void Asset)
+                            </h2>
+                            <button
+                                onClick={() => setIsVoidModalOpen(false)}
+                                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleVoidSubmit} className="p-6">
+                            <div className="space-y-4">
+                                <div className="bg-red-50 text-red-700 p-4 rounded-xl text-sm mb-4 border border-red-100">
+                                    <span className="font-bold border-b border-red-200 pb-1 mb-2 block">주의: 이는 영구적인 조치입니다!</span>
+                                    이 작업은 선택된 제품(DPP)의 상태를 영구적으로 무효화(VOIDED) 처리합니다.
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                                        무효화 사유 (Reason) *
+                                    </label>
+                                    <select
+                                        name="reason"
+                                        required
+                                        value={voidForm.reason}
+                                        onChange={(e) => setVoidForm({ ...voidForm, reason: e.target.value })}
+                                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-colors"
+                                    >
+                                        <option value="COUNTERFEIT_DETECTED">위조품 발견 (Counterfeit)</option>
+                                        <option value="LEGAL_ISSUE">법적 문제 (Legal Issue)</option>
+                                        <option value="MANUFACTURING_DEFECT">제조 결함 (Defect)</option>
+                                        <option value="INCORRECT_MINT_DATA">발행 정보 오류 (Incorrect Data)</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                                        추가 메모 (Note)
+                                    </label>
+                                    <textarea
+                                        name="note"
+                                        value={voidForm.note}
+                                        onChange={(e) => setVoidForm({ ...voidForm, note: e.target.value })}
+                                        rows={3}
+                                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-colors resize-none"
+                                        placeholder="선택 사항입니다."
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="mt-8 pt-4 border-t border-gray-100 flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsVoidModalOpen(false)}
+                                    className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-bold bg-white hover:bg-gray-50 transition-colors cursor-pointer"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-6 py-2 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-colors cursor-pointer"
+                                >
+                                    무효화 실행
                                 </button>
                             </div>
                         </form>

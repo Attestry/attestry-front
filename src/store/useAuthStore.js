@@ -150,17 +150,26 @@ const useAuthStore = create((set, get) => ({
         availableRoles.push(ROLES.PLATFORM_ADMIN);
       }
       availableRoles = [...new Set(availableRoles)];
-      const activeMembership = (memberships || []).find((m) => String(m.status).toUpperCase() === 'ACTIVE') || memberships?.[0];
 
       set(state => {
         const currentUser = state.user;
-        if (!currentUser) return state; // Should be handled by App.js calling login or logout
+        if (!currentUser) return state;
+
+        // If user already has a tenantId, try to find it in the new memberships list
+        // Otherwise, pick the first active one or just the first one.
+        const currentTenantId = currentUser.tenantId;
+        const matchingMembership = (memberships || []).find(m => m.tenantId === currentTenantId);
+
+        const activeMembership = matchingMembership ||
+          (memberships || []).find((m) => String(m.status).toUpperCase() === 'ACTIVE') ||
+          memberships?.[0];
 
         const nextRole = availableRoles.includes(currentUser.role) ? currentUser.role : ROLES.USER;
 
         const newUser = {
           ...currentUser,
-          tenantId: activeMembership?.tenantId ?? currentUser.tenantId ?? null,
+          tenantId: activeMembership?.tenantId ?? null,
+          tenantName: activeMembership?.tenantName ?? null,
           role: nextRole,
           availableRoles,
         };
@@ -184,9 +193,16 @@ const useAuthStore = create((set, get) => ({
 
   reissueToken: async () => {
     try {
-      const data = await apiFetch('/auth/token-reissue', { method: 'POST' });
-      // Update store with new token (same user object, but token has new scopes)
-      get().setToken(data.accessToken, get().user);
+      const data = await apiFetch('/auth/token-reissue', {
+        method: 'POST'
+      });
+      // Update store with new token
+      get().setToken(data.accessToken, {
+        ...get().user,
+        tenantId: data.tenantId
+      });
+      // Refresh memberships to get updated scopes/roles
+      await get().fetchMyMemberships();
       return { success: true, data };
     } catch (error) {
       console.error('Token reissue failed:', error.message);
@@ -232,11 +248,11 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
-  presignEvidence: async (fileName, contentType) => {
+  presignEvidence: async (fileName, contentType, evidenceBundleId = null) => {
     try {
       const data = await apiFetch('/onboarding/evidences/presign', {
         method: 'POST',
-        body: JSON.stringify({ evidenceBundleId: null, fileName, contentType })
+        body: JSON.stringify({ evidenceBundleId, fileName, contentType })
       });
       return { success: true, data };
     } catch (error) {
