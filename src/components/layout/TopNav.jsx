@@ -5,7 +5,7 @@ import { flushSync } from 'react-dom';
 import useAuthStore, { ROLE_THEMES, ROLES } from '../../store/useAuthStore';
 
 const TopNav = () => {
-    const { user, setRole } = useAuthStore();
+    const { user, myMemberships, setRole, switchTenant } = useAuthStore();
     const navigate = useNavigate();
 
     if (!user) return null;

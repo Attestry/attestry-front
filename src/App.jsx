@@ -20,6 +20,9 @@ import ProductManagement from './pages/product/ProductManagement';
 import PurchaseClaimView from './pages/claim/PurchaseClaimView';
 import PurchaseClaimAdminView from './pages/claim/PurchaseClaimAdminView';
 import TransferReceiveView from './pages/transfer/TransferReceiveView';
+import ProductDetail from './pages/product/ProductDetail';
+import ShipmentManagement from './pages/shipment/ShipmentManagement';
+import ShipmentHistoryDetail from './pages/shipment/ShipmentHistoryDetail';
 
 const ProtectedRoute = ({ allowedRoles, children }) => {
   const { isAuthenticated, user } = useAuthStore();
@@ -117,31 +120,36 @@ const App = () => {
           </Route>
 
           <Route path="/brand">
-            <Route
-              index
-              element={
-                <ProtectedRoute allowedRoles={[ROLES.BRAND]}>
-                  <BrandView />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="release" element={<div className="p-8 font-bold">출고 관리 기능 개발중...</div>} />
-            <Route
-              path="delegate"
-              element={
-                <ProtectedRoute allowedRoles={[ROLES.BRAND]}>
-                  <PartnershipAdmin />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="products"
-              element={
-                <ProtectedRoute allowedRoles={[ROLES.BRAND]}>
-                  <ProductManagement />
-                </ProtectedRoute>
-              }
-            />
+            <Route index element={
+              <ProtectedRoute allowedRoles={[ROLES.BRAND]}>
+                <BrandView />
+              </ProtectedRoute>
+            } />
+            <Route path="release" element={
+              <ProtectedRoute allowedRoles={[ROLES.BRAND]}>
+                <ShipmentManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="shipments/:shipmentId" element={
+              <ProtectedRoute allowedRoles={[ROLES.BRAND]}>
+                <ShipmentHistoryDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="delegate" element={
+              <ProtectedRoute allowedRoles={[ROLES.BRAND]}>
+                <PartnershipAdmin />
+              </ProtectedRoute>
+            } />
+            <Route path="products" element={
+              <ProtectedRoute allowedRoles={[ROLES.BRAND]}>
+                <ProductManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="products/:passportId" element={
+              <ProtectedRoute allowedRoles={[ROLES.BRAND]}>
+                <ProductDetail />
+              </ProtectedRoute>
+            } />
             <Route path="*" element={<div className="p-8 font-bold">준비중인 메뉴입니다.</div>} />
           </Route>
 

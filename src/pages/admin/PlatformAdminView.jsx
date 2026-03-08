@@ -141,7 +141,11 @@ const PlatformAdminView = () => {
                                                 {app.bizRegNo || app.applicationId}
                                             </td>
                                             <td className="px-6 py-4">
-                                                {app.evidenceDownloadUrl ? (
+                                                {app.evidenceFiles && app.evidenceFiles.length > 0 ? (
+                                                    <span className="text-xs font-medium text-blue-600 flex items-center gap-1">
+                                                        <FileText size={14} /> {app.evidenceFiles.length}개 첨부됨
+                                                    </span>
+                                                ) : app.evidenceDownloadUrl ? (
                                                     <span className="text-xs font-medium text-blue-600 flex items-center gap-1">
                                                         <FileText size={14} /> 첨부됨
                                                     </span>
@@ -221,16 +225,41 @@ const PlatformAdminView = () => {
                                             <strong>반려 사유:</strong> {selectedApp.rejectReason}
                                         </div>
                                     )}
-                                    {selectedApp.evidenceDownloadUrl && (
+                                    {(selectedApp.evidenceFiles || selectedApp.evidenceDownloadUrl) && (
                                         <div className="pt-2">
                                             <div className="text-xs text-gray-500 mb-2">제출된 증빙 서류</div>
-                                            <button
-                                                onClick={() => handleDownload(selectedApp.evidenceDownloadUrl)}
-                                                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 w-full"
-                                            >
-                                                <Download size={16} className="text-gray-500" />
-                                                <span className="truncate">{selectedApp.evidenceOriginalFileName || '첨부파일 다운로드'}</span>
-                                            </button>
+                                            <div className="space-y-2">
+                                                {selectedApp.evidenceFiles && selectedApp.evidenceFiles.length > 0 ? (
+                                                    selectedApp.evidenceFiles.map((file, idx) => (
+                                                        <button
+                                                            key={file.evidenceFileId || idx}
+                                                            onClick={() => handleDownload(file.downloadUrl)}
+                                                            className="flex items-center justify-between w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm transition-colors hover:bg-gray-100 group"
+                                                        >
+                                                            <div className="flex items-center gap-2 overflow-hidden mr-2">
+                                                                <FileText size={16} className="text-gray-400 shrink-0" />
+                                                                <span className="truncate text-gray-700 font-medium">{file.originalFileName}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                <span className="text-xs text-gray-400">{(file.sizeBytes / 1024 / 1024).toFixed(2)} MB</span>
+                                                                <Download size={14} className="text-gray-400 group-hover:text-blue-600 transition-colors" />
+                                                            </div>
+                                                        </button>
+                                                    ))
+                                                ) : (
+                                                    // Fallback for older single-file data structure
+                                                    <button
+                                                        onClick={() => handleDownload(selectedApp.evidenceDownloadUrl)}
+                                                        className="flex items-center justify-between w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm transition-colors hover:bg-gray-100 group"
+                                                    >
+                                                        <div className="flex items-center gap-2 overflow-hidden mr-2">
+                                                            <FileText size={16} className="text-gray-400 shrink-0" />
+                                                            <span className="truncate text-gray-700 font-medium">{selectedApp.evidenceOriginalFileName || '증빙서류'}</span>
+                                                        </div>
+                                                        <Download size={14} className="text-gray-400 group-hover:text-blue-600 transition-colors" />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
