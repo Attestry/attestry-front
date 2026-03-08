@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { PackageCheck, UploadCloud, X, Loader2, FileText, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PackageCheck, UploadCloud, X, Loader2, FileText, Search, ChevronLeft, ChevronRight, QrCode } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
+import QRScannerModal from '../../components/shipment/QRScannerModal';
 
 // Local API Fetch Helper matching the store
 const apiFetch = async (url, options = {}) => {
@@ -58,6 +59,7 @@ const ShipmentManagement = () => {
     const [selectedCandidate, setSelectedCandidate] = useState(null);
     const [evidenceFiles, setEvidenceFiles] = useState([]);
     const [releaseLoading, setReleaseLoading] = useState(false);
+    const [isQRScannerModalOpen, setIsQRScannerModalOpen] = useState(false);
 
     // Get current tenant's group info
     const currentMembership = user?.tenantId
@@ -247,6 +249,61 @@ const ShipmentManagement = () => {
         setEvidenceFiles([]);
     };
 
+    const handleQRScanSuccess = async (decodedText) => {
+        setIsQRScannerModalOpen(false);
+
+        // Extract passportId from URL: .../ledgers/passports/{passportId}/entries
+        // Handle various formats: just the ID or the full URL
+        let passportId = decodedText;
+        if (decodedText.includes('passports/')) {
+            const parts = decodedText.split('passports/');
+            if (parts.length > 1) {
+                passportId = parts[1].split('/')[0];
+            }
+        }
+
+        if (!passportId) {
+            alert("QR 코드에서 올바른 정보를 추출할 수 없습니다.");
+            return;
+        }
+
+        // 1. Check current candidates list if it's already there
+        let candidate = candidates.find(c => c.passportId === passportId);
+
+        if (!candidate) {
+            // 2. Fetch from server using the passportId as keyword
+            setLoading(true);
+            try {
+                const query = new URLSearchParams({
+                    page: 0,
+                    size: pageSize,
+                    keyword: passportId
+                }).toString();
+                const data = await apiFetch(`/workflows/shipments/release-candidates?${query}`);
+                const fetchedCandidates = data.content || [];
+
+                // Update candidates list with the search results
+                setCandidates(fetchedCandidates);
+                setTotalPages(data.totalPages || 0);
+                setTotalElements(data.totalElements || 0);
+                setSearchTerm(passportId); // Optional: show what was searched
+                setPage(0);
+
+                candidate = fetchedCandidates.find(c => c.passportId === passportId);
+            } catch (error) {
+                console.error("Failed to search candidate via QR:", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        if (candidate) {
+            openReleaseModal(candidate);
+        } else {
+            alert("해당 제품을 출고 대기 목록에서 찾을 수 없습니다. 이미 출고되었거나 권한이 없는지 확인해 주세요.");
+        }
+    };
+
     // Local data points (always use the state from API)
     const currentList = activeTab === 'candidates' ? candidates : history;
 
@@ -294,6 +351,15 @@ const ShipmentManagement = () => {
                     />
                 </div>
                 <div className="flex gap-2">
+                    {activeTab === 'candidates' && hasReleasePermission && (
+                        <button
+                            onClick={() => setIsQRScannerModalOpen(true)}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100 cursor-pointer"
+                        >
+                            <QrCode size={18} />
+                            QR 출고
+                        </button>
+                    )}
                     <div className="bg-gray-50 text-gray-600 px-4 py-2 rounded-xl text-sm font-bold flex items-center">
                         총 {totalElements}건
                     </div>
@@ -357,16 +423,22 @@ const ShipmentManagement = () => {
                                                 </div>
                                             )}
                                         </td>
-                                        {hasReleasePermission && (
-                                            <td className="px-6 py-4 text-right">
+                                        <td className="px-6 py-4 text-right flex justify-end gap-2">
+                                            <Link
+                                                to={`/${currentMembership?.groupType.toLowerCase()}/products/${c.passportId}`}
+                                                className="px-3 py-1.5 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors inline-flex items-center justify-center shadow-sm"
+                                            >
+                                                상세보기
+                                            </Link>
+                                            {hasReleasePermission && (
                                                 <button
                                                     onClick={() => openReleaseModal(c)}
                                                     className="px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer inline-flex items-center justify-center shadow-sm"
                                                 >
                                                     출고 처리
                                                 </button>
-                                            </td>
-                                        )}
+                                            )}
+                                        </td>
                                     </tr>
                                 ))
                             )
@@ -590,6 +662,13 @@ const ShipmentManagement = () => {
                     </div>
                 </div>
             )}
+
+            {/* QR Scanner Modal */}
+            <QRScannerModal
+                isOpen={isQRScannerModalOpen}
+                onClose={() => setIsQRScannerModalOpen(false)}
+                onScanSuccess={handleQRScanSuccess}
+            />
         </div>
     );
 };

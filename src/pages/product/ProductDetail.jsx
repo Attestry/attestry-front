@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
     Package, ArrowLeft, Calendar, Hash, Factory, Database,
     ShieldCheck, AlertTriangle, FileText, Download, User,
-    Clock, CheckCircle2, ChevronRight, Loader2, QrCode, Printer
+    Clock, CheckCircle2, ChevronRight, Loader2, QrCode, Printer,
+    RefreshCw
 } from 'lucide-react';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import useAuthStore from '../../store/useAuthStore';
@@ -299,6 +300,43 @@ const ProductDetail = () => {
                                     <Clock size={24} className="text-gray-300" />
                                 </div>
                                 <p className="text-gray-400 font-medium tracking-tight">아직 출고된 이력이 없습니다.</p>
+                            </div>
+                        )}
+                    </section>
+
+                    {/* Distribution Info Card */}
+                    <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
+                            <RefreshCw size={18} className="text-indigo-500" />
+                            <h2 className="font-bold text-gray-900">유통 위임 정보 (Distribution)</h2>
+                        </div>
+                        {product.distribution ? (
+                            <div className="p-6">
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600">
+                                        <ShieldCheck size={24} />
+                                    </div>
+                                    <div>
+                                        <div className="text-sm font-bold text-gray-900">
+                                            {product.distribution.tenantName} ({product.distribution.tenantId})
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                            {product.distribution.tenantType} 파트너에게 권한 위임됨
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-50 pt-6">
+                                    <InfoItem icon={<FileText size={16} />} label="부여된 권한" value={product.distribution.permissionCode} mono />
+                                    <InfoItem icon={<Clock size={16} />} label="위임 일시" value={new Date(product.distribution.grantedAt).toLocaleString()} />
+                                    <InfoItem icon={<ShieldCheck size={16} />} label="권한 스코프" value={product.distribution.scope} />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="p-12 text-center">
+                                <div className="bg-gray-50 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <ShieldCheck size={24} className="text-gray-300" />
+                                </div>
+                                <p className="text-gray-400 font-medium tracking-tight">현재 위임된 유통 파트너가 없습니다.</p>
                             </div>
                         )}
                     </section>

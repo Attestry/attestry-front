@@ -23,6 +23,7 @@ import TransferReceiveView from './pages/transfer/TransferReceiveView';
 import ProductDetail from './pages/product/ProductDetail';
 import ShipmentManagement from './pages/shipment/ShipmentManagement';
 import ShipmentHistoryDetail from './pages/shipment/ShipmentHistoryDetail';
+import DistributionManagement from './pages/distribution/DistributionManagement';
 
 const ProtectedRoute = ({ allowedRoles, children }) => {
   const { isAuthenticated, user } = useAuthStore();
@@ -128,6 +129,11 @@ const App = () => {
             <Route path="release" element={
               <ProtectedRoute allowedRoles={[ROLES.BRAND]}>
                 <ShipmentManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="distribution" element={
+              <ProtectedRoute allowedRoles={[ROLES.BRAND]}>
+                <DistributionManagement />
               </ProtectedRoute>
             } />
             <Route path="shipments/:shipmentId" element={

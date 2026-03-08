@@ -7,6 +7,7 @@ const SIDEBAR_MENUS = {
   [ROLES.BRAND]: [
     { title: '대시보드', path: '/brand', icon: LayoutDashboard },
     { title: '출고 관리 (Release)', path: '/brand/release', icon: PackageCheck },
+    { title: '유통 관리 (Distribution)', path: '/brand/distribution', icon: RefreshCw },
     { title: '파트너십 관리', path: '/brand/delegate', icon: Briefcase },
     { title: '멤버십 관리', path: '/tenant/memberships', icon: Users },
   ],
@@ -74,10 +75,9 @@ const Sidebar = () => {
             to={menu.path}
             end={menu.path === `/${user.role.toLowerCase()}`}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors ${
-                isActive
-                  ? 'font-medium bg-white shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              `flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors ${isActive
+                ? 'font-medium bg-white shadow-sm'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
               }`
             }
             style={({ isActive }) =>
