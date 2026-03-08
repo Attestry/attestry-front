@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import useAuthStore, { ROLES } from '../../store/useAuthStore';
+import useAuthStore from '../../store/useAuthStore';
 import { User, Shield, FileText, Settings, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const MyPage = () => {
   const navigate = useNavigate();
-  const { user, myMemberships, myApplications, myAccount, fetchMyMemberships, listMyApplications, fetchMyAccount, updateMyAccount, getApplication, setRole } = useAuthStore();
+  const { user, accessToken, myMemberships, myApplications, myAccount, fetchMyMemberships, listMyApplications, fetchMyAccount, updateMyAccount, getApplication } = useAuthStore();
   const [activeTab, setActiveTab] = useState('membership');
   const [loading, setLoading] = useState(true);
   const [phoneInput, setPhoneInput] = useState('');
   const [isUpdatingPhone, setIsUpdatingPhone] = useState(false);
   const [selectedApp, setSelectedApp] = useState(null);
+  const [selectedPurchaseClaim, setSelectedPurchaseClaim] = useState(null);
+  const [selectedPurchaseClaimEvidences, setSelectedPurchaseClaimEvidences] = useState([]);
+  const [purchaseClaimEvidenceLoading, setPurchaseClaimEvidenceLoading] = useState(false);
+  const [purchaseClaimEvidenceError, setPurchaseClaimEvidenceError] = useState('');
   const [appDetailLoading, setAppDetailLoading] = useState(false);
+  const [myPurchaseClaims, setMyPurchaseClaims] = useState([]);
+  const [purchaseClaimError, setPurchaseClaimError] = useState('');
 
   // Password change state
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -20,19 +26,35 @@ const MyPage = () => {
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   useEffect(() => {
-    // Force role to USER when entering MyPage
-    // We do this inside the component to avoid race conditions with React Router ProtectedRoute navigation
-    if (user && user.role !== ROLES.USER) {
-      setRole(ROLES.USER);
-    }
-  }, [user?.role, setRole]);
+    const loadMyPurchaseClaims = async () => {
+      if (!accessToken) {
+        setMyPurchaseClaims([]);
+        return;
+      }
+      try {
+        setPurchaseClaimError('');
+        const response = await fetch('/workflows/purchase-claims/me', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error('디지털 자산 신청 내역을 불러오지 못했습니다.');
+        }
+        const data = await response.json();
+        setMyPurchaseClaims(Array.isArray(data) ? data : []);
+      } catch (e) {
+        setPurchaseClaimError(e.message || '디지털 자산 신청 내역을 불러오지 못했습니다.');
+        setMyPurchaseClaims([]);
+      }
+    };
 
-  useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       await Promise.all([
         fetchMyMemberships(),
         listMyApplications(),
+        loadMyPurchaseClaims(),
         fetchMyAccount().then(res => {
           if (res.success && res.data) {
             setPhoneInput(res.data.phone || '');
@@ -42,7 +64,7 @@ const MyPage = () => {
       setLoading(false);
     };
     loadData();
-  }, [fetchMyMemberships, listMyApplications, fetchMyAccount]);
+  }, [accessToken, fetchMyMemberships, listMyApplications, fetchMyAccount]);
 
   const handlePhoneUpdate = async () => {
     if (!phoneInput || isUpdatingPhone) return;
@@ -82,11 +104,74 @@ const MyPage = () => {
     setIsUpdatingPassword(false);
   };
 
+  useEffect(() => {
+    const preloaded = Array.isArray(selectedPurchaseClaim?.evidences) ? selectedPurchaseClaim.evidences : [];
+    if (!selectedPurchaseClaim?.claimId) {
+      setSelectedPurchaseClaimEvidences([]);
+      setPurchaseClaimEvidenceLoading(false);
+      setPurchaseClaimEvidenceError('');
+      return;
+    }
+    if (preloaded.length > 0) {
+      setSelectedPurchaseClaimEvidences(preloaded);
+      setPurchaseClaimEvidenceLoading(false);
+      setPurchaseClaimEvidenceError('');
+      return;
+    }
+    if (!accessToken) {
+      setSelectedPurchaseClaimEvidences([]);
+      setPurchaseClaimEvidenceLoading(false);
+      setPurchaseClaimEvidenceError('로그인이 필요합니다.');
+      return;
+    }
+
+    const loadFallbackEvidences = async () => {
+      try {
+        setPurchaseClaimEvidenceLoading(true);
+        setPurchaseClaimEvidenceError('');
+        const response = await fetch(`/workflows/purchase-claims/${encodeURIComponent(selectedPurchaseClaim.claimId)}/evidences`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!response.ok) {
+          let detail = '';
+          try {
+            const text = await response.text();
+            detail = text?.trim() ? ` ${text.slice(0, 140)}` : '';
+          } catch {
+            // noop
+          }
+          throw new Error(`[${response.status}] 증빙 자료 파일 조회에 실패했습니다.${detail}`);
+        }
+        const data = await response.json();
+        setSelectedPurchaseClaimEvidences(Array.isArray(data) ? data : []);
+      } catch (e) {
+        setSelectedPurchaseClaimEvidences([]);
+        setPurchaseClaimEvidenceError(e.message || '증빙 자료 파일 조회에 실패했습니다.');
+      } finally {
+        setPurchaseClaimEvidenceLoading(false);
+      }
+    };
+    loadFallbackEvidences();
+  }, [selectedPurchaseClaim?.claimId, selectedPurchaseClaim?.evidences, accessToken]);
+
   const tabs = [
     { id: 'membership', label: '소속/권한 관리', icon: <Shield size={18} /> },
     { id: 'account', label: '나의 계정 관리', icon: <Settings size={18} /> },
     { id: 'applications', label: '나의 신청 현황', icon: <FileText size={18} /> },
   ];
+
+  const resolvePurchaseClaimType = (claim) => {
+    const rawType = String(claim?.profileType || claim?.claimType || '').toUpperCase();
+    if (rawType === 'BRAND') return 'BRAND';
+    if (rawType === 'OWNER' || rawType === 'USER') return 'OWNER';
+    return 'OWNER';
+  };
+  const claimStatusClass = (status) => {
+    if (status === 'APPROVED') return 'bg-green-100 text-green-700';
+    if (status === 'REJECTED') return 'bg-red-100 text-red-700';
+    return 'bg-blue-100 text-blue-700';
+  };
+  const displayPurchaseClaims = myPurchaseClaims || [];
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
@@ -284,33 +369,75 @@ const MyPage = () => {
               </h2>
               {loading ? (
                 <div className="flex justify-center p-10"><Loader2 className="animate-spin text-gray-400" size={32} /></div>
-              ) : myApplications?.length > 0 ? (
-                <div className="space-y-4">
-                  {myApplications.map((app) => (
-                    <div
-                      key={app.applicationId}
-                      className="p-5 bg-indigo-50/50 border border-indigo-100 rounded-xl flex items-center justify-between cursor-pointer hover:bg-indigo-50 transition-colors"
-                      onClick={() => handleAppClick(app.applicationId)}
-                    >
-                      <div>
-                        <div className="text-lg font-bold text-gray-800">{app.orgName} <span className="text-sm font-normal text-gray-500 ml-2">({app.type})</span></div>
-                        <div className="text-sm text-gray-500 mt-1">사업자 등록번호: {app.bizRegNo} | 국가: {app.country}</div>
-                        {app.rejectReason && <div className="text-sm text-red-500 mt-1 font-medium">반려 사유: {app.rejectReason}</div>}
-                      </div>
-                      <span className={`px-3 py-1 text-sm font-semibold rounded-full ${app.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                        app.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                          'bg-blue-100 text-blue-700'
-                        }`}>
-                        {app.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
               ) : (
-                <div className="bg-indigo-50/50 rounded-xl p-8 text-center border border-indigo-100">
-                  <FileText size={48} className="mx-auto text-indigo-300 mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">진행 중인 신청이 없습니다</h3>
-                  <p className="text-gray-500">새로운 온보딩 신청 내역이 없습니다.</p>
+                <div className="space-y-8">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">업체 신청 내역</h3>
+                    {(myApplications?.length > 0) ? (
+                      <div className="space-y-4">
+                        {myApplications.map((app) => (
+                          <div
+                            key={app.applicationId}
+                            className="p-5 bg-indigo-50/50 border border-indigo-100 rounded-xl flex items-center justify-between cursor-pointer hover:bg-indigo-50 transition-colors"
+                            onClick={() => handleAppClick(app.applicationId)}
+                          >
+                            <div>
+                              <div className="text-lg font-bold text-gray-800">{app.orgName} <span className="text-sm font-normal text-gray-500 ml-2">({app.type})</span></div>
+                              <div className="text-sm text-gray-500 mt-1">사업자 등록번호: {app.bizRegNo} | 국가: {app.country}</div>
+                              {app.rejectReason && <div className="text-sm text-red-500 mt-1 font-medium">반려 사유: {app.rejectReason}</div>}
+                            </div>
+                            <span className={`px-3 py-1 text-sm font-semibold rounded-full ${app.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                              app.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                                'bg-blue-100 text-blue-700'
+                              }`}>
+                              {app.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-indigo-50/50 rounded-xl p-6 text-center border border-indigo-100 text-gray-500">
+                        업체 신청 내역이 없습니다.
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">디지털 자산 등록 신청 내역</h3>
+                    {purchaseClaimError && (
+                      <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {purchaseClaimError}
+                      </div>
+                    )}
+                    {displayPurchaseClaims.length > 0 ? (
+                      <div className="space-y-4">
+                        {displayPurchaseClaims.map((claim) => (
+                          <button
+                            key={claim.claimId}
+                            type="button"
+                            onClick={() => setSelectedPurchaseClaim(claim)}
+                            className="w-full text-left p-5 bg-indigo-50/50 border border-indigo-100 rounded-xl flex items-center justify-between hover:bg-indigo-50 transition-colors"
+                          >
+                            <div>
+                              <div className="text-lg font-bold text-gray-800">
+                                {claim.serialNumber || '-'}
+                              </div>
+                              <div className="text-sm text-gray-500 mt-1">모델: {claim.modelName || '-'}</div>
+                              <div className="text-xs text-gray-500 mt-1 font-mono break-all">{claim.claimId}</div>
+                              {claim.rejectionReason && <div className="text-sm text-red-500 mt-1 font-medium">반려 사유: {claim.rejectionReason}</div>}
+                            </div>
+                            <span className={`px-3 py-1 text-sm font-semibold rounded-full ${claimStatusClass(claim.status)}`}>
+                              {claim.status}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-indigo-50/50 rounded-xl p-6 text-center border border-indigo-100 text-gray-500">
+                        디지털 자산 등록 신청 내역이 없습니다.
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -331,7 +458,7 @@ const MyPage = () => {
             <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
               <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                 <FileText className="text-indigo-600" />
-                신청 상세 정보
+                업체 신청 상세 정보
               </h3>
               <button onClick={() => setSelectedApp(null)} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors">
                 <span className="text-2xl leading-none">&times;</span>
@@ -387,6 +514,106 @@ const MyPage = () => {
             <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end">
               <button
                 onClick={() => setSelectedApp(null)}
+                className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedPurchaseClaim && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-in fade-in duration-200 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <FileText className="text-indigo-600" />
+                디지털 자산 신청 상세 정보
+              </h3>
+              <button onClick={() => setSelectedPurchaseClaim(null)} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors">
+                <span className="text-2xl leading-none">&times;</span>
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto space-y-6">
+              <div className="grid grid-cols-2 gap-y-5 gap-x-6 text-sm">
+                <div>
+                  <div className="text-gray-500 mb-1">시리얼 번호</div>
+                  <div className="font-semibold text-gray-900 text-base">{selectedPurchaseClaim.serialNumber || '-'}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500 mb-1">모델명</div>
+                  <div className="font-semibold text-gray-900 text-base">{selectedPurchaseClaim.modelName || '-'}</div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-gray-500 mb-1">Claim ID</div>
+                  <div className="font-semibold text-gray-900 break-all">{selectedPurchaseClaim.claimId || '-'}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500 mb-1">타입</div>
+                  <div className="font-semibold text-gray-900">{resolvePurchaseClaimType(selectedPurchaseClaim)}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500 mb-1">상태</div>
+                  <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${claimStatusClass(selectedPurchaseClaim.status)}`}>
+                    {selectedPurchaseClaim.status}
+                  </span>
+                </div>
+                <div>
+                  <div className="text-gray-500 mb-1">신청 일시</div>
+                  <div className="font-semibold text-gray-900">{selectedPurchaseClaim.submittedAt ? new Date(selectedPurchaseClaim.submittedAt).toLocaleString() : '-'}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500 mb-1">Passport ID</div>
+                  <div className="font-semibold text-gray-900 break-all">{selectedPurchaseClaim.passportId || '-'}</div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-gray-500 mb-1">Asset ID</div>
+                  <div className="font-semibold text-gray-900 break-all">{selectedPurchaseClaim.assetId || '-'}</div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-gray-500 mb-1">증빙 자료 파일</div>
+                  {purchaseClaimEvidenceLoading ? (
+                    <div className="text-sm text-gray-500">불러오는 중...</div>
+                  ) : purchaseClaimEvidenceError ? (
+                    <div className="text-sm text-red-600">{purchaseClaimEvidenceError}</div>
+                  ) : selectedPurchaseClaimEvidences.length > 0 ? (
+                    <div className="space-y-2">
+                      {selectedPurchaseClaimEvidences.map((evidence, idx) => (
+                        evidence.downloadUrl ? (
+                          <a
+                            key={`${evidence.evidenceId}-${idx}`}
+                            href={evidence.downloadUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 font-medium text-indigo-600 hover:text-indigo-800 hover:underline break-all mr-3"
+                          >
+                            <FileText size={16} />
+                            첨부파일 {idx + 1}
+                          </a>
+                        ) : (
+                          <div key={`${evidence.evidenceId}-${idx}`} className="text-sm text-amber-700">
+                            첨부파일 {idx + 1} 링크 생성 실패
+                          </div>
+                        )
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500">첨부 파일 없음</div>
+                  )}
+                </div>
+              </div>
+
+              {selectedPurchaseClaim.rejectionReason && (
+                <div className="bg-red-50 p-4 rounded-lg border border-red-100 mt-4">
+                  <div className="text-red-700 font-semibold mb-1 text-sm">반려 사유</div>
+                  <div className="text-red-600 text-sm whitespace-pre-wrap">{selectedPurchaseClaim.rejectionReason}</div>
+                </div>
+              )}
+            </div>
+            <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => setSelectedPurchaseClaim(null)}
                 className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-colors"
               >
                 닫기

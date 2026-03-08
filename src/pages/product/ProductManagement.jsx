@@ -79,7 +79,9 @@ const ProductManagement = () => {
         try {
             // Updated to fetch paginated response
             const data = await fetchWithAuth(`/products/minted/passports?page=0&size=100`);
-            setProducts(data?.content || []);
+            const allProducts = data?.content || [];
+            // 개인 소유(ownerId가 존재)로 넘어간 항목은 브랜드 제품 관리 목록에서 제외
+            setProducts(allProducts.filter((item) => !item.ownerId));
         } catch (error) {
             console.error("Failed to fetch products:", error);
         } finally {

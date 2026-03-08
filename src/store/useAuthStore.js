@@ -151,16 +151,12 @@ const useAuthStore = create((set, get) => ({
       }
       availableRoles = [...new Set(availableRoles)];
       const activeMembership = (memberships || []).find((m) => String(m.status).toUpperCase() === 'ACTIVE') || memberships?.[0];
-      const preferredRole = membershipRoles[0] || ROLES.USER;
 
       set(state => {
         const currentUser = state.user;
         if (!currentUser) return state; // Should be handled by App.js calling login or logout
 
-        const shouldPromote = currentUser.role === ROLES.USER && membershipRoles.length > 0;
-        const nextRole = shouldPromote
-          ? preferredRole
-          : (availableRoles.includes(currentUser.role) ? currentUser.role : ROLES.USER);
+        const nextRole = availableRoles.includes(currentUser.role) ? currentUser.role : ROLES.USER;
 
         const newUser = {
           ...currentUser,
