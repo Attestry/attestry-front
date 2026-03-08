@@ -1,6 +1,7 @@
 import React from 'react';
-import { Menu, Bell, User, LayoutDashboard, Settings } from 'lucide-react';
+import { Bell, User } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import { flushSync } from 'react-dom';
 import useAuthStore, { ROLE_THEMES, ROLES } from '../../store/useAuthStore';
 
 const TopNav = () => {
@@ -22,12 +23,6 @@ const TopNav = () => {
                 </div>
             </div>
 
-            <div className="flex gap-6 text-sm font-medium text-gray-600">
-                <a href="#" className="hover:text-gray-900">기능</a>
-                <a href="#" className="hover:text-gray-900">솔루션</a>
-                <a href="#" className="hover:text-gray-900">소개</a>
-            </div>
-
             <div className="flex items-center gap-4">
                 {user?.availableRoles?.length > 1 && (
                     <select
@@ -35,7 +30,7 @@ const TopNav = () => {
                         value={user.role}
                         onChange={(e) => {
                             const newRole = e.target.value;
-                            setRole(newRole);
+                            flushSync(() => setRole(newRole));
                             if (newRole === ROLES.USER) {
                                 navigate('/');
                             } else if (newRole === ROLES.PLATFORM_ADMIN) {
