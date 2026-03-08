@@ -694,7 +694,6 @@ const useAuthStore = create((set, get) => ({
   },
 
   partnerLinks: [],
-  delegations: [],
 
   // --- PARTNER LINK ACTIONS ---
   createPartnerLink: async (data) => {
@@ -772,60 +771,6 @@ const useAuthStore = create((set, get) => ({
       });
       await get().fetchPartnerLinks();
       return { success: true };
-    } catch (error) {
-      return { success: false, message: error.message };
-    }
-  },
-
-  // --- DELEGATION ACTIONS ---
-  grantDelegation: async (data) => {
-    try {
-      const { user } = get();
-      const response = await apiFetch(`/workflows/tenants/${user.tenantId}/delegations`, {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
-      await get().fetchDelegations();
-      return { success: true, data: response };
-    } catch (error) {
-      return { success: false, message: error.message };
-    }
-  },
-
-  grantPassportDelegation: async (partnerLinkId, data) => {
-    try {
-      const { user } = get();
-      const response = await apiFetch(`/workflows/tenants/${user.tenantId}/partners/${partnerLinkId}/passport-delegations`, {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
-      await get().fetchDelegations();
-      return { success: true, data: response };
-    } catch (error) {
-      return { success: false, message: error.message };
-    }
-  },
-
-  revokeDelegation: async (id, reason) => {
-    try {
-      await apiFetch(`/workflows/delegations/${id}/revoke`, {
-        method: 'POST',
-        body: JSON.stringify({ reason })
-      });
-      await get().fetchDelegations();
-      return { success: true };
-    } catch (error) {
-      return { success: false, message: error.message };
-    }
-  },
-
-  fetchDelegations: async () => {
-    try {
-      const { user } = get();
-      if (!user?.tenantId) return { success: false };
-      const data = await apiFetch(`/workflows/tenants/${user.tenantId}/delegations`);
-      set({ delegations: data || [] });
-      return { success: true, data };
     } catch (error) {
       return { success: false, message: error.message };
     }
