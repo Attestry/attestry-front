@@ -246,9 +246,9 @@ const ProductDetail = () => {
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-50 pt-6 mt-2">
-                                    <InfoItem icon={<User size={16} />} label="처리자 ID" value={shipment.releasedByUserId} mono />
+                                    <InfoItem icon={<User size={16} />} label="출고 처리자 이메일" value={shipment.releasedByUserEmail} mono />
                                     {shipment.status === 'RETURNED' && (
-                                        <InfoItem icon={<User size={16} />} label="반품 처리자" value={shipment.returnedByUserId} mono />
+                                        <InfoItem icon={<User size={16} />} label="반품 처리자 이메일" value={shipment.returnedByUserEmail} mono />
                                     )}
                                 </div>
 

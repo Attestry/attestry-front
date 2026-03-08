@@ -141,6 +141,8 @@ const ShipmentHistoryDetail = () => {
                             <h2 className="font-bold text-gray-900">운송 및 처리 정보</h2>
                         </div>
                         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12">
+                            <InfoItem icon={<Package size={16} />} label="제품명 (Model)" value={shipment.modelName || '-'} />
+                            <InfoItem icon={<Hash size={16} />} label="시리얼 번호 (S/N)" value={shipment.serialNumber || '-'} isCopyable />
                             <InfoItem icon={<Hash size={16} />} label="Passport ID" value={shipment.passportId} mono isCopyable />
                             <InfoItem icon={<RotateCcw size={16} />} label="출고 회차" value={`${shipment.shipmentRound}회차`} />
 
@@ -152,7 +154,7 @@ const ShipmentHistoryDetail = () => {
                             <InfoItem
                                 icon={<User size={16} />}
                                 label="출고 처리자"
-                                value={shipment.releasedByUserId}
+                                value={shipment.releasedByUserEmail}
                                 mono
                             />
 
@@ -165,8 +167,8 @@ const ShipmentHistoryDetail = () => {
                                     />
                                     <InfoItem
                                         icon={<User size={16} />}
-                                        label="반송 처리자"
-                                        value={shipment.returnedByUserId || '-'}
+                                        label="반송 처리자 이메일"
+                                        value={shipment.returnedByUserEmail || '-'}
                                         mono
                                     />
                                 </>

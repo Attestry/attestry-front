@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { PackageCheck, UploadCloud, X, Loader2, FileText, Search } from 'lucide-react';
+import { PackageCheck, UploadCloud, X, Loader2, FileText, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 
 // Local API Fetch Helper matching the store
@@ -47,6 +47,12 @@ const ShipmentManagement = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState(initialTab);
 
+    // Paging states
+    const [page, setPage] = useState(0);
+    const [pageSize] = useState(20);
+    const [totalPages, setTotalPages] = useState(0);
+    const [totalElements, setTotalElements] = useState(0);
+
     // Modal state
     const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
     const [selectedCandidate, setSelectedCandidate] = useState(null);
@@ -68,12 +74,19 @@ const ShipmentManagement = () => {
         return scope === 'BRAND_RELEASE' || scope === 'SCOPE_BRAND_RELEASE';
     }) ?? false;
 
-    const fetchCandidates = async () => {
+    const fetchCandidates = async (p = 0, k = '') => {
         if (!user?.tenantId) return;
         setLoading(true);
         try {
-            const data = await apiFetch(`/workflows/shipments/release-candidates`);
-            setCandidates(Array.isArray(data) ? data : []);
+            const query = new URLSearchParams({
+                page: p,
+                size: pageSize,
+                ...(k && { keyword: k })
+            }).toString();
+            const data = await apiFetch(`/workflows/shipments/release-candidates?${query}`);
+            setCandidates(data.content || []);
+            setTotalPages(data.totalPages || 0);
+            setTotalElements(data.totalElements || 0);
         } catch (error) {
             console.error("Failed to fetch release candidates:", error);
             alert("출고 대기 목록을 불러오지 못했습니다.");
@@ -82,12 +95,19 @@ const ShipmentManagement = () => {
         }
     };
 
-    const fetchHistory = async () => {
+    const fetchHistory = async (p = 0, k = '') => {
         if (!user?.tenantId) return;
         setLoading(true);
         try {
-            const data = await apiFetch(`/workflows/shipments`);
-            setHistory(Array.isArray(data) ? data : []);
+            const query = new URLSearchParams({
+                page: p,
+                size: pageSize,
+                ...(k && { keyword: k })
+            }).toString();
+            const data = await apiFetch(`/workflows/shipments?${query}`);
+            setHistory(data.content || []);
+            setTotalPages(data.totalPages || 0);
+            setTotalElements(data.totalElements || 0);
         } catch (error) {
             console.error("Failed to fetch shipment history:", error);
             alert("출고 이력 목록을 불러오지 못했습니다.");
@@ -96,13 +116,38 @@ const ShipmentManagement = () => {
         }
     };
 
+    // Initial fetch and Tab switch
     useEffect(() => {
+        setPage(0);
         if (activeTab === 'candidates') {
-            fetchCandidates();
+            fetchCandidates(0, searchTerm);
         } else {
-            fetchHistory();
+            fetchHistory(0, searchTerm);
         }
     }, [user?.tenantId, activeTab]);
+
+    // Debounced search fetch
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setPage(0);
+            if (activeTab === 'candidates') {
+                fetchCandidates(0, searchTerm);
+            } else {
+                fetchHistory(0, searchTerm);
+            }
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [searchTerm]);
+
+    const handlePageChange = (newPage) => {
+        if (newPage < 0 || newPage >= totalPages) return;
+        setPage(newPage);
+        if (activeTab === 'candidates') {
+            fetchCandidates(newPage, searchTerm);
+        } else {
+            fetchHistory(newPage, searchTerm);
+        }
+    };
 
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -202,16 +247,8 @@ const ShipmentManagement = () => {
         setEvidenceFiles([]);
     };
 
-    // Filter frontend (if keyword filtering is needed locally since the API doesn't specify query params)
-    const filteredCandidates = candidates.filter(c =>
-        (c.modelName && c.modelName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (c.serialNumber && c.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-
-    const filteredHistory = history.filter(h =>
-        (h.passportId && h.passportId.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (h.shipmentId && h.shipmentId.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    // Local data points (always use the state from API)
+    const currentList = activeTab === 'candidates' ? candidates : history;
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
@@ -250,7 +287,7 @@ const ShipmentManagement = () => {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
                         type="text"
-                        placeholder={activeTab === 'candidates' ? "모델명 또는 시리얼 번호 검색..." : "패스포트 ID 또는 출고 ID 검색..."}
+                        placeholder="모델명 또는 시리얼 번호 검색..."
                         className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-100 transition-shadow"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -258,7 +295,7 @@ const ShipmentManagement = () => {
                 </div>
                 <div className="flex gap-2">
                     <div className="bg-gray-50 text-gray-600 px-4 py-2 rounded-xl text-sm font-bold flex items-center">
-                        총 {activeTab === 'candidates' ? filteredCandidates.length : filteredHistory.length}건
+                        총 {totalElements}건
                     </div>
                 </div>
             </div>
@@ -276,8 +313,8 @@ const ShipmentManagement = () => {
                             </tr>
                         ) : (
                             <tr>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">제품 정보 (Model / SN)</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">출고 정보 (Shipment ID)</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">대상 제품 (Passport ID)</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">상태 / 일시</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">상세</th>
                             </tr>
@@ -291,7 +328,7 @@ const ShipmentManagement = () => {
                                 </td>
                             </tr>
                         ) : activeTab === 'candidates' ? (
-                            filteredCandidates.length === 0 ? (
+                            currentList.length === 0 ? (
                                 <tr>
                                     <td colSpan={hasReleasePermission ? "4" : "3"} className="px-6 py-12 text-center text-gray-400">
                                         <PackageCheck size={32} className="mx-auto mb-3 opacity-50" />
@@ -299,7 +336,7 @@ const ShipmentManagement = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredCandidates.map((c) => (
+                                currentList.map((c) => (
                                     <tr key={c.passportId} className="hover:bg-gray-50 transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="font-bold text-gray-900">{c.modelName}</div>
@@ -334,7 +371,7 @@ const ShipmentManagement = () => {
                                 ))
                             )
                         ) : (
-                            filteredHistory.length === 0 ? (
+                            currentList.length === 0 ? (
                                 <tr>
                                     <td colSpan="4" className="px-6 py-12 text-center text-gray-400">
                                         <PackageCheck size={32} className="mx-auto mb-3 opacity-50" />
@@ -342,17 +379,17 @@ const ShipmentManagement = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredHistory.map((h) => (
+                                currentList.map((h) => (
                                     <tr key={h.shipmentId} className="hover:bg-gray-50 transition-colors group">
                                         <td className="px-6 py-4">
-                                            <div className="text-sm font-bold text-gray-900">{h.shipmentId.substring(0, 8)}...</div>
-                                            <div className="text-[10px] text-gray-400 font-mono">Full: {h.shipmentId}</div>
+                                            <div className="text-sm font-bold text-gray-900">{h.modelName || '-'}</div>
+                                            <div className="text-[10px] text-gray-500 font-medium mt-0.5">{h.serialNumber}</div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="text-xs font-mono text-gray-600">
-                                                {h.passportId.substring(0, 8)}...{h.passportId.substring(h.passportId.length - 8)}
+                                            <div className="text-xs font-mono text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded inline-block">
+                                                {h.shipmentId.substring(0, 8)}...
                                             </div>
-                                            <div className="text-[10px] text-gray-400 mt-0.5">회차: {h.shipmentRound}회</div>
+                                            <div className="text-[10px] text-gray-400 mt-1">회차: {h.shipmentRound}회</div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${h.status === 'RELEASED' ? 'bg-green-100 text-green-700' :
@@ -378,6 +415,51 @@ const ShipmentManagement = () => {
                         )}
                     </tbody>
                 </table>
+
+                {/* Pagination */}
+                {totalPages > 0 && (
+                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+                        <div className="text-sm text-gray-500">
+                            총 <span className="font-bold text-gray-900">{totalElements}</span>개 중 {page * pageSize + 1}-{Math.min((page + 1) * pageSize, totalElements)} 표시
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => handlePageChange(page - 1)}
+                                disabled={page === 0 || loading}
+                                className="p-2 border border-gray-200 rounded-lg hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <ChevronLeft size={18} />
+                            </button>
+                            <div className="flex items-center gap-1">
+                                {[...Array(totalPages)].map((_, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => handlePageChange(i)}
+                                        className={`w-8 h-8 rounded-lg text-sm font-bold transition-colors ${page === i ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-white border border-transparent hover:border-gray-200'}`}
+                                    >
+                                        {i + 1}
+                                    </button>
+                                )).filter((_, i) => {
+                                    // Show first, last, and around current page
+                                    return i === 0 || i === totalPages - 1 || Math.abs(i - page) <= 1;
+                                }).reduce((acc, curr, i, arr) => {
+                                    if (i > 0 && curr.key - arr[i - 1].key > 1) {
+                                        acc.push(<span key={`ellipsis-${i}`} className="text-gray-400 px-1">...</span>);
+                                    }
+                                    acc.push(curr);
+                                    return acc;
+                                }, [])}
+                            </div>
+                            <button
+                                onClick={() => handlePageChange(page + 1)}
+                                disabled={page >= totalPages - 1 || loading}
+                                className="p-2 border border-gray-200 rounded-lg hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <ChevronRight size={18} />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Release Modal */}
