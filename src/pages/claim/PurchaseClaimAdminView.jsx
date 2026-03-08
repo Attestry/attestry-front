@@ -685,7 +685,7 @@ const PurchaseClaimAdminView = () => {
                               </span>
                             )}
                             <span className="text-[11px] text-slate-500">
-                              {file.downloadUrl ? `만료: ${toDateTime(file.expiresAt)}` : '파일 링크를 생성하지 못했습니다.'}
+                              {file.downloadUrl ? `만료: ${toDateTime(file.expiresAt)}` : (file.errorMessage || '파일 링크를 생성하지 못했습니다.')}
                             </span>
                           </div>
                         </div>

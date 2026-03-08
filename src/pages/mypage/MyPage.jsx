@@ -161,7 +161,12 @@ const MyPage = () => {
   ];
 
   const resolvePurchaseClaimType = (claim) => {
-    const rawType = String(claim?.profileType || claim?.claimType || '').toUpperCase();
+    const rawType = String(
+      claim?.profileType
+      || claim?.submitterProfileType
+      || claim?.claimType
+      || ''
+    ).toUpperCase();
     if (rawType === 'BRAND') return 'BRAND';
     if (rawType === 'OWNER' || rawType === 'USER') return 'OWNER';
     return 'OWNER';
