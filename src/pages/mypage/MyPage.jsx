@@ -161,15 +161,10 @@ const MyPage = () => {
   ];
 
   const resolvePurchaseClaimType = (claim) => {
-    const rawType = String(
-      claim?.profileType
-      || claim?.submitterProfileType
-      || claim?.claimType
-      || ''
-    ).toUpperCase();
+    const rawType = String(claim?.profileType || claim?.claimType || '').toUpperCase();
     if (rawType === 'BRAND') return 'BRAND';
     if (rawType === 'OWNER' || rawType === 'USER') return 'OWNER';
-    return 'UNKNOWN';
+    return 'OWNER';
   };
   const claimStatusClass = (status) => {
     if (status === 'APPROVED') return 'bg-green-100 text-green-700';
@@ -556,7 +551,7 @@ const MyPage = () => {
                 </div>
                 <div>
                   <div className="text-gray-500 mb-1">타입</div>
-                  <div className="font-semibold text-gray-900">{resolvePurchaseClaimType(selectedPurchaseClaim) === 'BRAND' ? 'BRAND' : 'OWNER'}</div>
+                  <div className="font-semibold text-gray-900">{resolvePurchaseClaimType(selectedPurchaseClaim)}</div>
                 </div>
                 <div>
                   <div className="text-gray-500 mb-1">상태</div>
