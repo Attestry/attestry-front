@@ -41,7 +41,7 @@ const MainPage = () => {
                         </div>
                         <h3 className="text-xl font-bold text-gray-900 mb-2">소유권 이전 받기</h3>
                         <p className="text-gray-500 mb-6 line-clamp-2">리테일러나 이전 소유자로부터 제품의 디지털 소유권을 안전하게 양도받습니다.</p>
-                        <button className="text-indigo-600 font-semibold group-hover:underline">이전 요청 수락하기 →</button>
+                        <Link to="/transfer/receive" className="text-indigo-600 font-semibold group-hover:underline">이전 요청 수락하기 →</Link>
                         <div className="absolute top-0 right-0 p-4 opacity-10 transform translate-x-4 -translate-y-4">
                             <RefreshCw size={100} />
                         </div>
