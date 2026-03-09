@@ -24,6 +24,7 @@ import ProductDetail from './pages/product/ProductDetail';
 import ShipmentManagement from './pages/shipment/ShipmentManagement';
 import ShipmentHistoryDetail from './pages/shipment/ShipmentHistoryDetail';
 import DistributionManagement from './pages/distribution/DistributionManagement';
+import PublicPassportView from './pages/product/PublicPassportView';
 
 const ProtectedRoute = ({ allowedRoles, children }) => {
   const { isAuthenticated, user } = useAuthStore();
@@ -88,6 +89,9 @@ const App = () => {
             }
           />
           <Route path="/transfer/receive" element={<TransferReceiveView />} />
+          <Route path="/t/:transferId" element={<TransferReceiveView />} />
+          <Route path="/t/:transferId/:qrNonce" element={<TransferReceiveView />} />
+          <Route path="/products/passports/:passportId" element={<PublicPassportView />} />
           <Route
             path="/purchase-claims"
             element={

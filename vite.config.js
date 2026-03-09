@@ -14,6 +14,7 @@ export default defineConfig({
       '/tenants': 'http://localhost:8080',
       '/workflows': 'http://localhost:8080',
       '/products': 'http://localhost:8080',
+      '/ledgers': 'http://localhost:8080',
       '/admin': {
         target: 'http://localhost:8080',
         bypass: (req, res, proxyOptions) => {
