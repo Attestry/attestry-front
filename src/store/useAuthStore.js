@@ -785,6 +785,78 @@ const useAuthStore = create((set, get) => ({
       return { success: false, message: error.message };
     }
   },
+
+  // --- SERVICE PROVIDER ACTIONS ---
+  fetchReceivedServiceRequests: async (tenantId, params = {}) => {
+    try {
+      const query = new URLSearchParams(params).toString();
+      const queryString = query ? `?${query}` : '';
+      const data = await apiFetch(`/workflows/tenants/${tenantId}/service-requests${queryString}`);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  acceptServiceRequest: async (tenantId, requestId, data) => {
+    try {
+      const response = await apiFetch(`/workflows/tenants/${tenantId}/service-requests/${requestId}/accept`, {
+        method: 'POST',
+        body: JSON.stringify(data) // serviceType, description
+      });
+      return { success: true, data: response };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  rejectServiceRequest: async (tenantId, requestId, reason) => {
+    try {
+      const response = await apiFetch(`/workflows/tenants/${tenantId}/service-requests/${requestId}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      });
+      return { success: true, data: response };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  completeServiceRequest: async (tenantId, requestId, data) => {
+    try {
+      const response = await apiFetch(`/workflows/tenants/${tenantId}/service-requests/${requestId}/complete`, {
+        method: 'POST',
+        body: JSON.stringify(data) // serviceResult, afterEvidenceGroupId
+      });
+      return { success: true, data: response };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  presignServiceProviderEvidence: async (tenantId, data) => {
+    try {
+      const response = await apiFetch(`/workflows/tenants/${tenantId}/service-requests/evidences/presign`, {
+        method: 'POST',
+        body: JSON.stringify(data) // evidenceGroupId, fileName, contentType
+      });
+      return { success: true, data: response };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  completeServiceProviderEvidence: async (tenantId, data) => {
+    try {
+      const response = await apiFetch(`/workflows/tenants/${tenantId}/service-requests/evidences/complete`, {
+        method: 'POST',
+        body: JSON.stringify(data) // evidenceGroupId, evidenceId, sizeBytes, fileHash
+      });
+      return { success: true, data: response };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
 }));
 
 export default useAuthStore;
