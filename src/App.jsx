@@ -5,6 +5,11 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import MainLayout from './components/layout/MainLayout';
 import BrandView from './pages/brand/BrandView';
 import RetailView from './pages/retail/RetailView';
+import RetailInventoryView from './pages/retail/RetailInventoryView';
+import RetailBrandInventoryDetail from './pages/retail/RetailBrandInventoryDetail';
+import RetailTransferBrandListView from './pages/retail/RetailTransferBrandListView';
+import RetailBrandCompletedTransfersDetail from './pages/retail/RetailBrandCompletedTransfersDetail';
+import RetailDistributedProductDetail from './pages/retail/RetailDistributedProductDetail';
 import ServiceView from './pages/service/ServiceView';
 import MainPage from './pages/main/MainPage';
 import OnboardingView from './pages/onboarding/OnboardingView';
@@ -172,8 +177,46 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
-            <Route path="inventory" element={<div className="p-8 font-bold">보유 제품 관리 기능 개발중...</div>} />
-            <Route path="transfer" element={<div className="p-8 font-bold">소유권 이전 기능 개발중...</div>} />
+            <Route
+              path="inventory"
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.RETAIL]}>
+                  <RetailInventoryView />
+                </ProtectedRoute>
+              }
+            />
+                        <Route
+              path="inventory/:brandTenantId"
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.RETAIL]}>
+                  <RetailBrandInventoryDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="transfer"
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.RETAIL]}>
+                  <RetailTransferBrandListView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="transfer/:brandTenantId"
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.RETAIL]}>
+                  <RetailBrandCompletedTransfersDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="products/:passportId"
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.RETAIL]}>
+                  <RetailDistributedProductDetail />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="delegate"
               element={

@@ -5,7 +5,7 @@ import { flushSync } from 'react-dom';
 import useAuthStore, { ROLE_THEMES, ROLES } from '../../store/useAuthStore';
 
 const TopNav = () => {
-    const { user, myMemberships, setRole, switchTenant } = useAuthStore();
+    const { user, setRole, reissueToken } = useAuthStore();
     const navigate = useNavigate();
 
     if (!user) return null;
@@ -28,9 +28,10 @@ const TopNav = () => {
                     <select
                         className="text-sm border border-gray-300 rounded-md py-1.5 px-3 bg-white text-gray-700 font-medium shadow-sm transition-colors hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900"
                         value={user.role}
-                        onChange={(e) => {
+                        onChange={async (e) => {
                             const newRole = e.target.value;
                             flushSync(() => setRole(newRole));
+                            await reissueToken();
                             if (newRole === ROLES.USER) {
                                 navigate('/');
                             } else if (newRole === ROLES.PLATFORM_ADMIN) {

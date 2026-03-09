@@ -191,10 +191,11 @@ const useAuthStore = create((set, get) => ({
     get().setToken(null);
   },
 
-  reissueToken: async () => {
+  reissueToken: async (tenantId = get().user?.tenantId ?? null) => {
     try {
       const data = await apiFetch('/auth/token-reissue', {
-        method: 'POST'
+        method: 'POST',
+        body: JSON.stringify({ tenantId })
       });
       // Update store with new token
       get().setToken(data.accessToken, {
@@ -221,10 +222,27 @@ const useAuthStore = create((set, get) => ({
   },
 
   setRole: (newRole) => set((state) => {
-    const nextUser = state.user ? { ...state.user, role: newRole } : null;
-    if (nextUser) {
-      localStorage.setItem('user', JSON.stringify(nextUser));
-    }
+    if (!state.user) return { user: null };
+
+    const targetMembership = [ROLES.BRAND, ROLES.RETAIL, ROLES.SERVICE].includes(newRole)
+      ? (state.myMemberships || []).find((m) =>
+          String(m?.status).toUpperCase() === 'ACTIVE' &&
+          String(m?.groupType || '').toUpperCase() === newRole
+        ) || (state.myMemberships || []).find((m) => String(m?.groupType || '').toUpperCase() === newRole)
+      : null;
+
+    const nextUser = {
+      ...state.user,
+      role: newRole,
+      tenantId: newRole === ROLES.USER || newRole === ROLES.PLATFORM_ADMIN
+        ? null
+        : (targetMembership?.tenantId ?? state.user.tenantId ?? null),
+      tenantName: newRole === ROLES.USER || newRole === ROLES.PLATFORM_ADMIN
+        ? null
+        : (targetMembership?.tenantName ?? state.user.tenantName ?? null),
+    };
+
+    localStorage.setItem('user', JSON.stringify(nextUser));
     return { user: nextUser };
   }),
 
