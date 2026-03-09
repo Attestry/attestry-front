@@ -30,6 +30,7 @@ const DistributionManagement = () => {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeTab, setActiveTab] = useState('candidates');
     const [page, setPage] = useState(0);
     const [pageSize] = useState(20);
     const [totalPages, setTotalPages] = useState(0);
@@ -51,23 +52,43 @@ const DistributionManagement = () => {
         )
         : null;
 
+    const hasDistributionPermission = currentMembership?.effectiveScopes?.some((s) => {
+        const scope = String(s).toUpperCase();
+        return scope === 'DELEGATION_GRANT' || scope === 'SCOPE_DELEGATION_GRANT';
+    }) ?? false;
+
     const fetchHistory = async (p = 0, k = '') => {
         if (!user?.tenantId) return;
+
         setLoading(true);
         try {
-            const query = new URLSearchParams({
-                page: p,
-                size: pageSize,
-                ...(k && { keyword: k })
-            }).toString();
-            // Using the same shipment history API as requested
-            const data = await apiFetch(`/workflows/shipments?${query}`);
-            setHistory(data.content || []);
-            setTotalPages(data.totalPages || 0);
-            setTotalElements(data.totalElements || 0);
+            if (activeTab === 'candidates') {
+                const query = new URLSearchParams({
+                    page: p,
+                    size: pageSize,
+                    ...(k && { keyword: k })
+                }).toString();
+                // GET /workflows/distributions/candidates
+                const data = await apiFetch(`/workflows/distributions/candidates?${query}`);
+                setHistory(data.content || []);
+                setTotalPages(data.totalPages || 0);
+                setTotalElements(data.totalElements || 0);
+            } else {
+                const query = new URLSearchParams({
+                    page: p,
+                    size: pageSize,
+                    ...(k && { keyword: k })
+                }).toString();
+                // GET /workflows/tenants/{tenantId}/distributions?page=...&size=...&keyword=...
+                const data = await apiFetch(`/workflows/tenants/${currentMembership?.tenantId || user.tenantId}/distributions?${query}`);
+
+                setHistory(data.content || []);
+                setTotalPages(data.totalPages || 0);
+                setTotalElements(data.totalElements || 0);
+            }
         } catch (error) {
-            console.error("Failed to fetch distribution history:", error);
-            alert("유통 이력 목록을 불러오지 못했습니다.");
+            console.error(`Failed to fetch distribution ${activeTab}:`, error);
+            alert(`${activeTab === 'candidates' ? '유통 대기' : '유통 이력'} 목록을 불러오지 못했습니다.`);
         } finally {
             setLoading(false);
         }
@@ -88,8 +109,9 @@ const DistributionManagement = () => {
     };
 
     useEffect(() => {
+        setPage(0);
         fetchHistory(0, searchTerm);
-    }, [user?.tenantId]);
+    }, [user?.tenantId, activeTab]);
 
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -136,15 +158,12 @@ const DistributionManagement = () => {
 
         setGrantLoading(true);
         try {
-            // POST /workflows/tenants/{sourceTenantId}/delegations
-            await apiFetch(`/workflows/tenants/${currentMembership.tenantId}/delegations`, {
+            // POST /workflows/tenants/{sourceTenantId}/partners/{partnerLinkId}/distributions
+            await apiFetch(`/workflows/tenants/${currentMembership.tenantId}/partners/${partnerLink.partnerLinkId}/distributions`, {
                 method: 'POST',
                 body: JSON.stringify({
-                    partnerLinkId: partnerLink.partnerLinkId,
-                    resourceType: "PASSPORT",
-                    resourceId: scannedPassportId,
-                    permissionCode: "RETAIL_TRANSFER_CREATE",
-                    expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 90 days default
+                    passportIds: [scannedPassportId],
+                    expiresAt: null,
                     note: "유통 관리 메뉴를 통한 위임"
                 })
             });
@@ -158,6 +177,31 @@ const DistributionManagement = () => {
             alert(`위임 실패: ${error.message}`);
         } finally {
             setGrantLoading(false);
+        }
+    };
+
+    const handleRecallDistribution = async (distributionId) => {
+        if (!distributionId) return;
+
+        if (!window.confirm("이 유통 건을 취소(회수)하시겠습니까? 취소 시 파트너의 해당 제품 권한이 즉시 만료됩니다.")) {
+            return;
+        }
+
+        setLoading(true);
+        try {
+            // POST /workflows/distributions/{distributionId}/recall
+            await apiFetch(`/workflows/distributions/${distributionId}/recall`, {
+                method: 'POST',
+                body: JSON.stringify({ reason: "사용자 요청에 의한 유통 취소" })
+            });
+
+            alert("유통 취소가 완료되었습니다.");
+            fetchHistory(page, searchTerm); // Refresh list
+        } catch (error) {
+            console.error("Failed to recall distribution:", error);
+            alert(`취소 실패: ${error.message}`);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -176,9 +220,25 @@ const DistributionManagement = () => {
                         유통 관리 (Distribution Management)
                     </h1>
                     <p className="text-gray-500 mt-2 font-medium">
-                        출고된 제품의 유통 경로 및 이력을 관리하고 파트너에게 권한을 위임합니다.
+                        출고된 제품의 권한을 파트너에게 위임하거나 위임 이력을 관리합니다.
                     </p>
                 </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200 mb-6 gap-8">
+                <button
+                    onClick={() => setActiveTab('candidates')}
+                    className={`pb-4 text-sm font-bold transition-colors cursor-pointer ${activeTab === 'candidates' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600 border-b-2 border-transparent'}`}
+                >
+                    유통 대기 (Candidates)
+                </button>
+                <button
+                    onClick={() => setActiveTab('history')}
+                    className={`pb-4 text-sm font-bold transition-colors cursor-pointer ${activeTab === 'history' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600 border-b-2 border-transparent'}`}
+                >
+                    유통 이력 (History)
+                </button>
             </div>
 
             {/* Filters */}
@@ -194,13 +254,15 @@ const DistributionManagement = () => {
                     />
                 </div>
                 <div className="flex gap-2">
-                    <button
-                        onClick={() => setIsQRScannerModalOpen(true)}
-                        className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100 cursor-pointer"
-                    >
-                        <QrCode size={18} />
-                        QR 유통
-                    </button>
+                    {hasDistributionPermission && (
+                        <button
+                            onClick={() => setIsQRScannerModalOpen(true)}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100 cursor-pointer"
+                        >
+                            <QrCode size={18} />
+                            QR 유통
+                        </button>
+                    )}
                     <div className="bg-gray-50 text-gray-600 px-4 py-2 rounded-xl text-sm font-bold flex items-center">
                         총 {totalElements}건
                     </div>
@@ -211,12 +273,21 @@ const DistributionManagement = () => {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <table className="w-full text-left">
                     <thead className="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">제품 정보 (Model / SN)</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">출고 정보 (Shipment ID)</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">상태 / 일시</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">상세</th>
-                        </tr>
+                        {activeTab === 'candidates' ? (
+                            <tr>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">제품 정보 (Model / SN)</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">유통 대기 정보 (Passport ID)</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">공장 / 생산 (Factory)</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">관리</th>
+                            </tr>
+                        ) : (
+                            <tr>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">위임 파트너 (Tenant)</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">유통 제품 정보</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">권한 정보</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">상태 / 만료일시</th>
+                            </tr>
+                        )}
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {loading ? (
@@ -225,6 +296,48 @@ const DistributionManagement = () => {
                                     데이터를 불러오는 중입니다...
                                 </td>
                             </tr>
+                        ) : activeTab === 'candidates' ? (
+                            history.length === 0 ? (
+                                <tr>
+                                    <td colSpan="4" className="px-6 py-12 text-center text-gray-400">
+                                        <PackageCheck size={32} className="mx-auto mb-3 opacity-50" />
+                                        유통 대기 중인 제품이 없습니다.
+                                    </td>
+                                </tr>
+                            ) : (
+                                history.map((h) => (
+                                    <tr key={h.passportId} className="hover:bg-gray-50 transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm font-bold text-gray-900">{h.modelName || '-'}</div>
+                                            <div className="text-[10px] text-gray-500 font-medium mt-0.5">{h.serialNumber}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-xs font-mono text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded inline-block">
+                                                {h.passportId ? h.passportId.substring(0, 12) + '...' : '-'}
+                                            </div>
+                                            <div className="text-[10px] text-gray-400 mt-1">Asset ID: {h.assetId ? h.assetId.substring(0, 8) + '...' : '-'}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-xs font-bold text-gray-700">{h.factoryCode || '-'}</div>
+                                            <div className="text-[10px] text-gray-400 mt-1">{h.productionBatch || ''}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right flex justify-end gap-2">
+                                            {hasDistributionPermission && (
+                                                <button
+                                                    onClick={() => {
+                                                        setScannedPassportId(h.passportId);
+                                                        setIsPartnerModalOpen(true);
+                                                        fetchPartnerLinks();
+                                                    }}
+                                                    className="px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer inline-flex items-center justify-center shadow-sm"
+                                                >
+                                                    유통
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            )
                         ) : history.length === 0 ? (
                             <tr>
                                 <td colSpan="4" className="px-6 py-12 text-center text-gray-400">
@@ -234,34 +347,39 @@ const DistributionManagement = () => {
                             </tr>
                         ) : (
                             history.map((h) => (
-                                <tr key={h.shipmentId} className="hover:bg-gray-50 transition-colors group">
+                                <tr key={h.distributionId} className="hover:bg-gray-50 transition-colors group">
                                     <td className="px-6 py-4">
-                                        <div className="text-sm font-bold text-gray-900">{h.modelName || '-'}</div>
-                                        <div className="text-[10px] text-gray-500 font-medium mt-0.5">{h.serialNumber}</div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="text-xs font-mono text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded inline-block">
-                                            {h.shipmentId.substring(0, 8)}...
+                                        <div className="text-sm font-bold text-gray-900">{h.targetTenantName || h.targetTenantId}</div>
+                                        <div className="text-[10px] text-gray-500 font-medium mt-0.5">
+                                            {h.targetTenantType ? `${h.targetTenantType} | ` : ''}파트너십: {h.partnerLinkId ? h.partnerLinkId.substring(0, 8) + '...' : '-'}
                                         </div>
-                                        <div className="text-[10px] text-gray-400 mt-1">회차: {h.shipmentRound}회</div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${h.status === 'RELEASED' ? 'bg-green-100 text-green-700' :
-                                            h.status === 'RETURNED' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700'
+                                        <div className="text-sm font-bold text-gray-900">{h.modelName || h.passportId}</div>
+                                        <div className="text-[10px] text-gray-500 font-medium mt-0.5">{h.serialNumber || '-'}</div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${h.status === 'DISTRIBUTED' ? 'bg-green-100 text-green-700' :
+                                            h.status === 'RECALLED' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700'
                                             }`}>
-                                            {h.status === 'RELEASED' ? '출고완료' : h.status === 'RETURNED' ? '반송완료' : h.status}
+                                            {h.status === 'DISTRIBUTED' ? '유통완료' : h.status === 'RECALLED' ? '회수됨' : h.status}
                                         </span>
                                         <div className="text-[10px] text-gray-400 mt-1">
-                                            {h.releasedAt ? new Date(h.releasedAt).toLocaleString() : '-'}
+                                            실행자: {h.distributedByUserId || '-'}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <Link
-                                            to={`/brand/shipments/${h.shipmentId}`}
-                                            className="px-3 py-1.5 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors inline-flex items-center justify-center"
-                                        >
-                                            상세보기
-                                        </Link>
+                                    <td className="px-6 py-4 text-right flex justify-end gap-2 items-center">
+                                        <div className="text-[10px] text-gray-500 font-medium whitespace-nowrap">
+                                            {h.distributedAt ? new Date(h.distributedAt).toLocaleString() : '-'}
+                                        </div>
+                                        {hasDistributionPermission && h.status === 'DISTRIBUTED' && (
+                                            <button
+                                                onClick={() => handleRecallDistribution(h.distributionId)}
+                                                className="ml-2 px-2 py-1 bg-red-50 text-red-600 border border-red-100 rounded text-[10px] font-bold hover:bg-red-600 hover:text-white transition-colors cursor-pointer"
+                                            >
+                                                취소
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))

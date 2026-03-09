@@ -38,6 +38,13 @@ const ProductManagement = () => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
 
+    // Pagination/Infinite Scroll states
+    const [page, setPage] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [totalElements, setTotalElements] = useState(0);
+    const observerTarget = useRef(null);
+
     // Modal states
     const [isMintModalOpen, setIsMintModalOpen] = useState(false);
     const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
@@ -80,11 +87,17 @@ const ProductManagement = () => {
         return scope === 'BRAND_VOID' || scope === 'SCOPE_BRAND_VOID';
     }) ?? false;
 
-    const fetchProducts = async () => {
+    const fetchProducts = async (pageNum = 0, append = false) => {
         if (!user?.tenantId) return;
-        setLoading(true);
+
+        if (append) {
+            setLoadingMore(true);
+        } else {
+            setLoading(true);
+        }
+
         try {
-            const params = new URLSearchParams({ page: 0, size: 20 });
+            const params = new URLSearchParams({ page: pageNum, size: 20 });
             if (searchTerm) params.append('keyword', searchTerm);
             if (assetStateFilter) params.append('assetState', assetStateFilter);
             if (startDate) params.append('createdFrom', new Date(startDate).toISOString());
@@ -97,20 +110,54 @@ const ProductManagement = () => {
             const data = await fetchWithAuth(`/products/tenant/passports?${params.toString()}`);
             const allProducts = data?.content || [];
             // 개인 소유(ownerId가 존재)로 넘어간 항목은 브랜드 제품 관리 목록에서 제외
-            setProducts(allProducts.filter((item) => !item.ownerId));
+            const newProducts = allProducts.filter((item) => !item.ownerId);
+
+            if (append) {
+                setProducts(prev => [...prev, ...newProducts]);
+            } else {
+                setProducts(newProducts);
+            }
+
+            // Check if there are more pages
+            setHasMore(!data?.last);
+            setTotalElements(data?.totalElements || 0);
+            setPage(pageNum);
         } catch (error) {
             console.error("Failed to fetch products:", error);
         } finally {
             setLoading(false);
+            setLoadingMore(false);
         }
     };
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchProducts();
+            fetchProducts(0, false); // Always fetch first page when filters change
         }, 300); // Debounce search and filter
         return () => clearTimeout(timer);
     }, [user?.tenantId, searchTerm, assetStateFilter, startDate, endDate]);
+
+    // Intersection Observer for infinite scrolling
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            entries => {
+                if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+                    fetchProducts(page + 1, true);
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
+        }
+
+        return () => {
+            if (observerTarget.current) {
+                observer.unobserve(observerTarget.current);
+            }
+        };
+    }, [hasMore, loading, loadingMore, page, searchTerm, assetStateFilter, startDate, endDate]); // Add dependencies for re-observing when filters change
 
     const handleMintChange = (e) => {
         const { name, value } = e.target;
@@ -265,10 +312,6 @@ const ProductManagement = () => {
                     </p>
                 </div>
                 <div className="flex gap-3">
-                    <button className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold shadow-sm hover:bg-gray-50 transition-colors">
-                        <Download size={16} />
-                        CSV 다운로드
-                    </button>
                     {hasMintPermission && (
                         <button
                             onClick={() => setIsMintModalOpen(true)}
@@ -318,6 +361,9 @@ const ProductManagement = () => {
                             onChange={(e) => setEndDate(e.target.value)}
                             className="bg-transparent border-none text-sm text-gray-600 outline-none p-0 focus:ring-0 cursor-pointer"
                         />
+                    </div>
+                    <div className="bg-gray-50 text-gray-600 px-4 py-2 rounded-xl text-sm font-bold flex items-center">
+                        총 {totalElements}건
                     </div>
                 </div>
             </div>
@@ -389,6 +435,21 @@ const ProductManagement = () => {
                         )}
                     </tbody>
                 </table>
+
+                {/* Infinite Scroll trigger point & loader */}
+                {!loading && (
+                    <div ref={observerTarget} className="flex justify-center py-6 border-t border-gray-50">
+                        {loadingMore && (
+                            <div className="flex items-center gap-2 text-gray-400">
+                                <Loader2 size={16} className="animate-spin" />
+                                <span className="text-sm font-medium">데이터를 불러오는 중...</span>
+                            </div>
+                        )}
+                        {!hasMore && products.length > 0 && (
+                            <span className="text-sm font-medium text-gray-400">모든 제품을 불러왔습니다.</span>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Mint Modal */}
