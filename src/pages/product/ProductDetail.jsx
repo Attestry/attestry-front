@@ -318,17 +318,16 @@ const ProductDetail = () => {
                                     </div>
                                     <div>
                                         <div className="text-sm font-bold text-gray-900">
-                                            {product.distribution.tenantName} ({product.distribution.tenantId})
+                                            {product.distribution.targetTenantName || product.distribution.tenantName} ({product.distribution.targetTenantId || product.distribution.tenantId})
                                         </div>
                                         <div className="text-xs text-gray-500">
-                                            {product.distribution.tenantType} 파트너에게 권한 위임됨
+                                            {product.distribution.targetTenantType || product.distribution.tenantType} 파트너에게 권한 위임됨
                                         </div>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-50 pt-6">
-                                    <InfoItem icon={<FileText size={16} />} label="부여된 권한" value={product.distribution.permissionCode} mono />
-                                    <InfoItem icon={<Clock size={16} />} label="위임 일시" value={new Date(product.distribution.grantedAt).toLocaleString()} />
-                                    <InfoItem icon={<ShieldCheck size={16} />} label="권한 스코프" value={product.distribution.scope} />
+                                    <InfoItem icon={<ShieldCheck size={16} />} label="유통 상태" value={product.distribution.status === 'DISTRIBUTED' ? '유통 완료' : product.distribution.status || '-'} variant={product.distribution.status === 'DISTRIBUTED' ? 'success' : 'default'} />
+                                    <InfoItem icon={<Clock size={16} />} label="유통 일시" value={product.distribution.distributedAt ? new Date(product.distribution.distributedAt).toLocaleString() : (product.distribution.grantedAt ? new Date(product.distribution.grantedAt).toLocaleString() : '-')} />
                                 </div>
                             </div>
                         ) : (
