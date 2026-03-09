@@ -20,8 +20,7 @@ const SIDEBAR_MENUS = {
   ],
   [ROLES.SERVICE]: [
     { title: '대시보드', path: '/service', icon: LayoutDashboard },
-    { title: '서비스 요청 관리', path: '/service/requests', icon: ClipboardList },
-    { title: '수신 요청 처리', path: '/service/processing', icon: Wrench },
+    { title: '수신 요청 처리', path: '/service/requests', icon: Wrench },
     { title: '완료 이력 관리', path: '/service/history', icon: FileCheck },
     { title: '파트너십 관리', path: '/service/delegate', icon: Briefcase },
     { title: '멤버십 관리', path: '/tenant/memberships', icon: Users },

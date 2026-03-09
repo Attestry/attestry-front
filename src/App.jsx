@@ -25,6 +25,8 @@ import ShipmentManagement from './pages/shipment/ShipmentManagement';
 import ShipmentHistoryDetail from './pages/shipment/ShipmentHistoryDetail';
 import DistributionManagement from './pages/distribution/DistributionManagement';
 import PublicPassportView from './pages/product/PublicPassportView';
+import ServiceApplication from './pages/service/ServiceApplication';
+import ServiceRequests from './pages/service/ServiceRequests';
 
 const ProtectedRoute = ({ allowedRoles, children }) => {
   const { isAuthenticated, user } = useAuthStore();
@@ -91,6 +93,7 @@ const App = () => {
           <Route path="/transfer/receive" element={<TransferReceiveView />} />
           <Route path="/t/:transferId" element={<TransferReceiveView />} />
           <Route path="/t/:transferId/:qrNonce" element={<TransferReceiveView />} />
+          <Route path="/service/apply" element={<ServiceApplication />} />
           <Route path="/products/passports/:passportId" element={<PublicPassportView />} />
           <Route
             path="/purchase-claims"
@@ -194,8 +197,12 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
-            <Route path="requests" element={<div className="p-8 font-bold">서비스 요청 관리 기능 개발중...</div>} />
-            <Route path="processing" element={<div className="p-8 font-bold">수신 요청 처리 기능 개발중...</div>} />
+            <Route path="requests" element={
+              <ProtectedRoute allowedRoles={[ROLES.SERVICE]}>
+                <ServiceRequests />
+              </ProtectedRoute>
+            } />
+            <Route path="processing" element={<Navigate to="/service/requests" replace />} />
             <Route path="history" element={<div className="p-8 font-bold">완료 이력 관리 기능 개발중...</div>} />
             <Route
               path="delegate"

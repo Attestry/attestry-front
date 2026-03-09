@@ -27,6 +27,7 @@ const MainLayout = () => {
             <>
               <Link to="/transfer/receive" className="text-blue-600 hover:text-blue-700 font-semibold">디지털 자산 이전 받기</Link>
               <Link to="/purchase-claims" className="text-blue-600 hover:text-blue-700 font-semibold">디지털 자산 등록하기</Link>
+              <Link to="/service/apply" className="text-blue-600 hover:text-blue-700 font-semibold">서비스 신청하기</Link>
             </>
           )}
         </div>
