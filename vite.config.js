@@ -13,7 +13,14 @@ export default defineConfig({
       '/me': 'http://localhost:8080',
       '/tenants': 'http://localhost:8080',
       '/workflows': 'http://localhost:8080',
-      '/products': 'http://localhost:8080',
+      '/products': {
+        target: 'http://localhost:8080',
+        bypass: (req, res, proxyOptions) => {
+          if (req.headers.accept?.indexOf('text/html') !== -1) {
+            return '/index.html';
+          }
+        }
+      },
       '/ledgers': 'http://localhost:8080',
       '/admin': {
         target: 'http://localhost:8080',

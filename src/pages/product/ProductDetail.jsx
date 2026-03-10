@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Package, ArrowLeft, Calendar, Hash, Factory, Database,
@@ -57,6 +57,11 @@ const ProductDetail = () => {
         if (passportId) {
             fetchProductDetail();
         }
+    }, [passportId]);
+
+    const publicPassportUrl = useMemo(() => {
+        if (!passportId) return '';
+        return `${window.location.origin}/products/passports/${encodeURIComponent(passportId)}`;
     }, [passportId]);
 
     const handleBack = () => {
@@ -190,7 +195,7 @@ const ProductDetail = () => {
 
                 <div className="flex gap-2">
                     <a
-                        href={product.publicUrl}
+                        href={publicPassportUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-gray-50 transition-colors"
@@ -353,7 +358,7 @@ const ProductDetail = () => {
                         <div className="bg-white p-3 rounded-2xl shadow-inner border border-gray-50 mb-6 relative">
                             {/* SVG for screen display */}
                             <QRCodeSVG
-                                value={product.publicUrl}
+                                value={publicPassportUrl}
                                 size={140}
                                 level="H"
                                 includeMargin={true}
@@ -362,7 +367,7 @@ const ProductDetail = () => {
                             <div className="hidden">
                                 <QRCodeCanvas
                                     id="qr-canvas"
-                                    value={product.publicUrl}
+                                    value={publicPassportUrl}
                                     size={1024} // High resolution for download
                                     level="H"
                                     includeMargin={true}

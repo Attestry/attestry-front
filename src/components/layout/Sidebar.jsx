@@ -14,7 +14,7 @@ const SIDEBAR_MENUS = {
   [ROLES.RETAIL]: [
     { title: '대시보드', path: '/retail', icon: LayoutDashboard },
     { title: '보유 제품 관리', path: '/retail/inventory', icon: PackageCheck },
-    { title: '소유권 이전', path: '/retail/transfer', icon: RefreshCw },
+    { title: '양도 완료 물품 관리', path: '/retail/transfer', icon: RefreshCw },
     { title: '파트너십 관리', path: '/retail/delegate', icon: Briefcase },
     { title: '멤버십 관리', path: '/tenant/memberships', icon: Users },
   ],

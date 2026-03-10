@@ -5,7 +5,7 @@ import useAuthStore, { ROLES } from '../../store/useAuthStore';
 import { User } from 'lucide-react';
 
 const MainLayout = () => {
-  const { user, setRole, isAuthenticated } = useAuthStore();
+  const { user, setRole, reissueToken, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
 
   const isUserProfile = isAuthenticated && user?.role === ROLES.USER;
@@ -38,9 +38,10 @@ const MainLayout = () => {
                 <select
                   className="text-sm border border-gray-300 rounded-md py-1.5 px-3 bg-white text-gray-700 font-medium shadow-sm transition-colors hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900"
                   value={user?.role}
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const newRole = e.target.value;
                     flushSync(() => setRole(newRole));
+                    await reissueToken();
                     if (newRole === ROLES.PLATFORM_ADMIN) {
                       navigate('/admin/onboarding');
                     } else if (newRole === ROLES.USER) {
