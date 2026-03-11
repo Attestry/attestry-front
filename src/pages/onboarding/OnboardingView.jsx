@@ -17,7 +17,8 @@ const OnboardingView = () => {
     const [formData, setFormData] = useState({
         orgName: '',
         bizRegNo: '',
-        country: 'KR'
+        country: 'KR',
+        address: ''
     });
 
     const { submitApplication, presignEvidence, completeEvidenceUpload, error } = useAuthStore();
@@ -42,6 +43,10 @@ const OnboardingView = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (selectedType === ROLES.SERVICE && !formData.address.trim()) {
+            alert('서비스 업체 신청은 주소를 반드시 입력해야 합니다.');
+            return;
+        }
         if (files.length === 0) {
             alert('최소 1개 이상의 증빙 서류를 업로드해주세요.');
             return;
@@ -190,6 +195,25 @@ const OnboardingView = () => {
                                 <option value="US">미국 (US)</option>
                                 <option value="JP">일본 (JP)</option>
                             </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                주소 (Address)
+                                {selectedType === ROLES.SERVICE && <span className="ml-1 text-rose-500">*</span>}
+                            </label>
+                            <input
+                                type="text"
+                                name="address"
+                                value={formData.address}
+                                onChange={handleInputChange}
+                                required={selectedType === ROLES.SERVICE}
+                                className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                                placeholder={selectedType === ROLES.SERVICE ? '서비스 업체 운영 주소를 입력하세요.' : '선택 입력'}
+                            />
+                            {selectedType === ROLES.SERVICE && (
+                                <p className="mt-1 text-xs text-gray-500">서비스 업체는 주소가 승인 후 tenant 정보로 바로 반영됩니다.</p>
+                            )}
                         </div>
 
                         <div>

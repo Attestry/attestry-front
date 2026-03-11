@@ -3,6 +3,7 @@ import { Bell, User } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { flushSync } from 'react-dom';
 import useAuthStore, { ROLE_THEMES, ROLES } from '../../store/useAuthStore';
+import { getRoleLandingPath } from '../../utils/roleNavigation';
 
 const TopNav = () => {
     const { user, setRole, reissueToken } = useAuthStore();
@@ -11,16 +12,21 @@ const TopNav = () => {
     if (!user) return null;
 
     const theme = ROLE_THEMES[user.role] || ROLE_THEMES[ROLES.USER];
+    const homePath = getRoleLandingPath(user.role);
 
     return (
         <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 sticky top-0 z-10">
             <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 font-bold text-xl text-gray-800">
+                <button
+                    type="button"
+                    onClick={() => navigate(homePath)}
+                    className="flex items-center gap-2 font-bold text-xl text-gray-800"
+                >
                     <div className="bg-gray-900 text-white w-8 h-8 rounded-md flex items-center justify-center font-bold">
                         D
                     </div>
                     DPP Ledger
-                </div>
+                </button>
             </div>
 
             <div className="flex items-center gap-4">
@@ -32,13 +38,7 @@ const TopNav = () => {
                             const newRole = e.target.value;
                             flushSync(() => setRole(newRole));
                             await reissueToken();
-                            if (newRole === ROLES.USER) {
-                                navigate('/');
-                            } else if (newRole === ROLES.PLATFORM_ADMIN) {
-                                navigate('/admin/onboarding');
-                            } else {
-                                navigate(`/${newRole.toLowerCase()}`);
-                            }
+                            navigate(getRoleLandingPath(newRole));
                         }}
                     >
                         {user.availableRoles.map(r => (

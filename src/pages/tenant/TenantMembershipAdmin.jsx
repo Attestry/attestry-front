@@ -135,48 +135,48 @@ const TenantMembershipAdmin = () => {
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center bg-slate-50 rounded-lg p-0.5 border border-slate-100">
-                        {Object.values(TENANT_ROLES).map(role => {
-                            const hasRole = (m.roleCodes || []).some(rc => rc.toUpperCase() === role.toUpperCase());
-                            const isProcessing = actionLoading === `role-${m.membershipId}-${role}`;
-                            return (
-                                <button
-                                    key={role}
-                                    onClick={() => hasManagePermission && safeExecute(`role-${m.membershipId}-${role}`, () => hasRole ? revokeRole(m.membershipId, role) : assignRole(m.membershipId, role))}
-                                    disabled={isProcessing || !hasManagePermission}
-                                    title={roleDisplay[role].label}
-                                    className={`p-1.5 rounded-md transition-all ${hasRole
-                                        ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100'
-                                        : 'text-slate-400 hover:text-slate-600'
-                                        } disabled:opacity-50`}
-                                >
-                                    {isProcessing ? (
-                                        <div className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                                    ) : hasRole ? (
-                                        <Check size={14} />
-                                    ) : (
-                                        <Plus size={14} />
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
+                    {hasManagePermission && (
+                        <>
+                            <div className="flex items-center bg-slate-50 rounded-lg p-0.5 border border-slate-100">
+                                {Object.values(TENANT_ROLES).map(role => {
+                                    const hasRole = (m.roleCodes || []).some(rc => rc.toUpperCase() === role.toUpperCase());
+                                    const isProcessing = actionLoading === `role-${m.membershipId}-${role}`;
+                                    return (
+                                        <button
+                                            key={role}
+                                            onClick={() => safeExecute(`role-${m.membershipId}-${role}`, () => hasRole ? revokeRole(m.membershipId, role) : assignRole(m.membershipId, role))}
+                                            disabled={isProcessing}
+                                            title={roleDisplay[role].label}
+                                            className={`p-1.5 rounded-md transition-all ${hasRole
+                                                ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100'
+                                                : 'text-slate-400 hover:text-slate-600'
+                                                } disabled:opacity-50`}
+                                        >
+                                            {isProcessing ? (
+                                                <div className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                                            ) : hasRole ? (
+                                                <Check size={14} />
+                                            ) : (
+                                                <Plus size={14} />
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
 
-                    <div className="h-6 w-px bg-slate-100" />
+                            <div className="h-6 w-px bg-slate-100" />
 
-                    {hasManagePermission ? (
-                        <button
-                            onClick={() => safeExecute(`status-${m.membershipId}`, () => updateMembershipStatus(m.membershipId, isStatusActive ? 'SUSPENDED' : 'ACTIVE'))}
-                            disabled={actionLoading === `status-${m.membershipId}`}
-                            className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isStatusActive
-                                ? 'bg-white border-red-100 text-red-600 hover:bg-red-50'
-                                : 'bg-white border-green-100 text-green-600 hover:bg-green-50'
-                                } disabled:opacity-50`}
-                        >
-                            {actionLoading === `status-${m.membershipId}` ? '처리중' : isStatusActive ? '정지' : '활성화'}
-                        </button>
-                    ) : (
-                        <span className="text-[10px] text-slate-300 font-bold px-2">READ ONLY</span>
+                            <button
+                                onClick={() => safeExecute(`status-${m.membershipId}`, () => updateMembershipStatus(m.membershipId, isStatusActive ? 'SUSPENDED' : 'ACTIVE'))}
+                                disabled={actionLoading === `status-${m.membershipId}`}
+                                className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isStatusActive
+                                    ? 'bg-white border-red-100 text-red-600 hover:bg-red-50'
+                                    : 'bg-white border-green-100 text-green-600 hover:bg-green-50'
+                                    } disabled:opacity-50`}
+                            >
+                                {actionLoading === `status-${m.membershipId}` ? '처리중' : isStatusActive ? '정지' : '활성화'}
+                            </button>
+                        </>
                     )}
                 </div>
             </div>
@@ -405,4 +405,3 @@ const TenantMembershipAdmin = () => {
 };
 
 export default TenantMembershipAdmin;
-

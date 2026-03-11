@@ -11,6 +11,12 @@ import RetailTransferBrandListView from './pages/retail/RetailTransferBrandListV
 import RetailBrandCompletedTransfersDetail from './pages/retail/RetailBrandCompletedTransfersDetail';
 import RetailDistributedProductDetail from './pages/retail/RetailDistributedProductDetail';
 import ServiceView from './pages/service/ServiceView';
+import ServiceRequestsPage from './pages/service/ServiceRequestsPage';
+import ServiceProcessingPage from './pages/service/ServiceProcessingPage';
+import ServiceHistoryPage from './pages/service/ServiceHistoryPage';
+import ServiceProviderListPage from './pages/service/ServiceProviderListPage';
+import ServiceProviderDetailPage from './pages/service/ServiceProviderDetailPage';
+import MyServiceRequestsUserPage from './pages/service/MyServiceRequestsUserPage';
 import MainPage from './pages/main/MainPage';
 import OnboardingView from './pages/onboarding/OnboardingView';
 import PlatformAdminView from './pages/admin/PlatformAdminView';
@@ -30,6 +36,7 @@ import ShipmentManagement from './pages/shipment/ShipmentManagement';
 import ShipmentHistoryDetail from './pages/shipment/ShipmentHistoryDetail';
 import DistributionManagement from './pages/distribution/DistributionManagement';
 import PublicPassportView from './pages/product/PublicPassportView';
+import { getRoleLandingPath } from './utils/roleNavigation';
 
 const ProtectedRoute = ({ allowedRoles, children }) => {
   const { isAuthenticated, user } = useAuthStore();
@@ -38,12 +45,7 @@ const ProtectedRoute = ({ allowedRoles, children }) => {
   if (!user) return <div className="p-20 text-center text-gray-400">권한 확인 중...</div>;
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    if (user.role === ROLES.USER) {
-      return <Navigate to="/" replace />;
-    } else if (user.role === ROLES.PLATFORM_ADMIN) {
-      return <Navigate to="/admin/onboarding" replace />;
-    }
-    return <Navigate to={`/${user.role.toLowerCase()}`} replace />;
+    return <Navigate to={getRoleLandingPath(user.role)} replace />;
   }
 
   return children;
@@ -55,13 +57,7 @@ const DashboardRedirector = () => {
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
-    if (user.role === ROLES.USER) {
-      navigate('/', { replace: true });
-    } else if (user.role === ROLES.PLATFORM_ADMIN) {
-      navigate('/admin/onboarding', { replace: true });
-    } else {
-      navigate(`/${user.role.toLowerCase()}`, { replace: true });
-    }
+    navigate(getRoleLandingPath(user.role), { replace: true });
   }, [user?.role, isAuthenticated, navigate]);
 
   return null;
@@ -113,6 +109,30 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/service-request/providers"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.USER]}>
+                <ServiceProviderListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/service-request/providers/:tenantId"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.USER]}>
+                <ServiceProviderDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/service-request/my"
+            element={
+              <ProtectedRoute allowedRoles={[ROLES.USER]}>
+                <MyServiceRequestsUserPage />
+              </ProtectedRoute>
+            }
+          />
         </Route>
 
         <Route element={<DashboardLayout />}>
@@ -132,7 +152,7 @@ const App = () => {
           <Route path="/brand">
             <Route index element={
               <ProtectedRoute allowedRoles={[ROLES.BRAND]}>
-                <BrandView />
+                <Navigate to={getRoleLandingPath(ROLES.BRAND)} replace />
               </ProtectedRoute>
             } />
             <Route path="release" element={
@@ -173,7 +193,7 @@ const App = () => {
               index
               element={
                 <ProtectedRoute allowedRoles={[ROLES.RETAIL]}>
-                  <RetailView />
+                  <Navigate to={getRoleLandingPath(ROLES.RETAIL)} replace />
                 </ProtectedRoute>
               }
             />
@@ -233,13 +253,34 @@ const App = () => {
               index
               element={
                 <ProtectedRoute allowedRoles={[ROLES.SERVICE]}>
-                  <ServiceView />
+                  <Navigate to={getRoleLandingPath(ROLES.SERVICE)} replace />
                 </ProtectedRoute>
               }
             />
-            <Route path="requests" element={<div className="p-8 font-bold">서비스 요청 관리 기능 개발중...</div>} />
-            <Route path="processing" element={<div className="p-8 font-bold">수신 요청 처리 기능 개발중...</div>} />
-            <Route path="history" element={<div className="p-8 font-bold">완료 이력 관리 기능 개발중...</div>} />
+            <Route
+              path="requests"
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.SERVICE]}>
+                  <ServiceRequestsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="processing"
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.SERVICE]}>
+                  <ServiceProcessingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="history"
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.SERVICE]}>
+                  <ServiceHistoryPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="delegate"
               element={

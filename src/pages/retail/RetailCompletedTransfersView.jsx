@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, CheckCircle2, RefreshCw } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
+import { createHttpError, getCurrentMembership, hasEffectiveScope, toPermissionMessage } from '../../utils/permissionUi';
 
 const PAGE_SIZE = 20;
 const BRANDS_PAGE_SIZE = 10;
@@ -24,14 +25,16 @@ const fetchWithAuth = async (url, options = {}) => {
     } catch (e) {
       // ignore json parse error
     }
-    throw new Error(errorMsg);
+    throw createHttpError(errorMsg, response.status);
   }
 
   return response.status === 204 ? null : response.json();
 };
 
 const RetailCompletedTransfersView = () => {
-  const { user, partnerLinks, fetchPartnerLinks } = useAuthStore();
+  const { user, myMemberships, partnerLinks, fetchPartnerLinks } = useAuthStore();
+  const currentMembership = getCurrentMembership(myMemberships, user?.tenantId, 'RETAIL');
+  const canReadRetailTransfers = hasEffectiveScope(currentMembership, 'TENANT_READ_ONLY');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -86,6 +89,14 @@ const RetailCompletedTransfersView = () => {
       setLoading(false);
       return;
     }
+    if (!canReadRetailTransfers) {
+      setItems([]);
+      setTotalPages(1);
+      setTotalElements(0);
+      setLoading(false);
+      setError(toPermissionMessage({ status: 403, message: 'Access denied' }, 'DEFAULT'));
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -101,7 +112,7 @@ const RetailCompletedTransfersView = () => {
       setTotalPages(Math.max(1, data?.totalPages || 1));
       setTotalElements(data?.totalElements || 0);
     } catch (e) {
-      setError(e?.message || '양도 완료 목록을 불러오지 못했습니다.');
+      setError(toPermissionMessage(e, 'DEFAULT', '양도 완료 목록을 불러오지 못했습니다.'));
     } finally {
       setLoading(false);
     }
@@ -109,7 +120,7 @@ const RetailCompletedTransfersView = () => {
 
   useEffect(() => {
     load().catch(() => {});
-  }, [requestUrl]);
+  }, [canReadRetailTransfers, requestUrl]);
 
   useEffect(() => {
     setBrandPage(0);
@@ -142,7 +153,7 @@ const RetailCompletedTransfersView = () => {
         {loading ? (
           <div className="px-5 py-10 text-sm text-gray-500">불러오는 중...</div>
         ) : error ? (
-          <div className="px-5 py-10 text-sm text-red-600">{error}</div>
+          <div className="px-5 py-10 text-sm text-amber-800">{error}</div>
         ) : items.length === 0 ? (
           <div className="px-5 py-10 text-sm text-gray-500">양도 완료된 제품이 없습니다.</div>
         ) : (

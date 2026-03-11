@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package, Search, Calendar, Filter, Download, Plus, FileDigit, Database, Factory, Hash, Code, Loader2, X, UploadCloud, FileText, AlertCircle } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
+import { PERMISSION_GUIDES, createHttpError, getCurrentMembership, hasEffectiveScope, toPermissionMessage } from '../../utils/permissionUi';
 
 // Role-based utility to fetch with Auth Token
 const fetchWithAuth = async (url, options = {}) => {
@@ -23,7 +24,7 @@ const fetchWithAuth = async (url, options = {}) => {
         } catch (e) {
             // parsing error skipped
         }
-        throw new Error(errorMsg);
+        throw createHttpError(errorMsg, response.status);
     }
     return response.status !== 204 ? response.json() : null;
 };
@@ -33,6 +34,7 @@ const ProductManagement = () => {
     const { user, myMemberships } = useAuthStore();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [assetStateFilter, setAssetStateFilter] = useState('');
     const [startDate, setStartDate] = useState('');
@@ -66,26 +68,14 @@ const ProductManagement = () => {
         componentRootHash: ''
     });
 
-    const currentMembership = user?.tenantId
-        ? myMemberships.find((m) =>
-            m.tenantId === user.tenantId &&
-            String(m.status).toUpperCase() === 'ACTIVE' &&
-            String(m.groupType).toUpperCase() === 'BRAND'
-        )
-        : null;
+    const currentMembership = getCurrentMembership(myMemberships, user?.tenantId, 'BRAND');
 
     // DPP 발행(Mint) 버튼 노출 조건:
     // 오직 현재 로그인한 tenant membership의 effectiveScopes에 BRAND_MINT가 존재할 때만 허용
-    const hasMintPermission = currentMembership?.effectiveScopes?.some((s) => {
-        const scope = String(s).toUpperCase();
-        return scope === 'BRAND_MINT' || scope === 'SCOPE_BRAND_MINT';
-    }) ?? false;
+    const hasMintPermission = hasEffectiveScope(currentMembership, 'BRAND_MINT');
 
     // Void 버튼 노출 조건: BRAND_VOID 스코프
-    const hasVoidPermission = currentMembership?.effectiveScopes?.some((s) => {
-        const scope = String(s).toUpperCase();
-        return scope === 'BRAND_VOID' || scope === 'SCOPE_BRAND_VOID';
-    }) ?? false;
+    const hasVoidPermission = hasEffectiveScope(currentMembership, 'BRAND_VOID');
 
     const fetchProducts = async (pageNum = 0, append = false) => {
         if (!user?.tenantId) return;
@@ -94,6 +84,7 @@ const ProductManagement = () => {
             setLoadingMore(true);
         } else {
             setLoading(true);
+            setError('');
         }
 
         try {
@@ -124,6 +115,10 @@ const ProductManagement = () => {
             setPage(pageNum);
         } catch (error) {
             console.error("Failed to fetch products:", error);
+            setProducts([]);
+            setHasMore(false);
+            setTotalElements(0);
+            setError(toPermissionMessage(error, 'DEFAULT', '제품 목록을 불러오지 못했습니다.'));
         } finally {
             setLoading(false);
             setLoadingMore(false);
@@ -232,7 +227,7 @@ const ProductManagement = () => {
             }
         } catch (error) {
             console.error(error);
-            alert(`DPP 발행 실패: ${error.message}`);
+            alert(`DPP 발행 실패: ${toPermissionMessage(error, 'BRAND_MINT', 'DPP 발행에 실패했습니다.')}`);
         } finally {
             setMintLoading(false);
         }
@@ -262,7 +257,7 @@ const ProductManagement = () => {
             fetchProducts();
         } catch (error) {
             console.error(error);
-            alert(`무효화 실패: ${error.message}`);
+            alert(`무효화 실패: ${toPermissionMessage(error, 'DEFAULT', '제품 무효화에 실패했습니다.')}`);
         }
     };
 
@@ -314,8 +309,9 @@ const ProductManagement = () => {
                 <div className="flex gap-3">
                     {hasMintPermission && (
                         <button
+                            type="button"
                             onClick={() => setIsMintModalOpen(true)}
-                            className="flex items-center gap-2 bg-indigo-600 border border-transparent text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm hover:bg-indigo-700 transition-colors cursor-pointer"
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-colors bg-indigo-600 border border-transparent text-white hover:bg-indigo-700 cursor-pointer"
                         >
                             <Plus size={16} />
                             DPP 발행 (Mint)
@@ -323,6 +319,18 @@ const ProductManagement = () => {
                     )}
                 </div>
             </div>
+
+            {!hasMintPermission && (
+                <div className="mb-4 text-sm text-gray-500">
+                    DPP 발행은 브랜드 발행 권한이 있는 멤버만 사용할 수 있습니다.
+                </div>
+            )}
+
+            {error && (
+                <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    {error}
+                </div>
+            )}
 
             {/* Config & Filters */}
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center justify-between mb-6">
@@ -377,17 +385,17 @@ const ProductManagement = () => {
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">DPP ID</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">발행일</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">상태</th>
-                            {hasVoidPermission && <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">관리</th>}
+                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">관리</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {loading ? (
                             <tr>
-                                <td colSpan={hasVoidPermission ? "5" : "4"} className="px-6 py-12 text-center text-gray-400">데이터를 불러오는 중입니다...</td>
+                                <td colSpan="5" className="px-6 py-12 text-center text-gray-400">데이터를 불러오는 중입니다...</td>
                             </tr>
                         ) : products.length === 0 ? (
                             <tr>
-                                <td colSpan={hasVoidPermission ? "5" : "4"} className="px-6 py-12 text-center text-gray-400">
+                                <td colSpan="5" className="px-6 py-12 text-center text-gray-400">
                                     <Package size={32} className="mx-auto mb-3 opacity-50" />
                                     발행된 제품 내역이 없습니다.
                                 </td>
@@ -415,21 +423,22 @@ const ProductManagement = () => {
                                             {p.assetState}
                                         </span>
                                     </td>
-                                    {hasVoidPermission && (
-                                        <td className="px-6 py-4 text-right">
-                                            {p.assetState === 'ACTIVE' && (
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedPassportId(p.passportId);
-                                                        setIsVoidModalOpen(true);
-                                                    }}
-                                                    className="px-3 py-1 bg-white border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors cursor-pointer inline-flex items-center justify-center"
-                                                >
-                                                    무효화 (Void)
-                                                </button>
-                                            )}
-                                        </td>
-                                    )}
+                                    <td className="px-6 py-4 text-right">
+                                        {p.assetState === 'ACTIVE' && hasVoidPermission ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedPassportId(p.passportId);
+                                                    setIsVoidModalOpen(true);
+                                                }}
+                                                className="px-3 py-1 rounded-lg text-xs font-bold transition-colors inline-flex items-center justify-center bg-white border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer"
+                                            >
+                                                무효화 (Void)
+                                            </button>
+                                        ) : (
+                                            <span className="text-xs text-gray-300">-</span>
+                                        )}
+                                    </td>
                                 </tr>
                             ))
                         )}

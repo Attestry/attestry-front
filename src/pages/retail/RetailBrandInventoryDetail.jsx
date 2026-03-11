@@ -3,6 +3,7 @@ import { ArrowLeft, Building2, Copy, Package, QrCode, RefreshCw, Search, X } fro
 import { QRCodeSVG } from 'qrcode.react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import useAuthStore, { TENANT_ROLES } from '../../store/useAuthStore';
+import { PERMISSION_GUIDES } from '../../utils/permissionUi';
 
 const PRODUCTS_PAGE_SIZE = 20;
 
@@ -582,17 +583,25 @@ const RetailBrandInventoryDetail = () => {
                       남은 시간: {transferResult.expiresAt ? formatRemaining(new Date(transferResult.expiresAt).getTime() - transferNow) : '-'}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleCancelTransfer}
-                    disabled={transferCancelLoading}
-                    className="w-full px-4 py-3 rounded-xl border border-red-200 text-red-600 font-semibold hover:bg-red-50 disabled:opacity-60"
-                  >
-                    {transferCancelLoading ? '취소 중...' : '양도 취소'}
-                  </button>
+                  {canCreateTransfer && (
+                    <button
+                      type="button"
+                      onClick={handleCancelTransfer}
+                      disabled={transferCancelLoading}
+                      className="w-full px-4 py-3 rounded-xl border border-red-200 text-red-600 font-semibold hover:bg-red-50 disabled:opacity-60"
+                    >
+                      {transferCancelLoading ? '취소 중...' : '양도 취소'}
+                    </button>
+                  )}
                 </div>
               ) : (
                 <>
+                  {!canCreateTransfer && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                      {PERMISSION_GUIDES.RETAIL_TRANSFER_CREATE}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
@@ -614,14 +623,16 @@ const RetailBrandInventoryDetail = () => {
 
                   <div className="text-sm text-gray-500">QR은 15분, 코드는 7일 동안 유효합니다.</div>
 
-                  <button
-                    type="button"
-                    onClick={handleCreateTransfer}
-                    disabled={transferLoading}
-                    className="w-full px-4 py-3 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700 disabled:opacity-60"
-                  >
-                    {transferLoading ? '생성 중...' : '양도 수단 생성하기'}
-                  </button>
+                  {canCreateTransfer && (
+                    <button
+                      type="button"
+                      onClick={handleCreateTransfer}
+                      disabled={transferLoading}
+                      className="w-full px-4 py-3 rounded-xl font-semibold disabled:opacity-60 bg-green-600 text-white hover:bg-green-700"
+                    >
+                      {transferLoading ? '생성 중...' : '양도 수단 생성하기'}
+                    </button>
+                  )}
                 </>
               )}
             </div>

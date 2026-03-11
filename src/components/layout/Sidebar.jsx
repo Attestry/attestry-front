@@ -1,25 +1,22 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, PackageCheck, Users, Briefcase, RefreshCw, Wrench, FileCheck, ClipboardList, ShieldAlert } from 'lucide-react';
+import { PackageCheck, Users, Briefcase, RefreshCw, Wrench, FileCheck, ClipboardList, ShieldAlert } from 'lucide-react';
 import useAuthStore, { ROLE_THEMES, ROLES } from '../../store/useAuthStore';
 
 const SIDEBAR_MENUS = {
   [ROLES.BRAND]: [
-    { title: '대시보드', path: '/brand', icon: LayoutDashboard },
     { title: '출고 관리 (Release)', path: '/brand/release', icon: PackageCheck },
     { title: '유통 관리 (Distribution)', path: '/brand/distribution', icon: RefreshCw },
     { title: '파트너십 관리', path: '/brand/delegate', icon: Briefcase },
     { title: '멤버십 관리', path: '/tenant/memberships', icon: Users },
   ],
   [ROLES.RETAIL]: [
-    { title: '대시보드', path: '/retail', icon: LayoutDashboard },
     { title: '보유 제품 관리', path: '/retail/inventory', icon: PackageCheck },
     { title: '양도 완료 물품 관리', path: '/retail/transfer', icon: RefreshCw },
     { title: '파트너십 관리', path: '/retail/delegate', icon: Briefcase },
     { title: '멤버십 관리', path: '/tenant/memberships', icon: Users },
   ],
   [ROLES.SERVICE]: [
-    { title: '대시보드', path: '/service', icon: LayoutDashboard },
     { title: '서비스 요청 관리', path: '/service/requests', icon: ClipboardList },
     { title: '수신 요청 처리', path: '/service/processing', icon: Wrench },
     { title: '완료 이력 관리', path: '/service/history', icon: FileCheck },
@@ -45,12 +42,7 @@ const Sidebar = () => {
   let menus = SIDEBAR_MENUS[user.role] ? [...SIDEBAR_MENUS[user.role]] : [];
 
   if (user.role === ROLES.BRAND && isBrandGroup) {
-    const dashIndex = menus.findIndex((m) => m.path === '/brand');
-    if (dashIndex !== -1) {
-      menus.splice(dashIndex + 1, 0, { title: '제품 관리 (Product Passports)', path: '/brand/products', icon: PackageCheck });
-    } else {
-      menus.push({ title: '제품 관리 (Product Passports)', path: '/brand/products', icon: PackageCheck });
-    }
+    menus.unshift({ title: '제품 관리 (Product Passports)', path: '/brand/products', icon: PackageCheck });
   }
 
   return (

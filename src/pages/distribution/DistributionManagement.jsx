@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { RefreshCw, Search, ChevronLeft, ChevronRight, QrCode, PackageCheck, X } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 import QRScannerModal from '../../components/shipment/QRScannerModal';
+import { createHttpError, getCurrentMembership, hasEffectiveScope, toPermissionMessage } from '../../utils/permissionUi';
 
 const apiFetch = async (url, options = {}) => {
     const token = useAuthStore.getState().accessToken;
@@ -19,7 +20,7 @@ const apiFetch = async (url, options = {}) => {
             const errorData = await response.json();
             errorMsg = errorData.message || errorMsg;
         } catch (e) { }
-        throw new Error(errorMsg);
+        throw createHttpError(errorMsg, response.status);
     }
     if (response.status === 204) return null;
     return response.json();
@@ -29,6 +30,7 @@ const DistributionManagement = () => {
     const { user, myMemberships } = useAuthStore();
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('candidates');
     const [page, setPage] = useState(0);
@@ -45,22 +47,15 @@ const DistributionManagement = () => {
     const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
     const [grantLoading, setGrantLoading] = useState(false);
 
-    const currentMembership = user?.tenantId
-        ? myMemberships.find((m) =>
-            m.tenantId === user.tenantId &&
-            String(m.status).toUpperCase() === 'ACTIVE'
-        )
-        : null;
+    const currentMembership = getCurrentMembership(myMemberships, user?.tenantId);
 
-    const hasDistributionPermission = currentMembership?.effectiveScopes?.some((s) => {
-        const scope = String(s).toUpperCase();
-        return scope === 'DELEGATION_GRANT' || scope === 'SCOPE_DELEGATION_GRANT';
-    }) ?? false;
+    const hasDistributionPermission = hasEffectiveScope(currentMembership, 'DELEGATION_GRANT');
 
     const fetchHistory = async (p = 0, k = '') => {
         if (!user?.tenantId) return;
 
         setLoading(true);
+        setError('');
         try {
             if (activeTab === 'candidates') {
                 const query = new URLSearchParams({
@@ -88,7 +83,10 @@ const DistributionManagement = () => {
             }
         } catch (error) {
             console.error(`Failed to fetch distribution ${activeTab}:`, error);
-            alert(`${activeTab === 'candidates' ? '유통 대기' : '유통 이력'} 목록을 불러오지 못했습니다.`);
+            setHistory([]);
+            setTotalPages(0);
+            setTotalElements(0);
+            setError(toPermissionMessage(error, 'DEFAULT', `${activeTab === 'candidates' ? '유통 대기' : '유통 이력'} 목록을 불러오지 못했습니다.`));
         } finally {
             setLoading(false);
         }
@@ -102,7 +100,7 @@ const DistributionManagement = () => {
             setPartnerLinks(data || []);
         } catch (error) {
             console.error("Failed to fetch partner links:", error);
-            alert("파트너 목록을 불러오지 못했습니다.");
+            setError(toPermissionMessage(error, 'DEFAULT', '파트너 목록을 불러오지 못했습니다.'));
         } finally {
             setPartnerLoading(false);
         }
@@ -174,7 +172,7 @@ const DistributionManagement = () => {
             fetchHistory(page, searchTerm); // Refresh list
         } catch (error) {
             console.error("Failed to grant delegation:", error);
-            alert(`위임 실패: ${error.message}`);
+            alert(`위임 실패: ${toPermissionMessage(error, 'DELEGATION_GRANT', '권한 위임에 실패했습니다.')}`);
         } finally {
             setGrantLoading(false);
         }
@@ -199,7 +197,7 @@ const DistributionManagement = () => {
             fetchHistory(page, searchTerm); // Refresh list
         } catch (error) {
             console.error("Failed to recall distribution:", error);
-            alert(`취소 실패: ${error.message}`);
+            alert(`취소 실패: ${toPermissionMessage(error, 'DELEGATION_GRANT', '유통 취소에 실패했습니다.')}`);
         } finally {
             setLoading(false);
         }
@@ -224,6 +222,12 @@ const DistributionManagement = () => {
                     </p>
                 </div>
             </div>
+
+            {error && (
+                <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    {error}
+                </div>
+            )}
 
             {/* Tabs */}
             <div className="flex border-b border-gray-200 mb-6 gap-8">
@@ -256,8 +260,9 @@ const DistributionManagement = () => {
                 <div className="flex gap-2">
                     {hasDistributionPermission && (
                         <button
+                            type="button"
                             onClick={() => setIsQRScannerModalOpen(true)}
-                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100 cursor-pointer"
+                            className="px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100 cursor-pointer"
                         >
                             <QrCode size={18} />
                             QR 유통
@@ -268,6 +273,12 @@ const DistributionManagement = () => {
                     </div>
                 </div>
             </div>
+
+            {!hasDistributionPermission && (
+                <div className="mb-6 text-sm text-gray-500">
+                    유통 위임과 회수는 관련 권한이 있는 멤버만 사용할 수 있습니다.
+                </div>
+            )}
 
             {/* Main Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -308,14 +319,18 @@ const DistributionManagement = () => {
                                 history.map((h) => (
                                     <tr key={h.passportId} className="hover:bg-gray-50 transition-colors group">
                                         <td className="px-6 py-4">
-                                            <div className="text-sm font-bold text-gray-900">{h.modelName || '-'}</div>
-                                            <div className="text-[10px] text-gray-500 font-medium mt-0.5">{h.serialNumber}</div>
+                                            <Link to={`/brand/products/${h.passportId}`} className="block">
+                                                <div className="text-sm font-bold text-gray-900 group-hover:text-indigo-600">{h.modelName || '-'}</div>
+                                                <div className="text-[10px] text-gray-500 font-medium mt-0.5">{h.serialNumber}</div>
+                                            </Link>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="text-xs font-mono text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded inline-block">
-                                                {h.passportId ? h.passportId.substring(0, 12) + '...' : '-'}
-                                            </div>
-                                            <div className="text-[10px] text-gray-400 mt-1">Asset ID: {h.assetId ? h.assetId.substring(0, 8) + '...' : '-'}</div>
+                                            <Link to={`/brand/products/${h.passportId}`} className="block">
+                                                <div className="text-xs font-mono text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded inline-block">
+                                                    {h.passportId ? h.passportId.substring(0, 12) + '...' : '-'}
+                                                </div>
+                                                <div className="text-[10px] text-gray-400 mt-1">Asset ID: {h.assetId ? h.assetId.substring(0, 8) + '...' : '-'}</div>
+                                            </Link>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="text-xs font-bold text-gray-700">{h.factoryCode || '-'}</div>
@@ -324,12 +339,13 @@ const DistributionManagement = () => {
                                         <td className="px-6 py-4 text-right flex justify-end gap-2">
                                             {hasDistributionPermission && (
                                                 <button
+                                                    type="button"
                                                     onClick={() => {
                                                         setScannedPassportId(h.passportId);
                                                         setIsPartnerModalOpen(true);
                                                         fetchPartnerLinks();
                                                     }}
-                                                    className="px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer inline-flex items-center justify-center shadow-sm"
+                                                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors inline-flex items-center justify-center shadow-sm bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-600 hover:text-white cursor-pointer"
                                                 >
                                                     유통
                                                 </button>
@@ -355,8 +371,10 @@ const DistributionManagement = () => {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="text-sm font-bold text-gray-900">{h.modelName || h.passportId}</div>
-                                        <div className="text-[10px] text-gray-500 font-medium mt-0.5">{h.serialNumber || '-'}</div>
+                                        <Link to={`/brand/products/${h.passportId}`} className="block">
+                                            <div className="text-sm font-bold text-gray-900 group-hover:text-indigo-600">{h.modelName || h.passportId}</div>
+                                            <div className="text-[10px] text-gray-500 font-medium mt-0.5">{h.serialNumber || '-'}</div>
+                                        </Link>
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${h.status === 'DISTRIBUTED' ? 'bg-green-100 text-green-700' :
@@ -372,10 +390,11 @@ const DistributionManagement = () => {
                                         <div className="text-[10px] text-gray-500 font-medium whitespace-nowrap">
                                             {h.distributedAt ? new Date(h.distributedAt).toLocaleString() : '-'}
                                         </div>
-                                        {hasDistributionPermission && h.status === 'DISTRIBUTED' && (
+                                        {h.status === 'DISTRIBUTED' && hasDistributionPermission && (
                                             <button
+                                                type="button"
                                                 onClick={() => handleRecallDistribution(h.distributionId)}
-                                                className="ml-2 px-2 py-1 bg-red-50 text-red-600 border border-red-100 rounded text-[10px] font-bold hover:bg-red-600 hover:text-white transition-colors cursor-pointer"
+                                                className="ml-2 px-2 py-1 rounded text-[10px] font-bold transition-colors bg-red-50 text-red-600 border border-red-100 hover:bg-red-600 hover:text-white cursor-pointer"
                                             >
                                                 취소
                                             </button>

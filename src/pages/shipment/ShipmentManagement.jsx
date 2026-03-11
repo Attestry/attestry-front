@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { PackageCheck, UploadCloud, X, Loader2, FileText, Search, ChevronLeft, ChevronRight, QrCode } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 import QRScannerModal from '../../components/shipment/QRScannerModal';
+import { PERMISSION_GUIDES, createHttpError, getCurrentMembership, hasEffectiveScope, toPermissionMessage } from '../../utils/permissionUi';
 
 // Local API Fetch Helper matching the store
 const apiFetch = async (url, options = {}) => {
@@ -22,7 +23,7 @@ const apiFetch = async (url, options = {}) => {
         } catch (e) {
             // Ignore JSON parse error if body is empty
         }
-        throw new Error(errorMsg);
+        throw createHttpError(errorMsg, response.status);
     }
 
     if (response.status === 204) return null;
@@ -45,6 +46,7 @@ const ShipmentManagement = () => {
     const [candidates, setCandidates] = useState([]);
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState(initialTab);
 
@@ -62,23 +64,15 @@ const ShipmentManagement = () => {
     const [isQRScannerModalOpen, setIsQRScannerModalOpen] = useState(false);
 
     // Get current tenant's group info
-    const currentMembership = user?.tenantId
-        ? myMemberships.find((m) =>
-            m.tenantId === user.tenantId &&
-            String(m.status).toUpperCase() === 'ACTIVE' &&
-            String(m.groupType).toUpperCase() === 'BRAND'
-        )
-        : null;
+    const currentMembership = getCurrentMembership(myMemberships, user?.tenantId, 'BRAND');
 
     // Release permission check: SCOPE_BRAND_RELEASE
-    const hasReleasePermission = currentMembership?.effectiveScopes?.some((s) => {
-        const scope = String(s).toUpperCase();
-        return scope === 'BRAND_RELEASE' || scope === 'SCOPE_BRAND_RELEASE';
-    }) ?? false;
+    const hasReleasePermission = hasEffectiveScope(currentMembership, 'BRAND_RELEASE');
 
     const fetchCandidates = async (p = 0, k = '') => {
         if (!user?.tenantId) return;
         setLoading(true);
+        setError('');
         try {
             const query = new URLSearchParams({
                 page: p,
@@ -91,7 +85,10 @@ const ShipmentManagement = () => {
             setTotalElements(data.totalElements || 0);
         } catch (error) {
             console.error("Failed to fetch release candidates:", error);
-            alert("출고 대기 목록을 불러오지 못했습니다.");
+            setCandidates([]);
+            setTotalPages(0);
+            setTotalElements(0);
+            setError(toPermissionMessage(error, 'DEFAULT', '출고 대기 목록을 불러오지 못했습니다.'));
         } finally {
             setLoading(false);
         }
@@ -100,6 +97,7 @@ const ShipmentManagement = () => {
     const fetchHistory = async (p = 0, k = '') => {
         if (!user?.tenantId) return;
         setLoading(true);
+        setError('');
         try {
             const query = new URLSearchParams({
                 page: p,
@@ -112,7 +110,10 @@ const ShipmentManagement = () => {
             setTotalElements(data.totalElements || 0);
         } catch (error) {
             console.error("Failed to fetch shipment history:", error);
-            alert("출고 이력 목록을 불러오지 못했습니다.");
+            setHistory([]);
+            setTotalPages(0);
+            setTotalElements(0);
+            setError(toPermissionMessage(error, 'DEFAULT', '출고 이력 목록을 불러오지 못했습니다.'));
         } finally {
             setLoading(false);
         }
@@ -231,7 +232,7 @@ const ShipmentManagement = () => {
 
         } catch (error) {
             console.error(error);
-            alert(`출고 실패: ${error.message}`);
+            alert(`출고 실패: ${toPermissionMessage(error, 'BRAND_RELEASE', '출고 처리에 실패했습니다.')}`);
         } finally {
             setReleaseLoading(false);
         }
@@ -292,6 +293,7 @@ const ShipmentManagement = () => {
                 candidate = fetchedCandidates.find(c => c.passportId === passportId);
             } catch (error) {
                 console.error("Failed to search candidate via QR:", error);
+                setError(toPermissionMessage(error, 'DEFAULT', '출고 대상을 검색하지 못했습니다.'));
             } finally {
                 setLoading(false);
             }
@@ -321,6 +323,12 @@ const ShipmentManagement = () => {
                     </p>
                 </div>
             </div>
+
+            {error && (
+                <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    {error}
+                </div>
+            )}
 
             {/* Tabs */}
             <div className="flex border-b border-gray-200 mb-6 gap-8">
@@ -353,8 +361,9 @@ const ShipmentManagement = () => {
                 <div className="flex gap-2">
                     {activeTab === 'candidates' && hasReleasePermission && (
                         <button
+                            type="button"
                             onClick={() => setIsQRScannerModalOpen(true)}
-                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100 cursor-pointer"
+                            className="px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100 cursor-pointer"
                         >
                             <QrCode size={18} />
                             QR 출고
@@ -366,6 +375,12 @@ const ShipmentManagement = () => {
                 </div>
             </div>
 
+            {activeTab === 'candidates' && !hasReleasePermission && (
+                <div className="mb-6 text-sm text-gray-500">
+                    출고 처리 기능은 출고 권한이 있는 멤버만 사용할 수 있습니다.
+                </div>
+            )}
+
             {/* Main Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <table className="w-full text-left">
@@ -375,7 +390,7 @@ const ShipmentManagement = () => {
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">제품 정보 (Model Name)</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">일련번호 (Serial / DPP ID)</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">생산 배치 정보</th>
-                                {hasReleasePermission && <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">관리</th>}
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">관리</th>
                             </tr>
                         ) : (
                             <tr>
@@ -396,7 +411,7 @@ const ShipmentManagement = () => {
                         ) : activeTab === 'candidates' ? (
                             currentList.length === 0 ? (
                                 <tr>
-                                    <td colSpan={hasReleasePermission ? "4" : "3"} className="px-6 py-12 text-center text-gray-400">
+                                    <td colSpan="4" className="px-6 py-12 text-center text-gray-400">
                                         <PackageCheck size={32} className="mx-auto mb-3 opacity-50" />
                                         출고 대기 중인 제품 내역이 없습니다.
                                     </td>
@@ -405,13 +420,23 @@ const ShipmentManagement = () => {
                                 currentList.map((c) => (
                                     <tr key={c.passportId} className="hover:bg-gray-50 transition-colors group">
                                         <td className="px-6 py-4">
-                                            <div className="font-bold text-gray-900">{c.modelName}</div>
+                                            <Link
+                                                to={`/${currentMembership?.groupType.toLowerCase()}/products/${c.passportId}`}
+                                                className="block"
+                                            >
+                                                <div className="font-bold text-gray-900 group-hover:text-indigo-600">{c.modelName}</div>
+                                            </Link>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="text-sm font-medium text-gray-900">{c.serialNumber}</div>
-                                            <div className="text-[10px] text-gray-400 font-mono mt-0.5" title={c.passportId}>
-                                                ID: {c.passportId.substring(0, 8)}...{c.passportId.substring(c.passportId.length - 8)}
-                                            </div>
+                                            <Link
+                                                to={`/${currentMembership?.groupType.toLowerCase()}/products/${c.passportId}`}
+                                                className="block"
+                                            >
+                                                <div className="text-sm font-medium text-gray-900 group-hover:text-indigo-600">{c.serialNumber}</div>
+                                                <div className="text-[10px] text-gray-400 font-mono mt-0.5" title={c.passportId}>
+                                                    ID: {c.passportId.substring(0, 8)}...{c.passportId.substring(c.passportId.length - 8)}
+                                                </div>
+                                            </Link>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="text-sm text-gray-600">
@@ -432,8 +457,9 @@ const ShipmentManagement = () => {
                                             </Link>
                                             {hasReleasePermission && (
                                                 <button
+                                                    type="button"
                                                     onClick={() => openReleaseModal(c)}
-                                                    className="px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-colors cursor-pointer inline-flex items-center justify-center shadow-sm"
+                                                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors inline-flex items-center justify-center shadow-sm bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-600 hover:text-white cursor-pointer"
                                                 >
                                                     출고 처리
                                                 </button>
@@ -454,8 +480,13 @@ const ShipmentManagement = () => {
                                 currentList.map((h) => (
                                     <tr key={h.shipmentId} className="hover:bg-gray-50 transition-colors group">
                                         <td className="px-6 py-4">
-                                            <div className="text-sm font-bold text-gray-900">{h.modelName || '-'}</div>
-                                            <div className="text-[10px] text-gray-500 font-medium mt-0.5">{h.serialNumber}</div>
+                                            <Link
+                                                to={`/${currentMembership?.groupType.toLowerCase()}/products/${h.passportId}`}
+                                                className="block"
+                                            >
+                                                <div className="text-sm font-bold text-gray-900 group-hover:text-indigo-600">{h.modelName || '-'}</div>
+                                                <div className="text-[10px] text-gray-500 font-medium mt-0.5">{h.serialNumber}</div>
+                                            </Link>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="text-xs font-mono text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded inline-block">
