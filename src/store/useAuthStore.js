@@ -48,6 +48,9 @@ const apiFetch = async (url, options = {}) => {
   return response.json();
 };
 
+const isCurrentUsersMembership = (memberships, membershipId) =>
+  (memberships || []).some((membership) => membership?.membershipId === membershipId);
+
 const useAuthStore = create((set, get) => ({
   // --- SESSION STATE ---
   user: JSON.parse(localStorage.getItem('user')) || null,
@@ -255,6 +258,7 @@ const useAuthStore = create((set, get) => ({
           type: application.type, // RETAIL, BRAND, SERVICE
           orgName: application.orgName,
           country: application.country,
+          address: application.address,
           bizRegNo: application.bizRegNo,
           evidenceBundleId: application.evidenceBundleId
         })
@@ -432,11 +436,15 @@ const useAuthStore = create((set, get) => ({
 
   updateMembershipStatus: async (membershipId, status) => {
     try {
+      const shouldReissue = isCurrentUsersMembership(get().myMemberships, membershipId);
       await apiFetch(`/admin/memberships/${membershipId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status })
       });
       await get().listMemberships();
+      if (shouldReissue) {
+        await get().reissueToken();
+      }
       return { success: true };
     } catch (error) {
       return { success: false, message: error.message };
@@ -445,8 +453,12 @@ const useAuthStore = create((set, get) => ({
 
   assignRole: async (membershipId, roleCode) => {
     try {
+      const shouldReissue = isCurrentUsersMembership(get().myMemberships, membershipId);
       await apiFetch(`/admin/memberships/${membershipId}/roles/${roleCode}`, { method: 'POST' });
       await get().listMemberships();
+      if (shouldReissue) {
+        await get().reissueToken();
+      }
       return { success: true };
     } catch (error) {
       return { success: false, message: error.message };
@@ -455,8 +467,12 @@ const useAuthStore = create((set, get) => ({
 
   revokeRole: async (membershipId, roleCode) => {
     try {
+      const shouldReissue = isCurrentUsersMembership(get().myMemberships, membershipId);
       await apiFetch(`/admin/memberships/${membershipId}/roles/${roleCode}`, { method: 'DELETE' });
       await get().listMemberships();
+      if (shouldReissue) {
+        await get().reissueToken();
+      }
       return { success: true };
     } catch (error) {
       return { success: false, message: error.message };
@@ -465,11 +481,15 @@ const useAuthStore = create((set, get) => ({
 
   applyTemplateToMembership: async (membershipId, templateCode, reason = 'Direct assignment') => {
     try {
+      const shouldReissue = isCurrentUsersMembership(get().myMemberships, membershipId);
       await apiFetch(`/admin/memberships/${membershipId}/permission-templates/${templateCode}/apply`, {
         method: 'POST',
         body: JSON.stringify({ reason })
       });
       await get().listMemberships();
+      if (shouldReissue) {
+        await get().reissueToken();
+      }
       return { success: true };
     } catch (error) {
       return { success: false, message: error.message };
@@ -478,11 +498,15 @@ const useAuthStore = create((set, get) => ({
 
   revokeTemplateFromMembership: async (membershipId, templateCode, reason = 'Direct revoke') => {
     try {
+      const shouldReissue = isCurrentUsersMembership(get().myMemberships, membershipId);
       await apiFetch(`/admin/memberships/${membershipId}/permission-templates/${templateCode}/revoke`, {
         method: 'POST',
         body: JSON.stringify({ reason })
       });
       await get().listMemberships();
+      if (shouldReissue) {
+        await get().reissueToken();
+      }
       return { success: true };
     } catch (error) {
       return { success: false, message: error.message };

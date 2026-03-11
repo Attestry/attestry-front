@@ -2,12 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, ChevronRight, RefreshCw, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
+import { getCurrentMembership, hasEffectiveScope, toPermissionMessage } from '../../utils/permissionUi';
 
 const BRANDS_PAGE_SIZE = 10;
 
 const RetailInventoryView = () => {
   const navigate = useNavigate();
-  const { user, partnerLinks, fetchPartnerLinks } = useAuthStore();
+  const { user, myMemberships, partnerLinks, fetchPartnerLinks } = useAuthStore();
+  const currentMembership = getCurrentMembership(myMemberships, user?.tenantId, 'RETAIL');
+  const canReadRetailInventory = hasEffectiveScope(currentMembership, 'TENANT_READ_ONLY');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,6 +21,11 @@ const RetailInventoryView = () => {
     const load = async () => {
       setLoading(true);
       setError('');
+      if (!canReadRetailInventory) {
+        setError(toPermissionMessage({ status: 403, message: 'Access denied' }, 'DEFAULT'));
+        setLoading(false);
+        return;
+      }
       const partnerRes = await fetchPartnerLinks('ACTIVE');
       if (!mounted) return;
       if (!partnerRes?.success) {
@@ -33,7 +41,7 @@ const RetailInventoryView = () => {
     return () => {
       mounted = false;
     };
-  }, [fetchPartnerLinks]);
+  }, [canReadRetailInventory, fetchPartnerLinks]);
 
   const groupedBrands = useMemo(() => {
     const myTenantId = user?.tenantId;
@@ -84,6 +92,11 @@ const RetailInventoryView = () => {
           onClick={async () => {
             setLoading(true);
             setError('');
+            if (!canReadRetailInventory) {
+              setError(toPermissionMessage({ status: 403, message: 'Access denied' }, 'DEFAULT'));
+              setLoading(false);
+              return;
+            }
             try {
               const partnerRes = await fetchPartnerLinks('ACTIVE');
               if (!partnerRes?.success) setError(partnerRes?.message || '새로고침에 실패했습니다.');
@@ -120,7 +133,7 @@ const RetailInventoryView = () => {
         {loading ? (
           <div className="px-5 py-10 text-sm text-gray-500">불러오는 중...</div>
         ) : error ? (
-          <div className="px-5 py-10 text-sm text-red-600">{error}</div>
+          <div className="px-5 py-10 text-sm text-amber-800">{error}</div>
         ) : groupedBrands.length === 0 ? (
           <div className="px-5 py-10 text-sm text-gray-500">현재 연결된 ACTIVE 브랜드가 없습니다.</div>
         ) : (

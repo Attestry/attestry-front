@@ -3,18 +3,20 @@ import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
 import useAuthStore, { ROLES } from '../../store/useAuthStore';
 import { User } from 'lucide-react';
+import { getRoleLandingPath } from '../../utils/roleNavigation';
 
 const MainLayout = () => {
   const { user, setRole, reissueToken, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
 
   const isUserProfile = isAuthenticated && user?.role === ROLES.USER;
+  const homePath = isAuthenticated ? getRoleLandingPath(user?.role) : '/';
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 sticky top-0 z-10 w-full">
         <div className="flex items-center gap-4">
-          <Link to="/" className="flex items-center gap-2 font-bold text-xl text-gray-800">
+          <Link to={homePath} className="flex items-center gap-2 font-bold text-xl text-gray-800">
             <div className="bg-gray-900 text-white w-8 h-8 rounded-md flex items-center justify-center font-bold">
               D
             </div>
@@ -27,6 +29,7 @@ const MainLayout = () => {
             <>
               <Link to="/transfer/receive" className="text-blue-600 hover:text-blue-700 font-semibold">디지털 자산 이전 받기</Link>
               <Link to="/purchase-claims" className="text-blue-600 hover:text-blue-700 font-semibold">디지털 자산 등록하기</Link>
+              <Link to="/service-request/providers" className="text-blue-600 hover:text-blue-700 font-semibold">서비스 신청하기</Link>
             </>
           )}
         </div>
@@ -42,13 +45,7 @@ const MainLayout = () => {
                     const newRole = e.target.value;
                     flushSync(() => setRole(newRole));
                     await reissueToken();
-                    if (newRole === ROLES.PLATFORM_ADMIN) {
-                      navigate('/admin/onboarding');
-                    } else if (newRole === ROLES.USER) {
-                      navigate('/');
-                    } else {
-                      navigate(`/${newRole.toLowerCase()}`);
-                    }
+                    navigate(getRoleLandingPath(newRole));
                   }}
                 >
                   {user.availableRoles.map((r) => (

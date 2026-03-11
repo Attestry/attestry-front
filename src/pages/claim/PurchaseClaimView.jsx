@@ -73,7 +73,7 @@ const PurchaseClaimView = () => {
     setModal({ open: true, title, message, tone });
   }, []);
 
-  const handleUploadEvidence = async () => {
+  const handleUploadEvidence = async (selectedFilesOverride = null) => {
     setError('');
     setSuccess('');
 
@@ -81,19 +81,20 @@ const PurchaseClaimView = () => {
       openModal('안내', '로그인이 필요합니다.', 'alert');
       return;
     }
-    if (selectedFiles.length === 0) {
+    const filesToUpload = selectedFilesOverride || selectedFiles;
+    if (filesToUpload.length === 0) {
       openModal('증빙 파일 확인', '업로드할 파일을 선택해주세요.', 'alert');
       return;
     }
 
-    const filesToUpload = [...selectedFiles];
+    const pendingFiles = [...filesToUpload];
     let currentGroupId = evidenceGroupId || null;
     let uploadedCount = 0;
 
-    setUploadProgress({ total: filesToUpload.length, done: 0, current: '' });
+    setUploadProgress({ total: pendingFiles.length, done: 0, current: '' });
     setUploading(true);
     try {
-      for (const file of filesToUpload) {
+      for (const file of pendingFiles) {
         setUploadProgress((prev) => ({ ...prev, current: file.name }));
         const contentType = file.type || 'application/octet-stream';
 
@@ -147,7 +148,7 @@ const PurchaseClaimView = () => {
       setSuccess(`${uploadedCount}개 증빙 파일 제출이 완료되었습니다.`);
       openModal('증빙 제출 완료', `${uploadedCount}개 파일이 정상 제출되었습니다.`);
     } catch (e) {
-      const remaining = filesToUpload.slice(uploadedCount);
+      const remaining = pendingFiles.slice(uploadedCount);
       setSelectedFiles(remaining);
       setError(e.message);
       if (uploadedCount > 0) {
@@ -157,6 +158,15 @@ const PurchaseClaimView = () => {
       setUploading(false);
       setUploadProgress({ total: 0, done: 0, current: '' });
     }
+  };
+
+  const handleSelectFiles = (files) => {
+    const nextFiles = Array.from(files || []);
+    setSelectedFiles(nextFiles);
+    if (nextFiles.length === 0) {
+      return;
+    }
+    handleUploadEvidence(nextFiles).catch(() => {});
   };
 
   const handleSubmitClaim = async () => {
@@ -291,7 +301,7 @@ const PurchaseClaimView = () => {
           type="file"
           multiple
           className="hidden"
-          onChange={(e) => setSelectedFiles(Array.from(e.target.files || []))}
+          onChange={(e) => handleSelectFiles(e.target.files)}
         />
 
         <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-slate-100/70 p-5 md:p-6">
@@ -323,9 +333,10 @@ const PurchaseClaimView = () => {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-100 shadow-sm"
+                disabled={uploading}
+                className="px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-100 shadow-sm disabled:opacity-50"
               >
-                파일 선택
+                {uploading ? '제출 중...' : '파일 선택'}
               </button>
               {selectedFiles.length > 0 && (
                 <button
@@ -340,13 +351,6 @@ const PurchaseClaimView = () => {
                   <X size={14} />
                 </button>
               )}
-              <button
-                onClick={handleUploadEvidence}
-                disabled={uploading || selectedFiles.length === 0}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white text-sm font-semibold disabled:opacity-50 shadow-[0_10px_20px_-12px_rgba(37,99,235,.8)]"
-              >
-                {uploading ? '제출 중...' : `${selectedFiles.length || 0}개 증빙 파일 제출`}
-              </button>
             </div>
           </div>
         </div>

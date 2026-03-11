@@ -1,16 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import QRCode from 'qrcode';
 import useAuthStore from '../../store/useAuthStore';
 import { User, Shield, FileText, Settings, Loader2, WalletCards, Copy, CheckCircle2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ROLES } from '../../store/useAuthStore';
+import MyServiceRequestsUserPage from '../service/MyServiceRequestsUserPage';
 
 const MyPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, accessToken, myMemberships, myApplications, myAccount, fetchMyMemberships, listMyApplications, fetchMyAccount, updateMyAccount, getApplication } = useAuthStore();
+  const canViewMyServiceRequests = user?.role === ROLES.USER;
   const [activeTab, setActiveTab] = useState(() => {
     const tab = searchParams.get('tab');
-    return tab === 'assets' || tab === 'account' || tab === 'applications' ? tab : 'membership';
+    const allowedTabs = ['membership', 'assets', 'account', 'applications'];
+    if (canViewMyServiceRequests) {
+      allowedTabs.push('serviceRequests');
+    }
+    return allowedTabs.includes(tab) ? tab : 'membership';
   });
   const [loading, setLoading] = useState(true);
   const [phoneInput, setPhoneInput] = useState('');
@@ -20,6 +27,7 @@ const MyPage = () => {
   const [selectedPurchaseClaimEvidences, setSelectedPurchaseClaimEvidences] = useState([]);
   const [purchaseClaimEvidenceLoading, setPurchaseClaimEvidenceLoading] = useState(false);
   const [purchaseClaimEvidenceError, setPurchaseClaimEvidenceError] = useState('');
+  const [purchaseClaimSearch, setPurchaseClaimSearch] = useState('');
   const [appDetailLoading, setAppDetailLoading] = useState(false);
   const [myPurchaseClaims, setMyPurchaseClaims] = useState([]);
   const [purchaseClaimError, setPurchaseClaimError] = useState('');
@@ -211,6 +219,20 @@ const MyPage = () => {
     e.stopPropagation();
     if (!passport?.passportId) return;
     navigate(`/products/passports/${encodeURIComponent(passport.passportId)}`);
+  };
+
+  const handleServiceRequestClick = (e, passport) => {
+    e.stopPropagation();
+    if (!passport?.passportId) return;
+    navigate('/service-request/providers', {
+      state: {
+        selectedPassport: {
+          passportId: passport.passportId,
+          serialNumber: passport.serialNumber || '',
+          modelName: passport.modelName || '',
+        },
+      },
+    });
   };
 
   const generateOneTimeCode = () => {
@@ -573,6 +595,7 @@ const MyPage = () => {
     { id: 'assets', label: '내 디지털 자산', icon: <WalletCards size={18} /> },
     { id: 'account', label: '나의 계정 관리', icon: <Settings size={18} /> },
     { id: 'applications', label: '나의 신청 현황', icon: <FileText size={18} /> },
+    ...(canViewMyServiceRequests ? [{ id: 'serviceRequests', label: '신청한 서비스 이력', icon: <FileText size={18} /> }] : []),
   ];
 
   const resolvePurchaseClaimType = (claim) => {
@@ -592,6 +615,14 @@ const MyPage = () => {
     return 'bg-blue-100 text-blue-700';
   };
   const displayPurchaseClaims = myPurchaseClaims || [];
+  const filteredPurchaseClaims = useMemo(() => {
+    const keyword = purchaseClaimSearch.trim().toLowerCase();
+    if (!keyword) return displayPurchaseClaims;
+    return displayPurchaseClaims.filter((claim) =>
+      String(claim?.serialNumber || '').toLowerCase().includes(keyword)
+      || String(claim?.modelName || '').toLowerCase().includes(keyword)
+    );
+  }, [displayPurchaseClaims, purchaseClaimSearch]);
   const ownedPassportsSorted = [...(myPassports || [])]
     .sort((a, b) =>
       String(a?.serialNumber || '').localeCompare(String(b?.serialNumber || ''), 'ko', {
@@ -866,6 +897,13 @@ const MyPage = () => {
                             </button>
                             <button
                               type="button"
+                              onClick={(e) => handleServiceRequestClick(e, passport)}
+                              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition-colors"
+                            >
+                              서비스 신청
+                            </button>
+                            <button
+                              type="button"
                               onClick={(e) => handleLedgerHistoryClick(e, passport)}
                               className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                             >
@@ -928,14 +966,23 @@ const MyPage = () => {
 
                   <div>
                     <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">디지털 자산 등록 신청 내역</h3>
+                    <div className="mb-3">
+                      <input
+                        type="text"
+                        value={purchaseClaimSearch}
+                        onChange={(e) => setPurchaseClaimSearch(e.target.value)}
+                        placeholder="모델명 또는 시리얼 번호로 검색"
+                        className="w-full rounded-xl border border-indigo-100 bg-white px-4 py-3 text-sm text-gray-700 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </div>
                     {purchaseClaimError && (
                       <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                         {purchaseClaimError}
                       </div>
                     )}
-                    {displayPurchaseClaims.length > 0 ? (
+                    {filteredPurchaseClaims.length > 0 ? (
                       <div className="space-y-4">
-                        {displayPurchaseClaims.map((claim) => (
+                        {filteredPurchaseClaims.map((claim) => (
                           <button
                             key={claim.claimId}
                             type="button"
@@ -958,12 +1005,19 @@ const MyPage = () => {
                       </div>
                     ) : (
                       <div className="bg-indigo-50/50 rounded-xl p-6 text-center border border-indigo-100 text-gray-500">
-                        디지털 자산 등록 신청 내역이 없습니다.
+                        {displayPurchaseClaims.length > 0 ? '검색 조건에 맞는 디지털 자산 등록 신청 내역이 없습니다.' : '디지털 자산 등록 신청 내역이 없습니다.'}
                       </div>
                     )}
                   </div>
+
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'serviceRequests' && canViewMyServiceRequests && (
+            <div className="animate-in fade-in duration-300">
+              <MyServiceRequestsUserPage />
             </div>
           )}
         </div>
@@ -1001,6 +1055,10 @@ const MyPage = () => {
                 <div>
                   <div className="text-gray-500 mb-1">국가</div>
                   <div className="font-semibold text-gray-900 text-base">{selectedApp.country}</div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-gray-500 mb-1">주소</div>
+                  <div className="font-semibold text-gray-900 text-base">{selectedApp.address || '-'}</div>
                 </div>
                 <div>
                   <div className="text-gray-500 mb-1">사업자 등록번호</div>

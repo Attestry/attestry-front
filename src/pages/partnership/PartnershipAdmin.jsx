@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import useAuthStore, { ROLES } from '../../store/useAuthStore';
+import useAuthStore from '../../store/useAuthStore';
 import {
     Users,
     Link as LinkIcon,
@@ -48,8 +48,6 @@ const PartnershipAdmin = () => {
     const [selectedPartner, setSelectedPartner] = useState(null);
 
     const currentMembership = myMemberships.find(m => m.tenantId === user?.tenantId) || myMemberships[0];
-    const isAdmin = currentMembership?.roleCodes?.some(r => r.toUpperCase().includes('ADMIN') || r.toUpperCase().includes('OWNER'));
-    const isOwner = currentMembership?.roleCodes?.some(r => r.toUpperCase() === 'TENANT_OWNER');
 
     const hasScope = (scope) => {
         if (!currentMembership?.effectiveScopes) return false;
@@ -59,7 +57,12 @@ const PartnershipAdmin = () => {
         );
     };
 
-    const canCreateLink = isAdmin || hasScope('PARTNER_LINK_CREATE');
+    const canCreateLink = hasScope('PARTNER_LINK_CREATE');
+    const canSearchTenant = hasScope('PARTNER_LINK_READ');
+    const canApproveLink = hasScope('PARTNER_LINK_APPROVE');
+    const canSuspendLink = hasScope('PARTNER_LINK_SUSPEND');
+    const canResumeLink = hasScope('PARTNER_LINK_RESUME');
+    const canTerminateLink = hasScope('PARTNER_LINK_TERMINATE');
 
     useEffect(() => {
         const load = async () => {
@@ -93,7 +96,7 @@ const PartnershipAdmin = () => {
     };
 
     useEffect(() => {
-        if (!searchQuery || searchQuery.length < 2 || selectedPartner) {
+        if (!canSearchTenant || !searchQuery || searchQuery.length < 2 || selectedPartner) {
             setSearchResults([]);
             return;
         }
@@ -111,7 +114,7 @@ const PartnershipAdmin = () => {
         }, 300);
 
         return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery, searchTenants, selectedPartner]);
+    }, [canSearchTenant, searchQuery, searchTenants, selectedPartner]);
 
     const incomingRequests = partnerLinks.filter(link =>
         link.status === 'PENDING' && link.targetTenantId === user?.tenantId
@@ -142,7 +145,7 @@ const PartnershipAdmin = () => {
             <div className="space-y-6">
                 <div className="flex justify-between items-center">
                     <h2 className="text-lg font-bold text-gray-900">연결된 파트너 현황</h2>
-                    {canCreateLink && (
+                    {canCreateLink && canSearchTenant && (
                         <button
                             onClick={() => setShowLinkModal(true)}
                             className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-indigo-700 transition-colors"
@@ -179,7 +182,7 @@ const PartnershipAdmin = () => {
                                             <span>만료: {request.expiresAt ? new Date(request.expiresAt).toLocaleDateString() : '무기한'}</span>
                                         </div>
                                     </div>
-                                    {isOwner && (
+                                    {canApproveLink && (
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => approvePartnerLink(request.partnerLinkId)}
@@ -243,7 +246,7 @@ const PartnershipAdmin = () => {
                                             {link.expiresAt ? new Date(link.expiresAt).toLocaleDateString() : '무기한'}
                                         </td>
                                         <td className="px-6 py-4 text-right space-x-2">
-                                            {isOwner && link.sourceTenantId === user?.tenantId && link.status === 'ACTIVE' && (
+                                            {canSuspendLink && link.sourceTenantId === user?.tenantId && link.status === 'ACTIVE' && (
                                                 <button
                                                     onClick={() => suspendPartnerLink(link.partnerLinkId)}
                                                     className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
@@ -252,7 +255,7 @@ const PartnershipAdmin = () => {
                                                     <Pause size={18} />
                                                 </button>
                                             )}
-                                            {isOwner && link.sourceTenantId === user?.tenantId && link.status === 'SUSPENDED' && (
+                                            {canResumeLink && link.sourceTenantId === user?.tenantId && link.status === 'SUSPENDED' && (
                                                 <button
                                                     onClick={() => resumePartnerLink(link.partnerLinkId)}
                                                     className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -261,7 +264,7 @@ const PartnershipAdmin = () => {
                                                     <Play size={18} />
                                                 </button>
                                             )}
-                                            {isOwner && link.sourceTenantId === user?.tenantId && !['REJECTED', 'TERMINATED'].includes(link.status) && (
+                                            {canTerminateLink && link.sourceTenantId === user?.tenantId && !['REJECTED', 'TERMINATED'].includes(link.status) && (
                                                 <button
                                                     onClick={() => {
                                                         const reason = prompt('해지 사유를 입력하세요:');
