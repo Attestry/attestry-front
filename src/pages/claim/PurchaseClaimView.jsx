@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertCircle, CheckCircle2, FileText, UploadCloud, X } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
+import { normalizeApiErrorMessage } from '../../utils/permissionUi';
 
 const parseErrorMessage = async (response) => {
   const prefix = `[${response.status}]`;
@@ -9,12 +10,12 @@ const parseErrorMessage = async (response) => {
     if (contentType.includes('application/json')) {
       const data = await response.json();
       const message = data?.message || data?.error || data?.code || data?.path;
-      return message ? `${prefix} ${message}` : `${prefix} 요청 처리에 실패했습니다.`;
+      return normalizeApiErrorMessage(message ? `${prefix} ${message}` : '', response.status, '요청 처리에 실패했습니다.');
     }
     const text = await response.text();
-    return text?.trim() ? `${prefix} ${text.slice(0, 160)}` : `${prefix} 요청 처리에 실패했습니다.`;
+    return normalizeApiErrorMessage(text?.trim() ? `${prefix} ${text.slice(0, 160)}` : '', response.status, '요청 처리에 실패했습니다.');
   } catch {
-    return `${prefix} 요청 처리에 실패했습니다.`;
+    return normalizeApiErrorMessage('', response.status, '요청 처리에 실패했습니다.');
   }
 };
 
@@ -225,12 +226,14 @@ const PurchaseClaimView = () => {
   }
 
   return (
-    <div className="relative max-w-7xl mx-auto py-10 px-4 md:px-6 space-y-8 [font-family:var(--claim-font,ui-sans-serif,system-ui)]">
-      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(circle_at_15%_10%,rgba(14,116,144,.16),transparent_42%),radial-gradient(circle_at_85%_0%,rgba(30,64,175,.12),transparent_36%)]" />
-      <header className="rounded-3xl border border-slate-200/80 bg-[radial-gradient(circle_at_10%_10%,rgba(148,163,184,.24),transparent_42%),linear-gradient(135deg,#0f172a,#1e293b_55%,#334155)] p-7 md:p-9 text-white shadow-[0_24px_60px_-28px_rgba(15,23,42,.75)]">
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">디지털 자산 등록하기</h1>
-        <p className="text-slate-200 mt-3 text-sm md:text-base">
-          구매 증빙 제출 후 디지털 자산을 직접 등록하세요.
+    <div className="tracera-workflow-page max-w-7xl mx-auto py-8 px-4 md:px-6 space-y-8 [font-family:var(--claim-font,ui-sans-serif,system-ui)]">
+      <header className="tracera-workflow-hero">
+        <div className="tracera-workflow-tag">
+          PRODUCT CLAIM
+        </div>
+        <h1 className="mt-4 text-3xl md:text-4xl font-bold tracking-tight">제품 등록 신청</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-200 md:text-base">
+          시리얼 정보와 구매 증빙을 제출하면, 제품 등록 심사와 디지털 자산 발급 흐름이 깔끔하게 이어집니다.
         </p>
       </header>
 
@@ -247,9 +250,9 @@ const PurchaseClaimView = () => {
         </div>
       )}
 
-      <section className="bg-white/95 backdrop-blur rounded-3xl border border-slate-200 p-6 md:p-7 shadow-[0_18px_40px_-28px_rgba(15,23,42,.65)] space-y-5">
+      <section className="tracera-workflow-section space-y-5">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-900 to-slate-700 text-white text-sm font-bold flex items-center justify-center shadow-sm">1</div>
+          <div className="tracera-workflow-step">1</div>
           <h2 className="text-lg md:text-xl font-semibold text-slate-900">등록 신청 정보 입력</h2>
         </div>
 
@@ -260,7 +263,7 @@ const PurchaseClaimView = () => {
               type="text"
               value={serialNumber}
               onChange={(e) => setSerialNumber(e.target.value)}
-              className="w-full border border-slate-300/90 rounded-xl px-3 py-2.5 outline-none bg-white focus:ring-2 focus:ring-slate-900/15 focus:border-slate-700"
+              className="tracera-workflow-field"
               placeholder="예: SN-001"
             />
           </label>
@@ -270,27 +273,27 @@ const PurchaseClaimView = () => {
               type="text"
               value={modelName}
               onChange={(e) => setModelName(e.target.value)}
-              className="w-full border border-slate-300/90 rounded-xl px-3 py-2.5 outline-none bg-white focus:ring-2 focus:ring-slate-900/15 focus:border-slate-700"
+              className="tracera-workflow-field"
               placeholder="예: Model X"
             />
           </label>
           <label className="text-sm md:col-span-2">
             <span className="block text-slate-600 mb-1.5 font-medium">신청 안내</span>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            <div className="tracera-workflow-subtle text-sm text-slate-600">
               입력한 시리얼/모델명과 증빙 파일을 기반으로 등록 심사가 진행됩니다.
             </div>
           </label>
         </div>
       </section>
 
-      <section className="bg-white/95 backdrop-blur rounded-3xl border border-slate-200 p-6 md:p-7 shadow-[0_18px_40px_-28px_rgba(15,23,42,.65)] space-y-5">
+      <section className="tracera-workflow-section space-y-5">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-900 to-slate-700 text-white text-sm font-bold flex items-center justify-center shadow-sm">2</div>
+          <div className="tracera-workflow-step">2</div>
           <h2 className="text-lg md:text-xl font-semibold text-slate-900">증빙 파일 제출</h2>
         </div>
 
         {evidenceGroupId && (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          <div className="tracera-workflow-subtle text-sm text-slate-700">
             Evidence Group ID
             <div className="font-mono font-semibold break-all text-slate-900 mt-1">{evidenceGroupId}</div>
           </div>
@@ -304,7 +307,7 @@ const PurchaseClaimView = () => {
           onChange={(e) => handleSelectFiles(e.target.files)}
         />
 
-        <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-slate-100/70 p-5 md:p-6">
+        <div className="rounded-[1.5rem] border border-slate-200 bg-[linear-gradient(145deg,#ffffff,#f8fafc)] p-5 md:p-6 shadow-[inset_0_1px_0_rgba(255,255,255,.8)]">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-700">
@@ -321,7 +324,7 @@ const PurchaseClaimView = () => {
                 )}
                 <p className="text-xs text-slate-500 mt-1">(영수증, 인보이스 등 첨부해주세요.)</p>
                 {uploading && (
-                  <p className="text-xs text-blue-700 mt-1">
+                  <p className="text-xs text-amber-700 mt-1">
                     업로드 진행: {uploadProgress.done}/{uploadProgress.total}
                     {uploadProgress.current ? ` · ${uploadProgress.current}` : ''}
                   </p>
@@ -334,7 +337,7 @@ const PurchaseClaimView = () => {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-100 shadow-sm disabled:opacity-50"
+                className="tracera-workflow-button-secondary min-h-[44px] px-4 py-2"
               >
                 {uploading ? '제출 중...' : '파일 선택'}
               </button>
@@ -345,7 +348,7 @@ const PurchaseClaimView = () => {
                     setSelectedFiles([]);
                     if (fileInputRef.current) fileInputRef.current.value = '';
                   }}
-                  className="px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-600 text-sm hover:bg-slate-100"
+                  className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-100"
                   title="선택 해제"
                 >
                   <X size={14} />
@@ -395,14 +398,19 @@ const PurchaseClaimView = () => {
           </ul>
         )}
 
-        <button
-          onClick={handleSubmitClaim}
-          disabled={submitting || !evidenceGroupId}
-          className="w-full md:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-slate-900 to-slate-700 text-white text-sm font-semibold disabled:opacity-50 shadow-[0_14px_30px_-16px_rgba(15,23,42,.8)]"
-          title={!evidenceGroupId ? '증빙 파일 제출 완료 후 신청할 수 있습니다.' : ''}
-        >
-          {submitting ? '제출 중...' : '디지털 자산 등록 신청하기'}
-        </button>
+        <div className="tracera-workflow-actionbar">
+          <p className="text-sm leading-6 text-slate-600">
+            증빙 업로드가 완료되면 바로 등록 신청을 제출할 수 있습니다.
+          </p>
+          <button
+            onClick={handleSubmitClaim}
+            disabled={submitting || !evidenceGroupId}
+            className="tracera-workflow-button w-full md:w-auto shadow-[0_14px_30px_-16px_rgba(15,23,42,.8)]"
+            title={!evidenceGroupId ? '증빙 파일 제출 완료 후 신청할 수 있습니다.' : ''}
+          >
+            {submitting ? '제출 중...' : '디지털 자산 등록 신청하기'}
+          </button>
+        </div>
       </section>
 
       {modal.open && (
@@ -418,7 +426,7 @@ const PurchaseClaimView = () => {
                 <button
                   type="button"
                   onClick={() => setModal({ open: false, title: '', message: '', tone: 'success' })}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-slate-900 to-slate-700 text-white text-sm font-semibold"
+                  className="px-4 py-2 rounded-xl text-white text-sm font-semibold bg-[linear-gradient(135deg,#221d1a_0%,#3a312b_100%)]"
                 >
                   확인
                 </button>

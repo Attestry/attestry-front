@@ -7,11 +7,12 @@ import {
   ShieldCheck,
   CheckCircle2,
   CircleAlert,
-  Sparkles,
   Lock,
-  X,
 } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
+import QRScannerModal from '../../components/shipment/QRScannerModal';
+import { parseTransferQrPayload } from '../../utils/qrPayload';
+import { normalizeApiErrorMessage } from '../../utils/permissionUi';
 
 const parseErrorMessage = async (response) => {
   const prefix = `[${response.status}]`;
@@ -21,13 +22,13 @@ const parseErrorMessage = async (response) => {
     if (contentType.includes('application/json')) {
       const data = await response.json();
       const message = data?.message || data?.error || data?.code || data?.path;
-      return message ? `${prefix} ${message}` : `${prefix} 요청 처리에 실패했습니다.`;
+      return normalizeApiErrorMessage(message ? `${prefix} ${message}` : '', response.status, '요청 처리에 실패했습니다.');
     }
 
     const text = await response.text();
-    return text?.trim() ? `${prefix} ${text.slice(0, 180)}` : `${prefix} 요청 처리에 실패했습니다.`;
+    return normalizeApiErrorMessage(text?.trim() ? `${prefix} ${text.slice(0, 180)}` : '', response.status, '요청 처리에 실패했습니다.');
   } catch {
-    return `${prefix} 요청 처리에 실패했습니다.`;
+    return normalizeApiErrorMessage('', response.status, '요청 처리에 실패했습니다.');
   }
 };
 
@@ -44,38 +45,6 @@ const apiJson = async (url, token, options = {}) => {
   }
   if (response.status === 204) return null;
   return response.json();
-};
-
-const parseScanPayload = (rawValue) => {
-  const value = String(rawValue || '').trim();
-  if (!value) return { qrNonce: '', transferId: '' };
-
-  try {
-    const url = new URL(value);
-    const qrNonce = url.searchParams.get('qrNonce') || url.searchParams.get('nonce') || '';
-    const transferId = url.searchParams.get('transferId') || '';
-    if (qrNonce || transferId) return { qrNonce, transferId };
-
-    const parts = url.pathname.split('/').filter(Boolean);
-    if (parts[0] === 't') {
-      const pathTransferId = parts[1] || '';
-      const pathQrNonce = parts[2] || '';
-      if (pathTransferId || pathQrNonce) return { qrNonce: pathQrNonce, transferId: pathTransferId };
-    }
-  } catch {
-    // non-URL
-  }
-
-  try {
-    const parsed = JSON.parse(value);
-    const qrNonce = parsed?.qrNonce || parsed?.nonce || '';
-    const transferId = parsed?.transferId || '';
-    if (qrNonce || transferId) return { qrNonce, transferId };
-  } catch {
-    // non-JSON
-  }
-
-  return { qrNonce: value, transferId: '' };
 };
 
 const parseReceiveCode = (value) => {
@@ -131,8 +100,6 @@ const TransferReceiveView = () => {
   const queryQrNonce = pathQrNonce || searchParams.get('qrNonce') || searchParams.get('nonce') || '';
 
   const [scannerOpen, setScannerOpen] = React.useState(false);
-  const [cameraOn, setCameraOn] = React.useState(false);
-  const [cameraError, setCameraError] = React.useState('');
   const [scannerStatus, setScannerStatus] = React.useState('');
 
   const [submitting, setSubmitting] = React.useState(false);
@@ -140,14 +107,8 @@ const TransferReceiveView = () => {
   const [success, setSuccess] = React.useState('');
   const [result, setResult] = React.useState(null);
 
-  const videoRef = React.useRef(null);
-  const streamRef = React.useRef(null);
-  const scanTimerRef = React.useRef(null);
   const autoSubmittingRef = React.useRef(false);
-  const lastRawValueRef = React.useRef('');
   const autoAcceptFromQueryTriedRef = React.useRef(false);
-
-  const barcodeDetectorSupported = typeof window !== 'undefined' && 'BarcodeDetector' in window;
 
   const playScannerSuccessFeedback = React.useCallback(() => {
     try {
@@ -194,28 +155,9 @@ const TransferReceiveView = () => {
     }
   }, []);
 
-  const stopCamera = React.useCallback(() => {
-    if (scanTimerRef.current) {
-      clearInterval(scanTimerRef.current);
-      scanTimerRef.current = null;
-    }
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-
-    setCameraOn(false);
-  }, []);
-
   const closeScanner = React.useCallback(() => {
     setScannerOpen(false);
-    stopCamera();
-  }, [stopCamera]);
+  }, []);
 
   const acceptTransfer = React.useCallback(async ({ acceptMethod, transferIdValue, nonceValue, passwordValue, auto = false }) => {
     setError('');
@@ -286,79 +228,12 @@ const TransferReceiveView = () => {
     });
   }, [accessToken, acceptTransfer, queryQrNonce, transferId]);
 
-  const startScanner = React.useCallback(async () => {
-    setCameraError('');
+  const startScanner = React.useCallback(() => {
     setScannerStatus('');
     setError('');
-
-    if (!barcodeDetectorSupported) {
-      setCameraError('현재 브라우저는 실시간 QR 스캔을 지원하지 않습니다. 코드 입력 모드를 이용해주세요.');
-      return;
-    }
-
-    if (!navigator?.mediaDevices?.getUserMedia) {
-      setCameraError('이 환경에서는 카메라 접근을 지원하지 않습니다.');
-      return;
-    }
-
-    try {
-      stopCamera();
-      setScannerOpen(true);
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
-        audio: false,
-      });
-
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-
-      const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-      setCameraOn(true);
-      setScannerStatus('직원이 제시한 QR 코드를 화면 중앙에 맞춰주세요.');
-
-      scanTimerRef.current = setInterval(async () => {
-        if (!videoRef.current || autoSubmittingRef.current || submitting) return;
-
-        try {
-          const barcodes = await detector.detect(videoRef.current);
-          const rawValue = barcodes?.[0]?.rawValue?.trim();
-          if (!rawValue) return;
-          if (rawValue === lastRawValueRef.current) return;
-          lastRawValueRef.current = rawValue;
-
-          const parsed = parseScanPayload(rawValue);
-          const detectedTransferId = parsed.transferId || transferId;
-          const detectedNonce = parsed.qrNonce;
-
-          if (!detectedTransferId || !detectedNonce) {
-            setScannerStatus('유효한 이전 QR이 아닙니다. 다시 스캔해주세요.');
-            return;
-          }
-
-          setTransferId(detectedTransferId);
-          autoSubmittingRef.current = true;
-          setScannerStatus('유효성 확인 완료. 소유권 이전 처리 중...');
-
-          await acceptTransfer({
-            acceptMethod: 'QR',
-            transferIdValue: detectedTransferId,
-            nonceValue: detectedNonce,
-            auto: true,
-          });
-        } catch {
-          // keep scanning
-        }
-      }, 650);
-    } catch (e) {
-      setCameraError(e?.message || '카메라를 열 수 없습니다. 브라우저 권한을 확인해주세요.');
-      stopCamera();
-      setScannerOpen(true);
-    }
-  }, [acceptTransfer, barcodeDetectorSupported, stopCamera, submitting, transferId]);
+    setScannerOpen(true);
+    setScannerStatus('직원이 제시한 QR 코드를 스캔하면 소유권 인증이 이어집니다.');
+  }, []);
 
   React.useEffect(() => {
     if (mode !== 'QR') {
@@ -366,7 +241,30 @@ const TransferReceiveView = () => {
     }
   }, [mode, closeScanner]);
 
-  React.useEffect(() => () => closeScanner(), [closeScanner]);
+  const handleQrScanSuccess = React.useCallback(async (decodedText) => {
+    if (autoSubmittingRef.current || submitting) return;
+
+    const parsed = parseTransferQrPayload(decodedText);
+    const detectedTransferId = parsed.transferId || transferId;
+    const detectedNonce = parsed.qrNonce;
+
+    if (!detectedTransferId || !detectedNonce) {
+      setError('유효한 이전 QR이 아닙니다. 다시 스캔하거나 수락코드를 입력해주세요.');
+      setScannerStatus('이전용 QR 코드만 인식할 수 있습니다.');
+      return;
+    }
+
+    setTransferId(detectedTransferId);
+    autoSubmittingRef.current = true;
+    setScannerStatus('유효성 확인 완료. 소유권 이전 처리 중...');
+
+    await acceptTransfer({
+      acceptMethod: 'QR',
+      transferIdValue: detectedTransferId,
+      nonceValue: detectedNonce,
+      auto: true,
+    });
+  }, [acceptTransfer, submitting, transferId]);
 
   const onSubmitCode = async (e) => {
     e.preventDefault();
@@ -393,21 +291,21 @@ const TransferReceiveView = () => {
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-64px)] overflow-hidden bg-[radial-gradient(circle_at_10%_8%,rgba(15,23,42,.1),transparent_30%),radial-gradient(circle_at_90%_0,rgba(37,99,235,.16),transparent_32%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)]">
+    <div className="tracera-workflow-page min-h-[calc(100vh-64px)]">
       <div className="mx-auto w-full max-w-5xl px-4 py-10 md:px-6 md:py-12 space-y-6">
-        <header className="relative overflow-hidden rounded-3xl border border-slate-800/10 bg-[linear-gradient(135deg,#0f172a_0%,#1e293b_55%,#1d4ed8_100%)] p-7 md:p-9 text-white shadow-[0_30px_80px_-30px_rgba(15,23,42,.8)]">
-          <div className="pointer-events-none absolute -right-14 -top-20 h-48 w-48 rounded-full bg-white/10 blur-xl" />
-          <div className="pointer-events-none absolute -left-12 -bottom-16 h-44 w-44 rounded-full bg-blue-300/20 blur-xl" />
-
+        <header className="tracera-workflow-hero bg-[linear-gradient(135deg,#171717_0%,#2a2623_52%,#6b584b_100%)]">
           <div className="relative space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium">
-              <ShieldCheck size={14} /> Secure Transfer Gateway
+            <div className="tracera-workflow-tag">
+              <ShieldCheck size={14} /> OWNERSHIP TRANSFER
             </div>
             <h1 className="text-2xl md:text-3xl font-bold leading-tight tracking-tight">
-              안내받은 방식에 따라 소유권을 인증하고,
+              제품의 소유권을 안전하게 인증하고,
               <br className="hidden md:block" />
-              본인 계정의 디지털 자산 지갑에 안전하게 이전하세요.
+              내 계정으로 깔끔하게 이전하세요.
             </h1>
+            <p className="max-w-2xl text-sm leading-6 text-slate-200">
+              현장 스캔 또는 수락코드 입력 방식으로 소유권 이전을 완료할 수 있습니다. 어떤 방식이든 기록은 동일하게 안전하게 남습니다.
+            </p>
           </div>
         </header>
 
@@ -417,52 +315,51 @@ const TransferReceiveView = () => {
           </div>
         )}
 
-        <section className="rounded-3xl border border-slate-200 bg-white/95 p-5 md:p-6 shadow-[0_24px_50px_-36px_rgba(15,23,42,.55)] backdrop-blur-sm space-y-4">
+        <section className="tracera-workflow-section space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
             <button
               type="button"
               onClick={() => setMode('QR')}
-              className={`group rounded-2xl border p-4 text-left transition ${mode === 'QR' ? 'border-blue-600 bg-blue-50 text-blue-800 shadow-[0_10px_28px_-20px_rgba(37,99,235,.9)]' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}
+              className={`group min-h-[112px] rounded-[1.5rem] border p-5 text-left transition ${mode === 'QR' ? 'border-amber-200 bg-[linear-gradient(160deg,#fffaf2,#f6efe6)] text-[#5f4637] shadow-[0_16px_40px_-28px_rgba(120,83,51,.24)]' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}
             >
-              <div className="flex items-center gap-2 text-base font-semibold"><Camera size={18} /> 📷 QR 스캔</div>
-              <p className="mt-1 text-xs opacity-80">직원이 제시한 QR 코드를 카메라로 스캔해주세요.</p>
+              <div className="flex items-center gap-2 text-base font-semibold"><Camera size={18} /> QR 스캔</div>
+              <p className="mt-2 text-sm opacity-80">직원이 제시한 QR 코드를 카메라로 인식해 즉시 이전을 진행합니다.</p>
             </button>
 
             <button
               type="button"
               onClick={() => setMode('CODE')}
-              className={`group rounded-2xl border p-4 text-left transition ${mode === 'CODE' ? 'border-blue-600 bg-blue-50 text-blue-800 shadow-[0_10px_28px_-20px_rgba(37,99,235,.9)]' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}
+              className={`group min-h-[112px] rounded-[1.5rem] border p-5 text-left transition ${mode === 'CODE' ? 'border-amber-200 bg-[linear-gradient(160deg,#fffaf2,#f6efe6)] text-[#5f4637] shadow-[0_16px_40px_-28px_rgba(120,83,51,.24)]' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}
             >
-              <div className="flex items-center gap-2 text-base font-semibold"><Keyboard size={18} /> ✍️ 코드 입력</div>
-              <p className="mt-1 text-xs opacity-80">이전 코드(비밀번호)로 소유권 인증을 진행합니다.</p>
+              <div className="flex items-center gap-2 text-base font-semibold"><Keyboard size={18} /> 코드 입력</div>
+              <p className="mt-2 text-sm opacity-80">전달받은 수락코드로 소유권 인증을 진행합니다.</p>
             </button>
           </div>
         </section>
 
         {mode === 'QR' ? (
-          <section className="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-[0_24px_50px_-36px_rgba(15,23,42,.55)] backdrop-blur-sm">
+          <section className="tracera-workflow-section">
             <div className="relative mx-auto max-w-xl">
-              <div className="absolute inset-0 -z-10 rounded-3xl bg-[radial-gradient(circle_at_50%_0,rgba(29,78,216,.22),transparent_62%)]" />
+              <div className="absolute inset-0 -z-10 rounded-3xl bg-[radial-gradient(circle_at_50%_0,rgba(191,146,105,.22),transparent_62%)]" />
               <button
                 type="button"
                 onClick={startScanner}
                 disabled={!isAuthenticated || submitting}
-                className="group flex w-full flex-col items-center justify-center gap-3 rounded-3xl border border-blue-200 bg-[linear-gradient(160deg,#ffffff_0%,#eef4ff_70%,#e0ebff_100%)] px-8 py-12 text-center shadow-[0_22px_48px_-30px_rgba(29,78,216,.85)] transition hover:-translate-y-0.5 hover:shadow-[0_26px_54px_-28px_rgba(29,78,216,.95)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="group flex w-full flex-col items-center justify-center gap-3 rounded-[1.75rem] border border-amber-200 bg-[linear-gradient(160deg,#fffdf8_0%,#f8f2e9_72%,#efe3d5_100%)] px-8 py-14 text-center shadow-[0_22px_48px_-30px_rgba(120,83,51,.28)] transition hover:-translate-y-0.5 hover:shadow-[0_26px_54px_-28px_rgba(120,83,51,.34)] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <span className="grid h-16 w-16 place-items-center rounded-2xl bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_100%)] text-white shadow-lg">
+                <span className="grid h-16 w-16 place-items-center rounded-2xl bg-[linear-gradient(135deg,#111827_0%,#6f5748_100%)] text-white shadow-lg">
                   <ScanLine size={30} />
                 </span>
-                <span className="text-xl font-bold tracking-tight text-slate-900">여기를 눌러 스캐너 켜기</span>
+                <span className="text-xl font-bold tracking-tight text-slate-900">스캐너 시작</span>
                 <span className="text-sm text-slate-600">카메라가 열리면 QR을 중앙 프레임에 맞춰주세요</span>
               </button>
             </div>
 
-            {scannerStatus && <p className="mt-4 text-center text-sm text-blue-700">{scannerStatus}</p>}
-            {cameraError && <p className="mt-3 text-center text-sm text-red-700">{cameraError}</p>}
+            {scannerStatus && <p className="mt-4 text-center text-sm text-[#7a5940]">{scannerStatus}</p>}
           </section>
         ) : (
-          <form onSubmit={onSubmitCode} className="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-[0_24px_50px_-36px_rgba(15,23,42,.55)] backdrop-blur-sm space-y-5">
-            <div className="rounded-2xl border border-slate-200 bg-[linear-gradient(140deg,#ffffff,#f8fbff)] p-5">
+          <form onSubmit={onSubmitCode} className="tracera-workflow-section space-y-5">
+            <div className="rounded-[1.5rem] border border-slate-200 bg-[linear-gradient(140deg,#ffffff,#f8fbff)] p-5">
               <h3 className="text-base font-semibold text-slate-900">코드로 소유권 인증</h3>
               <p className="mt-1 text-sm text-slate-600">수락코드를 입력하면 디지털 자산 이전을 진행합니다.</p>
               <div className="mt-4">
@@ -472,7 +369,7 @@ const TransferReceiveView = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="발급받은 수락코드"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
+                  className="tracera-workflow-field bg-white"
                 />
               </div>
 
@@ -481,7 +378,7 @@ const TransferReceiveView = () => {
             <button
               type="submit"
               disabled={!isAuthenticated || submitting || !password.trim()}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#0f172a_0%,#1f2937_100%)] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              className="tracera-workflow-button w-full gap-2 bg-[linear-gradient(135deg,#0f172a_0%,#1f2937_100%)] hover:brightness-110"
             >
               <Lock size={15} /> {submitting ? '처리 중...' : '코드로 수락 확정'}
             </button>
@@ -501,7 +398,7 @@ const TransferReceiveView = () => {
         )}
 
         {result && (
-          <section className="rounded-3xl border border-emerald-200 bg-emerald-50/80 p-5 md:p-6 shadow-[0_18px_40px_-34px_rgba(5,150,105,.9)]">
+          <section className="rounded-[1.75rem] border border-emerald-200 bg-emerald-50/80 p-5 md:p-6 shadow-[0_18px_40px_-34px_rgba(5,150,105,.55)]">
             <h2 className="mb-3 text-lg font-semibold text-emerald-900">이전 완료</h2>
             <dl className="grid grid-cols-1 gap-2 text-sm text-emerald-900 md:grid-cols-2">
               <div><dt className="font-medium">Transfer ID</dt><dd>{result.transferId || '-'}</dd></div>
@@ -521,49 +418,16 @@ const TransferReceiveView = () => {
         )}
       </div>
 
-      {scannerOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-sm">
-          <div className="mx-auto flex h-full w-full max-w-4xl flex-col px-4 py-5 md:px-6">
-            <div className="mb-3 flex items-center justify-between text-white">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-slate-300">Live Scanner</p>
-                <h2 className="text-lg font-semibold">QR 카메라 스캐너</h2>
-              </div>
-              <button
-                type="button"
-                onClick={closeScanner}
-                className="inline-flex items-center gap-1 rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-sm"
-              >
-                <X size={14} /> 닫기
-              </button>
-            </div>
-
-            <div className="relative flex-1 overflow-hidden rounded-2xl border border-white/20 bg-black">
-              <video ref={videoRef} muted playsInline className="h-full w-full object-cover" />
-
-              <div className="pointer-events-none absolute inset-0 grid place-items-center">
-                <div className="h-56 w-56 rounded-2xl border border-white/35 bg-white/5" />
-                <div className="absolute h-56 w-56">
-                  <span className="absolute left-0 top-0 h-8 w-8 border-l-2 border-t-2 border-cyan-300" />
-                  <span className="absolute right-0 top-0 h-8 w-8 border-r-2 border-t-2 border-cyan-300" />
-                  <span className="absolute bottom-0 left-0 h-8 w-8 border-b-2 border-l-2 border-cyan-300" />
-                  <span className="absolute bottom-0 right-0 h-8 w-8 border-b-2 border-r-2 border-cyan-300" />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-3 space-y-2 text-sm">
-              {cameraOn && (
-                <p className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/40 bg-emerald-400/10 px-3 py-1 text-emerald-200">
-                  <Sparkles size={13} /> 카메라가 실행 중입니다.
-                </p>
-              )}
-              {scannerStatus && <p className="text-blue-200">{scannerStatus}</p>}
-              {cameraError && <p className="text-red-300">{cameraError}</p>}
-            </div>
-          </div>
-        </div>
-      )}
+      <QRScannerModal
+        isOpen={scannerOpen}
+        onClose={closeScanner}
+        onScanSuccess={handleQrScanSuccess}
+        title="소유권 이전 QR 스캐너"
+        description="직원이 제시한 이전 QR을 인식하면 소유권 인증이 자동으로 이어집니다."
+        tip="Safari를 포함한 모바일 브라우저에서도 같은 흐름으로 사용할 수 있습니다. 카메라가 어려우면 이미지 업로드로도 인식할 수 있습니다."
+        uploadLabel="이전 QR 이미지로 스캔하기"
+        accent="service"
+      />
     </div>
   );
 };

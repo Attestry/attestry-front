@@ -3,7 +3,7 @@ import { ArrowLeft, Building2, Copy, Package, QrCode, RefreshCw, Search, X } fro
 import { QRCodeSVG } from 'qrcode.react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import useAuthStore, { TENANT_ROLES } from '../../store/useAuthStore';
-import { PERMISSION_GUIDES } from '../../utils/permissionUi';
+import { normalizeApiErrorMessage, PERMISSION_GUIDES } from '../../utils/permissionUi';
 
 const PRODUCTS_PAGE_SIZE = 20;
 
@@ -25,7 +25,9 @@ const fetchWithAuth = async (url, options = {}) => {
     } catch (e) {
       // ignore json parse error
     }
-    throw new Error(errorMsg);
+    const error = new Error(normalizeApiErrorMessage(errorMsg, response.status, '제품 정보를 불러오지 못했습니다.'));
+    error.status = response.status;
+    throw error;
   }
   return response.status === 204 ? null : response.json();
 };
@@ -214,7 +216,7 @@ const RetailBrandInventoryDetail = () => {
       if (!response) return null;
       return toTransferState(response);
     } catch (e) {
-      if (String(e?.message || '').includes('API Error: 204')) return null;
+      if (e?.status === 204) return null;
       return undefined;
     }
   };

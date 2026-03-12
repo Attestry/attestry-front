@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import useAuthStore from '../../store/useAuthStore';
+import useAuthStore, { ROLE_THEMES } from '../../store/useAuthStore';
 import {
     Users,
     Link as LinkIcon,
@@ -48,6 +48,7 @@ const PartnershipAdmin = () => {
     const [selectedPartner, setSelectedPartner] = useState(null);
 
     const currentMembership = myMemberships.find(m => m.tenantId === user?.tenantId) || myMemberships[0];
+    const theme = ROLE_THEMES[user?.role];
 
     const hasScope = (scope) => {
         if (!currentMembership?.effectiveScopes) return false;
@@ -148,7 +149,8 @@ const PartnershipAdmin = () => {
                     {canCreateLink && canSearchTenant && (
                         <button
                             onClick={() => setShowLinkModal(true)}
-                            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-indigo-700 transition-colors"
+                            className="flex items-center gap-2 text-white px-4 py-2 rounded-xl font-semibold transition-colors"
+                            style={{ backgroundColor: theme?.primary }}
                         >
                             <Plus size={18} />
                             새 파트너 요청
@@ -172,7 +174,10 @@ const PartnershipAdmin = () => {
                                     <div>
                                         <div className="flex justify-between items-start mb-1">
                                             <div className="font-bold text-gray-900">{request.sourceTenantName || '요청업체'}</div>
-                                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px] font-bold">
+                                            <span
+                                                className="px-2 py-0.5 rounded text-[10px] font-bold"
+                                                style={{ backgroundColor: theme?.bg, color: theme?.primary }}
+                                            >
                                                 {request.sourceType || '알수없음'}
                                             </span>
                                         </div>
@@ -186,7 +191,8 @@ const PartnershipAdmin = () => {
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => approvePartnerLink(request.partnerLinkId)}
-                                                className="flex-1 bg-indigo-600 text-white py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors"
+                                                className="flex-1 text-white py-1.5 rounded-lg text-xs font-bold transition-colors"
+                                                style={{ backgroundColor: theme?.primary }}
                                             >
                                                 승인
                                             </button>
@@ -233,7 +239,10 @@ const PartnershipAdmin = () => {
                                             <div className="text-[10px] text-gray-400">ID: {link.partnerLinkId}</div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[10px] font-bold">
+                                            <span
+                                                className="px-2 py-1 rounded text-[10px] font-bold"
+                                                style={{ backgroundColor: theme?.bg, color: theme?.primary }}
+                                            >
                                                 {link.sourceTenantId === user?.tenantId ? link.partnerType : link.sourceType}
                                             </span>
                                         </td>
@@ -297,7 +306,7 @@ const PartnershipAdmin = () => {
                                     <div className="relative">
                                         <input
                                             type="text"
-                                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl outline-none"
                                             placeholder="업체명 검색..."
                                             value={selectedPartner ? selectedPartner.name : searchQuery}
                                             onChange={e => {
@@ -348,7 +357,7 @@ const PartnershipAdmin = () => {
                                         </div>
                                     )}
                                     {selectedPartner && (
-                                        <div className="mt-2 text-[10px] text-indigo-500 font-bold uppercase tracking-tight">
+                                        <div className="mt-2 text-[10px] font-bold uppercase tracking-tight" style={{ color: theme?.primary }}>
                                             ID: {selectedPartner.tenantId}
                                         </div>
                                     )}
@@ -356,7 +365,7 @@ const PartnershipAdmin = () => {
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-1">파트너 유형</label>
                                     <select
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl outline-none"
                                         value={linkForm.partnerType}
                                         onChange={e => setLinkForm({ ...linkForm, partnerType: e.target.value })}
                                     >
@@ -378,14 +387,14 @@ const PartnershipAdmin = () => {
                                                         proposedExpiresAt: e.target.checked ? '' : new Date(Date.now() + 86400000 * 30).toISOString().split('T')[0]
                                                     });
                                                 }}
-                                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                className="rounded border-gray-300"
                                             />
                                             무기한
                                         </label>
                                     </div>
                                     <input
                                         type="date"
-                                        className={`w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none ${!linkForm.proposedExpiresAt ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
+                                        className={`w-full px-4 py-2 border border-gray-200 rounded-xl outline-none ${!linkForm.proposedExpiresAt ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
                                         value={linkForm.proposedExpiresAt}
                                         min={new Date().toISOString().split('T')[0]}
                                         onChange={e => setLinkForm({ ...linkForm, proposedExpiresAt: e.target.value })}
@@ -403,7 +412,8 @@ const PartnershipAdmin = () => {
                                     </button>
                                     <button
                                         type="submit"
-                                        className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700"
+                                        className="flex-1 px-4 py-2 text-white rounded-xl font-bold"
+                                        style={{ backgroundColor: theme?.primary }}
                                     >
                                         요청 보내기
                                     </button>

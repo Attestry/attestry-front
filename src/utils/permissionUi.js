@@ -28,9 +28,29 @@ export const createHttpError = (message, status) => {
   return error;
 };
 
+export const normalizeApiErrorMessage = (message, status, fallbackMessage = '') => {
+  const rawMessage = String(message || '').trim();
+  const normalizedFallback = fallbackMessage || '요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.';
+
+  if (!rawMessage || rawMessage === 'API Error' || /^API Error:\s*\d+$/i.test(rawMessage)) {
+    if (status === 401) return '로그인이 필요합니다. 다시 로그인한 뒤 이용해주세요.';
+    if (status === 403) return '현재 계정으로는 이 작업을 진행할 수 없습니다.';
+    if (status === 404) return '요청한 정보를 찾을 수 없습니다.';
+    if (status === 409) return '현재 상태에서는 요청을 처리할 수 없습니다. 화면을 새로고침한 뒤 다시 시도해주세요.';
+    if (status >= 500) return '서버와 통신하는 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.';
+    return normalizedFallback;
+  }
+
+  if (/access denied/i.test(rawMessage)) {
+    return '현재 계정으로는 이 작업을 진행할 수 없습니다.';
+  }
+
+  return rawMessage;
+};
+
 export const toPermissionMessage = (error, guideKey = 'DEFAULT', fallbackMessage = '') => {
-  const message = error?.message || fallbackMessage;
-  if (error?.status === 403 || message === 'Access denied') {
+  const message = normalizeApiErrorMessage(error?.message, error?.status, fallbackMessage);
+  if (error?.status === 403 || /access denied/i.test(String(error?.message || ''))) {
     return PERMISSION_GUIDES[guideKey] || PERMISSION_GUIDES.DEFAULT;
   }
   return message || fallbackMessage || PERMISSION_GUIDES.DEFAULT;

@@ -89,7 +89,14 @@ const App = () => {
               </ProtectedRoute>
             }
           />
-          <Route path="/transfer/receive" element={<TransferReceiveView />} />
+          <Route
+            path="/transfer/receive"
+            element={
+              <ProtectedRoute>
+                <TransferReceiveView />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/t/:transferId" element={<TransferReceiveView />} />
           <Route path="/t/:transferId/:qrNonce" element={<TransferReceiveView />} />
           <Route path="/products/passports/:passportId" element={<PublicPassportView />} />

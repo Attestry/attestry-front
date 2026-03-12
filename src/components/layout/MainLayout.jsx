@@ -1,96 +1,132 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
-import { flushSync } from 'react-dom';
 import useAuthStore, { ROLES } from '../../store/useAuthStore';
-import { User } from 'lucide-react';
+import { ChevronRight, Menu, X } from 'lucide-react';
 import { getRoleLandingPath } from '../../utils/roleNavigation';
+import TraceraLogo from './TraceraLogo';
+import AccountMenu from './AccountMenu';
 
 const MainLayout = () => {
-  const { user, setRole, reissueToken, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isUserProfile = isAuthenticated && user?.role === ROLES.USER;
   const homePath = isAuthenticated ? getRoleLandingPath(user?.role) : '/';
+  const userQuickLinks = [
+    { to: '/transfer/receive', label: '소유권 이전 받기' },
+    { to: '/purchase-claims', label: '제품 등록 신청' },
+    { to: '/service-request/providers', label: '서비스 신청' },
+  ];
+  const getFeatureHref = (to) => (isAuthenticated ? to : `/login?returnTo=${encodeURIComponent(to)}`);
+
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 sticky top-0 z-10 w-full">
-        <div className="flex items-center gap-4">
-          <Link to={homePath} className="flex items-center gap-2 font-bold text-xl text-gray-800">
-            <div className="bg-gray-900 text-white w-8 h-8 rounded-md flex items-center justify-center font-bold">
-              D
-            </div>
-            DPP Ledger
-          </Link>
-        </div>
+    <div className="min-h-screen bg-[var(--color-page)] flex flex-col text-slate-900">
+      <header className="sticky top-0 z-30 w-full border-b border-white/60 bg-[rgba(248,246,241,0.8)] backdrop-blur-xl">
+        <div className="mx-auto flex h-[4.5rem] w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-4">
+            <TraceraLogo to={homePath} onClick={closeMobileMenu} compact />
+          </div>
 
-        <div className="flex gap-8 text-sm font-medium text-gray-600 hidden md:flex">
-          {isUserProfile && (
-            <>
-              <Link to="/transfer/receive" className="text-blue-600 hover:text-blue-700 font-semibold">디지털 자산 이전 받기</Link>
-              <Link to="/purchase-claims" className="text-blue-600 hover:text-blue-700 font-semibold">디지털 자산 등록하기</Link>
-              <Link to="/service-request/providers" className="text-blue-600 hover:text-blue-700 font-semibold">서비스 신청하기</Link>
-            </>
-          )}
-        </div>
+          <div className="hidden items-center gap-2 md:flex">
+            {userQuickLinks.map((item) => (
+              <Link key={item.to} to={getFeatureHref(item.to)} className="px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-950">
+                {item.label}
+              </Link>
+            ))}
+          </div>
 
-        <div className="flex items-center gap-4">
+          <div className="hidden items-center gap-4 md:flex">
           {isAuthenticated ? (
             <div className="flex items-center gap-4">
-              {user?.availableRoles?.length > 1 && (
-                <select
-                  className="text-sm border border-gray-300 rounded-md py-1.5 px-3 bg-white text-gray-700 font-medium shadow-sm transition-colors hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900"
-                  value={user?.role}
-                  onChange={async (e) => {
-                    const newRole = e.target.value;
-                    flushSync(() => setRole(newRole));
-                    await reissueToken();
-                    navigate(getRoleLandingPath(newRole));
-                  }}
-                >
-                  {user.availableRoles.map((r) => (
-                    <option key={r} value={r}>
-                      프로필: {r === ROLES.USER ? '일반 사용자' :
-                        r === ROLES.BRAND ? '제조 (Brand)' :
-                          r === ROLES.RETAIL ? '유통 (Retail)' :
-                            r === ROLES.SERVICE ? '서비스 (Service)' :
-                              '플랫폼 관리자'}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <div className="flex items-center gap-2">
-                <Link to="/mypage" className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-300 transition-colors">
-                  <User size={16} />
-                </Link>
-                <Link to="/mypage" className="text-sm font-medium text-gray-700 hidden sm:block hover:text-gray-900">{user?.email || '사용자'}</Link>
-              </div>
-              <button
-                onClick={() => {
-                  useAuthStore.getState().logout();
-                  navigate('/');
-                }}
-                className="text-sm font-medium text-gray-500 hover:text-red-600 pl-4 border-l border-gray-200"
-              >
-                로그아웃
-              </button>
+              <AccountMenu user={user} navigate={navigate} />
             </div>
           ) : (
             <div className="flex gap-2">
-              <Link to="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2">로그인</Link>
-              <Link to="/signup" className="text-sm font-medium bg-gray-900 text-white rounded-md px-4 py-2 hover:bg-gray-800">회원가입</Link>
+              <Link to="/login" className="tracera-button-secondary rounded-xl px-4 py-2.5 shadow-none" style={{ color: '#0f172a' }}>로그인</Link>
+              <Link to="/signup" className="tracera-button-primary rounded-xl px-5 py-2.5" style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}>
+                회원가입
+              </Link>
             </div>
           )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 md:hidden"
+            aria-label="메뉴 열기"
+          >
+            {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
         </div>
+
+        {isMobileMenuOpen && (
+          <div className="border-t border-slate-200/80 bg-[rgba(248,246,241,0.96)] px-4 py-4 md:hidden">
+            <div className="mx-auto flex max-w-7xl flex-col gap-3">
+              {userQuickLinks.map((item) => (
+                <Link key={item.to} to={getFeatureHref(item.to)} onClick={closeMobileMenu} className="tracera-panel-soft px-4 py-3 text-sm font-medium text-slate-700">
+                  {item.label}
+                </Link>
+              ))}
+              {isAuthenticated ? (
+                <>
+                  <Link to="/mypage" onClick={closeMobileMenu} className="tracera-panel-soft px-4 py-3 text-sm font-medium text-slate-700">
+                    마이페이지
+                  </Link>
+                  <button
+                    onClick={() => {
+                      closeMobileMenu();
+                      useAuthStore.getState().logout();
+                      navigate('/');
+                    }}
+                    className="tracera-button-primary justify-start rounded-2xl px-4 py-3 text-left"
+                  >
+                    로그아웃
+                  </button>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <Link to="/login" onClick={closeMobileMenu} className="tracera-button-secondary rounded-xl px-4 py-3" style={{ color: '#0f172a' }}>
+                    로그인
+                  </Link>
+                  <Link to="/signup" onClick={closeMobileMenu} className="tracera-button-primary rounded-xl px-4 py-3" style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}>
+                    회원가입
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
       <main className="w-full flex-1">
         <Outlet />
       </main>
 
-      <footer className="bg-white border-t border-gray-200 py-8 mt-auto">
-        <div className="max-w-6xl mx-auto px-6 text-center text-sm text-gray-500">
-          <p>© 2026 DPP Ledger. 투명한 디지털 환경을 만듭니다.</p>
+      <footer className="mt-auto border-t border-[rgba(148,163,184,0.15)] bg-[linear-gradient(180deg,#0b1220_0%,#0f172a_100%)] py-12 text-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 sm:px-6 lg:px-8 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <TraceraLogo to={homePath} subtitle={false} compact tone="dark" />
+            <p className="mt-5 max-w-xl text-sm leading-7 text-slate-300">
+              제품의 출시부터 소유 이전, 수리, 재활용까지 이어지는 전 생애주기 데이터를 더 명확하고 신뢰 가능하게 연결합니다.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3 text-xs text-slate-400">
+              <span className="tracera-badge border-white/10 bg-white/5 text-slate-300 shadow-none">제품 생애주기</span>
+              <span className="tracera-badge border-white/10 bg-white/5 text-slate-300 shadow-none">소유권 추적</span>
+              <span className="tracera-badge border-white/10 bg-white/5 text-slate-300 shadow-none">서비스 이력</span>
+            </div>
+          </div>
+          <div className="grid gap-3 text-sm text-slate-400">
+            <div className="font-medium text-slate-200">Tracera</div>
+            <Link to="/onboarding" className="inline-flex items-center gap-2 transition-colors hover:text-white">
+              업체 신청 페이지
+              <ChevronRight size={15} />
+            </Link>
+            <div>© 2026 Tracera. The new era of product traceability.</div>
+          </div>
         </div>
       </footer>
     </div>

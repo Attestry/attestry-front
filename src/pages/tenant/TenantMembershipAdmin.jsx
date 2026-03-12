@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, UserPlus, ShieldAlert, Check, X, Shield, Settings, Key, Mail, Building, Plus, Minus, UserCircle, ExternalLink, Phone, Fingerprint, Info } from 'lucide-react';
-import useAuthStore, { TENANT_ROLES } from '../../store/useAuthStore';
+import useAuthStore, { ROLE_THEMES, TENANT_ROLES } from '../../store/useAuthStore';
 
 const TenantMembershipAdmin = () => {
     const {
@@ -16,6 +16,7 @@ const TenantMembershipAdmin = () => {
     const [detailModalLoading, setDetailModalLoading] = useState(false);
 
     const currentUserMembership = myMemberships.find(m => m.tenantId === user?.tenantId) || myMemberships[0];
+    const theme = ROLE_THEMES[user?.role];
 
     // invitation permission
     const hasInvitePermission = currentUserMembership?.roleCodes?.some(r => r.toUpperCase().includes('ADMIN') || r.toUpperCase().includes('OWNER')) ||
@@ -79,8 +80,8 @@ const TenantMembershipAdmin = () => {
     };
 
     const roleDisplay = {
-        [TENANT_ROLES.ADMIN]: { label: 'Admin', color: 'bg-purple-50 text-purple-700 border-purple-100' },
-        [TENANT_ROLES.OPERATOR]: { label: 'Operator', color: 'bg-indigo-50 text-indigo-700 border-indigo-100' },
+        [TENANT_ROLES.ADMIN]: { label: 'Admin', color: 'bg-[var(--role-bg)] text-[var(--role-primary)] border-[var(--role-border)]' },
+        [TENANT_ROLES.OPERATOR]: { label: 'Operator', color: 'bg-[var(--role-bg)] text-[var(--role-primary)] border-[var(--role-border)]' },
         [TENANT_ROLES.STAFF]: { label: 'Staff', color: 'bg-slate-50 text-slate-700 border-slate-100' }
     };
 
@@ -92,7 +93,8 @@ const TenantMembershipAdmin = () => {
             <div
                 key={m.membershipId}
                 onClick={() => fetchDetail(m.membershipId)}
-                className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden group flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer hover:border-indigo-100"
+                className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden group flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer"
+                style={{ ['--role-primary']: theme?.primary, ['--role-bg']: theme?.bg, ['--role-border']: theme?.border }}
             >
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${isStatusActive ? 'bg-green-500' : isSuspended ? 'bg-red-500' : 'bg-yellow-400'}`} />
 
@@ -108,7 +110,8 @@ const TenantMembershipAdmin = () => {
                                     e.stopPropagation();
                                     fetchDetail(m.membershipId);
                                 }}
-                                className="p-1 text-slate-300 hover:text-indigo-600 transition-colors"
+                                className="p-1 text-slate-300 transition-colors"
+                                style={{ color: undefined }}
                                 title="상세 정보 보기"
                             >
                                 <Info size={14} />
@@ -148,9 +151,10 @@ const TenantMembershipAdmin = () => {
                                             disabled={isProcessing}
                                             title={roleDisplay[role].label}
                                             className={`p-1.5 rounded-md transition-all ${hasRole
-                                                ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100'
+                                                ? 'bg-white shadow-sm'
                                                 : 'text-slate-400 hover:text-slate-600'
                                                 } disabled:opacity-50`}
+                                            style={hasRole ? { color: theme?.primary, border: `1px solid ${theme?.border}` } : {}}
                                         >
                                             {isProcessing ? (
                                                 <div className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
@@ -198,9 +202,9 @@ const TenantMembershipAdmin = () => {
             <div className="space-y-6">
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
-                            <UserPlus size={20} />
-                        </div>
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: theme?.bg, color: theme?.primary }}>
+                                <UserPlus size={20} />
+                            </div>
                         <div>
                             <h2 className="text-xl font-bold text-slate-900">새로운 팀원 초대</h2>
                             <p className="text-slate-500 text-sm">이메일을 통해 멤버를 초대하고 초기 권한을 부여하세요.</p>
@@ -221,7 +225,7 @@ const TenantMembershipAdmin = () => {
                                     type="email"
                                     value={inviteEmail}
                                     onChange={(e) => setInviteEmail(e.target.value)}
-                                    className="w-full border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-2.5 outline-none transition-all text-sm"
+                                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none transition-all text-sm"
                                     placeholder="user@example.com"
                                 />
                             </div>
@@ -230,7 +234,7 @@ const TenantMembershipAdmin = () => {
                                 <select
                                     value={inviteRole}
                                     onChange={(e) => setInviteRole(e.target.value)}
-                                    className="w-full border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-2.5 outline-none transition-all appearance-none text-sm bg-white"
+                                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none transition-all appearance-none text-sm bg-white"
                                 >
                                     <option value={TENANT_ROLES.STAFF}>Staff (일반)</option>
                                     <option value={TENANT_ROLES.OPERATOR}>Operator (운영)</option>
@@ -240,7 +244,8 @@ const TenantMembershipAdmin = () => {
                             <button
                                 type="submit"
                                 disabled={actionLoading === 'invite'}
-                                className="w-full md:w-auto bg-indigo-600 text-white px-8 py-2.5 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex justify-center items-center gap-2 h-[46px] disabled:opacity-60"
+                                className="w-full md:w-auto text-white px-8 py-2.5 rounded-xl font-bold transition-all flex justify-center items-center gap-2 h-[46px] disabled:opacity-60"
+                                style={{ backgroundColor: theme?.primary, boxShadow: `0 16px 36px ${theme?.border}` }}
                             >
                                 {actionLoading === 'invite' ? (
                                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -280,13 +285,13 @@ const TenantMembershipAdmin = () => {
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                             소속 멤버
-                            <span className="text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full text-xs">{activeMemberships.length}</span>
+                            <span className="px-3 py-1 rounded-full text-xs" style={{ color: theme?.primary, backgroundColor: theme?.bg }}>{activeMemberships.length}</span>
                         </h2>
                     </div>
 
                     {loading ? (
                         <div className="bg-white border text-center border-slate-200 rounded-3xl py-24">
-                            <div className="w-8 h-8 border-3 border-indigo-600/10 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4" />
+                            <div className="w-8 h-8 border-3 rounded-full animate-spin mx-auto mb-4" style={{ borderColor: `${theme?.primary}20`, borderTopColor: theme?.primary }} />
                             <p className="text-slate-400 text-sm font-medium">데이터를 불러오는 중...</p>
                         </div>
                     ) : activeMemberships.length === 0 ? (
@@ -307,7 +312,7 @@ const TenantMembershipAdmin = () => {
             {selectedDetail && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600" />
+                        <div className="absolute top-0 left-0 w-full h-2" style={{ backgroundColor: theme?.primary }} />
 
                         <button
                             onClick={() => setSelectedDetail(null)}
@@ -317,7 +322,7 @@ const TenantMembershipAdmin = () => {
                         </button>
 
                         <div className="flex flex-col items-center text-center mb-8 pt-4">
-                            <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mb-4 border-4 border-white shadow-lg shadow-indigo-100">
+                            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4 border-4 border-white shadow-lg" style={{ backgroundColor: theme?.bg, color: theme?.primary, boxShadow: `0 12px 28px ${theme?.border}` }}>
                                 <UserCircle size={48} />
                             </div>
                             <h2 className="text-xl font-bold text-slate-900 break-all">{selectedDetail.userAccount?.email}</h2>
@@ -327,7 +332,7 @@ const TenantMembershipAdmin = () => {
                                 <span className={`px-3 py-1 rounded-full text-[10px] font-bold border uppercase ${selectedDetail.status === 'ACTIVE' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
                                     MEMBER: {selectedDetail.status}
                                 </span>
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold border uppercase bg-indigo-50 text-indigo-700 border-indigo-200`}>
+                                <span className="px-3 py-1 rounded-full text-[10px] font-bold border uppercase" style={{ backgroundColor: theme?.bg, color: theme?.primary, borderColor: theme?.border }}>
                                     USER: {selectedDetail.userAccount?.status || 'N/A'}
                                 </span>
                             </div>
@@ -371,7 +376,10 @@ const TenantMembershipAdmin = () => {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-white rounded-lg shadow-sm text-blue-500 border border-slate-50">
+                                        <div
+                                            className="p-2 bg-white rounded-lg shadow-sm border border-slate-50"
+                                            style={{ color: theme?.primary }}
+                                        >
                                             <Shield size={16} />
                                         </div>
                                         <div>
@@ -396,8 +404,13 @@ const TenantMembershipAdmin = () => {
             {/* Loading Overlay for Detail Fetch */}
             {detailModalLoading && (
                 <div className="fixed inset-0 bg-white/60 backdrop-blur-[2px] z-[60] flex flex-col items-center justify-center animate-in fade-in duration-300">
-                    <div className="w-12 h-12 border-4 border-indigo-600/10 border-t-indigo-600 rounded-full animate-spin mb-4" />
-                    <p className="text-indigo-900 font-bold text-sm tracking-widest animate-pulse">상세 정보 조회 중...</p>
+                    <div
+                        className="w-12 h-12 rounded-full animate-spin mb-4 border-4"
+                        style={{ borderColor: `${theme?.primary}20`, borderTopColor: theme?.primary }}
+                    />
+                    <p className="font-bold text-sm tracking-widest animate-pulse" style={{ color: theme?.primary }}>
+                        상세 정보 조회 중...
+                    </p>
                 </div>
             )}
         </div>

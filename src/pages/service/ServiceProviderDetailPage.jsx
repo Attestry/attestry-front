@@ -182,32 +182,33 @@ const ServiceProviderDetailPage = () => {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-6 py-10">
-      <header className="flex flex-col gap-4 border-b border-gray-200 pb-5 md:flex-row md:items-end md:justify-between">
-        <div>
+    <div className="tracera-workflow-page mx-auto max-w-5xl space-y-6 px-4 py-8 md:px-6 md:py-10">
+      <header className="tracera-workflow-hero">
+        <div className="relative flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-2xl">
           <button
             type="button"
             onClick={() => navigate('/service-request/providers')}
-            className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-800"
+            className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-900"
           >
             <ArrowLeft size={16} />
             서비스 업체 목록으로
           </button>
-          <h1 className="mt-4 text-3xl font-bold text-gray-900">{provider?.name || '서비스 업체'}</h1>
-          <div className="mt-2 inline-flex items-center gap-1 text-sm text-gray-500">
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-white md:text-[2.5rem]">{provider?.name || '서비스 업체'}</h1>
+          <div className="mt-3 inline-flex items-center gap-1.5 text-sm text-slate-200">
             <MapPin size={14} />
             {provider?.region || '지역 정보 없음'}
           </div>
-          <p className="mt-2 text-xs text-gray-400">Tenant ID: {provider?.tenantId || tenantId}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-200">
+            자산 선택, 접수 방식, 증상 설명, 첨부파일까지 한 번에 정리해 서비스 신청을 보낼 수 있습니다.
+          </p>
+          <p className="mt-3 text-xs text-slate-300">Tenant ID: {provider?.tenantId || tenantId}</p>
+          </div>
+          <button type="button" onClick={() => load()} className="tracera-workflow-button">
+            <RefreshCw size={16} />
+            새로고침
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => load()}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50"
-        >
-          <RefreshCw size={16} />
-          새로고침
-        </button>
       </header>
 
       {error && (
@@ -222,34 +223,34 @@ const ServiceProviderDetailPage = () => {
         </div>
       )}
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <section className="tracera-workflow-section">
         <div className="flex items-center gap-2">
           <Wrench size={18} className="text-amber-600" />
-          <h2 className="text-lg font-bold text-gray-900">서비스 업체 정보</h2>
+          <h2 className="text-lg font-bold text-slate-950">서비스 업체 정보</h2>
         </div>
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="rounded-xl bg-gray-50 p-4">
-            <div className="text-xs font-semibold text-gray-500">업체명</div>
-            <div className="mt-2 text-sm font-semibold text-gray-900">{provider?.name || '-'}</div>
+        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="text-xs font-semibold text-slate-500">업체명</div>
+            <div className="mt-2 text-sm font-semibold text-slate-950">{provider?.name || '-'}</div>
           </div>
-          <div className="rounded-xl bg-gray-50 p-4">
-            <div className="text-xs font-semibold text-gray-500">지역</div>
-            <div className="mt-2 text-sm font-semibold text-gray-900">{provider?.region || '-'}</div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="text-xs font-semibold text-slate-500">지역</div>
+            <div className="mt-2 text-sm font-semibold text-slate-950">{provider?.region || '-'}</div>
           </div>
-          <div className="rounded-xl bg-gray-50 p-4 md:col-span-2">
-            <div className="text-xs font-semibold text-gray-500">주소</div>
-            <div className="mt-2 text-sm font-semibold text-gray-900">{provider?.address || '-'}</div>
+          <div className="rounded-2xl bg-slate-50 p-4 md:col-span-2">
+            <div className="text-xs font-semibold text-slate-500">주소</div>
+            <div className="mt-2 text-sm font-semibold text-slate-950">{provider?.address || '-'}</div>
           </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <section className="tracera-workflow-section">
         <div className="flex items-center gap-2">
           <CheckCircle2 size={18} className="text-amber-600" />
-          <h2 className="text-lg font-bold text-gray-900">서비스 신청하기</h2>
+          <h2 className="text-lg font-bold text-slate-950">서비스 신청하기</h2>
         </div>
-        <p className="mt-2 text-sm text-gray-500">
-          내 자산을 선택하고 요청 방식, 증상 설명, 연락 정보, 첨부파일과 함께 서비스 요청을 생성합니다.
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          제품 선택부터 접수 메모와 첨부자료까지 한 번에 정리해, 서비스 담당자가 바로 이해할 수 있는 요청으로 전환합니다.
         </p>
         {!provider?.address && (
           <p className="mt-2 text-xs text-rose-600">
@@ -270,13 +271,13 @@ const ServiceProviderDetailPage = () => {
           </div>
         ) : (
           <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
-            <div>
+            <div className="tracera-workflow-subtle">
               <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <label className="block text-sm font-semibold text-gray-700">신청할 자산 선택</label>
+                <label className="block text-sm font-semibold text-slate-700">신청할 자산 선택</label>
                 <button
                   type="button"
                   onClick={() => setScannerOpen(true)}
-                  className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                  className="tracera-workflow-button-secondary min-h-[44px] px-4 py-2"
                 >
                   QR로 자산 선택
                 </button>
@@ -284,7 +285,7 @@ const ServiceProviderDetailPage = () => {
               <select
                 value={selectedPassportId}
                 onChange={(e) => setSelectedPassportId(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                className="tracera-workflow-field bg-white"
               >
                 {passports.map((passport) => (
                   <option key={passport.passportId} value={passport.passportId}>
@@ -292,33 +293,33 @@ const ServiceProviderDetailPage = () => {
                   </option>
                 ))}
               </select>
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-2 text-xs text-slate-500">
                 직접 선택하거나 내 디지털 자산 공개 QR을 스캔해서 자동으로 자산을 고를 수 있습니다.
               </p>
             </div>
 
             {selectedPassport && (
-              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-4">
-                <div className="text-xs font-semibold text-gray-500">선택된 자산</div>
-                <div className="mt-2 text-sm font-semibold text-gray-900">{selectedPassport.modelName || '-'}</div>
-                <div className="mt-1 text-xs text-gray-500">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-4">
+                <div className="text-xs font-semibold text-amber-700">선택된 자산</div>
+                <div className="mt-2 text-sm font-semibold text-slate-950">{selectedPassport.modelName || '-'}</div>
+                <div className="mt-1 text-xs text-slate-500">
                   Serial: {selectedPassport.serialNumber || '-'} | Passport: {selectedPassport.passportId}
                 </div>
               </div>
             )}
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">요청 방식</label>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">요청 방식</label>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {SERVICE_REQUEST_METHOD_OPTIONS.map((option) => (
                   <button
                     key={option.value}
                     type="button"
                     onClick={() => setServiceRequestMethod(option.value)}
-                    className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                    className={`min-h-[72px] rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
                       serviceRequestMethod === option.value
-                        ? 'border-amber-300 bg-amber-50 text-amber-800'
-                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                        ? 'border-amber-200 bg-amber-50 text-amber-900 shadow-[0_16px_40px_-28px_rgba(180,83,9,.18)]'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     {option.label}
@@ -328,50 +329,50 @@ const ServiceProviderDetailPage = () => {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">증상 설명</label>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">증상 설명</label>
               <textarea
                 value={symptomDescription}
                 onChange={(e) => setSymptomDescription(e.target.value)}
                 rows={4}
                 placeholder="예: 전원이 켜지지 않음, 화면이 깜빡임"
-                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                className="tracera-workflow-field"
               />
             </div>
 
             {serviceRequestMethod === 'VISIT' && (
               <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">희망 방문 일자 / 시간</label>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">희망 방문 일자 / 시간</label>
                 <input
                   type="datetime-local"
                   value={requestedReservationAt}
                   onChange={(e) => setRequestedReservationAt(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                  className="tracera-workflow-field"
                 />
               </div>
             )}
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">연락 메모</label>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">연락 메모</label>
               <textarea
                 rows={3}
                 value={contactMemo}
                 onChange={(e) => setContactMemo(e.target.value)}
                 placeholder="예: 연락받을 연락처를 기재하세요. 가능한 시간대도 넣어주세요."
-                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                className="tracera-workflow-field"
               />
             </div>
 
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+            <div className="tracera-workflow-subtle">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
                 <Paperclip size={16} className="text-amber-600" />
                 신청 첨부파일
               </div>
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-2 text-xs leading-5 text-slate-500">
                 고장 사진, 참고 문서 등을 첨부할 수 있습니다. 파일을 선택하면 바로 업로드되고, 업로드 완료 후 `서비스 요청하기`로 제출합니다.
               </p>
               {beforeEvidenceGroupId && (
-                <div className="mt-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600">
-                  Evidence Group ID: <span className="font-mono text-gray-900">{beforeEvidenceGroupId}</span>
+                <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs text-slate-600">
+                  Evidence Group ID: <span className="font-mono text-slate-950">{beforeEvidenceGroupId}</span>
                 </div>
               )}
               <input
@@ -385,21 +386,21 @@ const ServiceProviderDetailPage = () => {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                className="tracera-workflow-button-secondary mt-4 min-h-[44px] px-4 py-2 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <UploadCloud size={16} />
                 {uploading ? '업로드 중...' : '파일 선택'}
               </button>
               {selectedFiles.length > 0 && (
-                <div className="mt-3 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-3 text-xs text-gray-600">
-                  <div className="mb-2 font-semibold text-gray-700">선택한 파일</div>
+                <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white px-3 py-3 text-xs text-slate-600">
+                  <div className="mb-2 font-semibold text-slate-700">선택한 파일</div>
                   {selectedFiles.map((file) => (
                     <div key={`${file.name}-${file.size}`}>{file.name} ({formatBytes(file.size)})</div>
                   ))}
                 </div>
               )}
               {uploadedFiles.length > 0 && (
-                <div className="mt-3 rounded-lg border border-green-100 bg-green-50 px-3 py-3 text-xs text-gray-600">
+                <div className="mt-3 rounded-xl border border-green-100 bg-green-50 px-3 py-3 text-xs text-slate-600">
                   <div className="mb-2 font-semibold text-green-700">업로드 완료 파일</div>
                   {uploadedFiles.map((file) => (
                     <div key={file.evidenceId}>{file.fileName} ({formatBytes(file.sizeBytes)})</div>
@@ -407,12 +408,12 @@ const ServiceProviderDetailPage = () => {
                 </div>
               )}
               {uploading && (
-                <div className="mt-3 text-xs text-blue-700">
+                <div className="mt-3 text-xs text-amber-700">
                   업로드 진행: {uploadProgress.done}/{uploadProgress.total}
                   {uploadProgress.current ? ` · ${uploadProgress.current}` : ''}
                 </div>
               )}
-              <div className="mt-2 text-xs text-gray-500">
+              <div className="mt-2 text-xs text-slate-500">
                 파일 선택 후 자동 업로드됩니다. 업로드 완료 후 아래 `서비스 요청하기`로 최종 제출됩니다.
               </div>
             </div>
@@ -421,14 +422,14 @@ const ServiceProviderDetailPage = () => {
               <button
                 type="submit"
                 disabled={submitting || !selectedPassportId || !provider?.address}
-                className="inline-flex items-center justify-center rounded-xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="tracera-workflow-button"
               >
                 {submitting ? '요청 중...' : '서비스 요청하기'}
               </button>
               <button
                 type="button"
                 onClick={() => navigate('/service-request/my')}
-                className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                className="tracera-workflow-button-secondary"
               >
                 내 서비스 요청 보기
               </button>
@@ -440,6 +441,10 @@ const ServiceProviderDetailPage = () => {
         isOpen={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onScanSuccess={handleQrScanSuccess}
+        title="내 자산 QR 스캔"
+        description="서비스 신청할 제품의 QR을 스캔하면 자동으로 자산이 선택됩니다."
+        tip="공개 QR을 카메라 중앙에 맞추면 현재 신청 화면으로 바로 돌아옵니다."
+        uploadLabel="QR 이미지로 선택하기"
       />
     </div>
   );

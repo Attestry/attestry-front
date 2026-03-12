@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package, Search, Calendar, Filter, Download, Plus, FileDigit, Database, Factory, Hash, Code, Loader2, X, UploadCloud, FileText, AlertCircle } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
-import { PERMISSION_GUIDES, createHttpError, getCurrentMembership, hasEffectiveScope, toPermissionMessage } from '../../utils/permissionUi';
+import { PERMISSION_GUIDES, createHttpError, getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
 
 // Role-based utility to fetch with Auth Token
 const fetchWithAuth = async (url, options = {}) => {
@@ -24,7 +24,7 @@ const fetchWithAuth = async (url, options = {}) => {
         } catch (e) {
             // parsing error skipped
         }
-        throw createHttpError(errorMsg, response.status);
+        throw createHttpError(normalizeApiErrorMessage(errorMsg, response.status), response.status);
     }
     return response.status !== 204 ? response.json() : null;
 };

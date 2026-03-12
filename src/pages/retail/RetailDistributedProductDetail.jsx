@@ -3,6 +3,7 @@ import { ArrowLeft, Calendar, Database, Factory, Hash, Loader2, Package, QrCode,
 import { QRCodeSVG } from 'qrcode.react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
+import { normalizeApiErrorMessage } from '../../utils/permissionUi';
 
 const fetchWithAuth = async (url, options = {}) => {
   const token = useAuthStore.getState().accessToken;
@@ -23,7 +24,9 @@ const fetchWithAuth = async (url, options = {}) => {
     } catch (e) {
       // ignore json parse error
     }
-    throw new Error(errorMsg);
+    const error = new Error(normalizeApiErrorMessage(errorMsg, response.status, '제품 상세 정보를 불러오지 못했습니다.'));
+    error.status = response.status;
+    throw error;
   }
 
   return response.status === 204 ? null : response.json();

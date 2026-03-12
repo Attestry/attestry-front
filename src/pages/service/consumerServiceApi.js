@@ -1,4 +1,5 @@
 import useAuthStore from '../../store/useAuthStore';
+import { normalizeApiErrorMessage } from '../../utils/permissionUi';
 
 const authFetch = async (url, options = {}) => {
   const token = useAuthStore.getState().accessToken;
@@ -19,7 +20,7 @@ const authFetch = async (url, options = {}) => {
     } catch (e) {
       // ignore json parse error
     }
-    const error = new Error(errorMsg);
+    const error = new Error(normalizeApiErrorMessage(errorMsg, response.status));
     error.status = response.status;
     throw error;
   }

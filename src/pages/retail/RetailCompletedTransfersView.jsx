@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, CheckCircle2, RefreshCw } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
-import { createHttpError, getCurrentMembership, hasEffectiveScope, toPermissionMessage } from '../../utils/permissionUi';
+import { createHttpError, getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
 
 const PAGE_SIZE = 20;
 const BRANDS_PAGE_SIZE = 10;
@@ -25,7 +25,7 @@ const fetchWithAuth = async (url, options = {}) => {
     } catch (e) {
       // ignore json parse error
     }
-    throw createHttpError(errorMsg, response.status);
+    throw createHttpError(normalizeApiErrorMessage(errorMsg, response.status), response.status);
   }
 
   return response.status === 204 ? null : response.json();

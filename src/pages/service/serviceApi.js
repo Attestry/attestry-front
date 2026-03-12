@@ -1,4 +1,5 @@
 import useAuthStore from '../../store/useAuthStore';
+import { normalizeApiErrorMessage } from '../../utils/permissionUi';
 import {
   SERVICE_REQUEST_METHOD_OPTIONS,
   SERVICE_TYPE_OPTIONS,
@@ -34,8 +35,8 @@ export const hasServiceManagePermission = (memberships = [], tenantId) => {
 
 export const toServiceErrorMessage = (error, fallbackMessage) => {
   const status = error?.status;
-  const message = error?.message || fallbackMessage;
-  if (status === 403 || message === 'Access denied') {
+  const message = normalizeApiErrorMessage(error?.message, status, fallbackMessage);
+  if (status === 403 || /access denied/i.test(String(error?.message || ''))) {
     return SERVICE_PERMISSION_GUIDE;
   }
   return message || fallbackMessage;
@@ -60,7 +61,7 @@ export const fetchWithAuth = async (url, options = {}) => {
     } catch (e) {
       // ignore json parse error
     }
-    const error = new Error(errorMsg);
+    const error = new Error(normalizeApiErrorMessage(errorMsg, response.status));
     error.status = response.status;
     throw error;
   }

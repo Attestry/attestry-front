@@ -139,11 +139,11 @@ const ServiceRequestsPage = () => {
       <header className="flex flex-col gap-4 border-b border-gray-200 pb-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">서비스 요청 관리</h1>
-          <p className="mt-1 text-gray-500">현재 tenant로 들어온 `PENDING` 서비스 요청을 수락하거나 반려합니다. 수락되면 고객 화면에서는 `서비스 접수`로 반영됩니다.</p>
+          <p className="mt-1 text-gray-500">고객님의 서비스 요청을 확인하고, 접수 여부를 신중하게 결정하세요.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {canManageService && (
-            <button type="button" onClick={() => setScannerOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
+            <button type="button" onClick={() => setScannerOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100">
               QR 스캔
             </button>
           )}
@@ -156,12 +156,12 @@ const ServiceRequestsPage = () => {
 
       {error && <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{error}</div>}
       {!canManageService && canViewService && (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           목록 조회만 가능합니다. 수락과 반려는 서비스 처리 권한이 있는 멤버만 수행할 수 있습니다.
         </div>
       )}
       {scannedPassportId && !error && (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           스캔된 제품 Passport: {scannedPassportId}
         </div>
       )}
@@ -280,6 +280,7 @@ const ServiceRequestsPage = () => {
         isOpen={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onScanSuccess={handleQrScanSuccess}
+        accent="service"
       />
       <ServicePassportDetailModal
         passportId={detailPassportId}

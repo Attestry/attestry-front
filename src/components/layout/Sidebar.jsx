@@ -46,41 +46,52 @@ const Sidebar = () => {
   }
 
   return (
-    <aside className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col h-[calc(100vh-4rem)] sticky top-16">
-      <div
-        className="p-6 mb-4 mt-2 mx-4 rounded-lg shadow-sm"
-        style={{ backgroundColor: theme.bg, border: `1px solid ${theme.border}` }}
-      >
-        <div className="text-xs font-semibold text-gray-500 mb-1">현재 권한 모드</div>
-        <div className="font-bold text-lg" style={{ color: theme.primary }}>
-          {theme.name}
+    <aside className="w-full border-b border-white/70 bg-[rgba(247,246,242,0.74)] backdrop-blur-xl lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:w-[18rem] lg:border-b-0 lg:border-r lg:border-r-white/80">
+      <div className="px-4 pb-4 pt-4 sm:px-6 lg:px-4 lg:pb-5">
+        <div
+          className="rounded-[1.75rem] p-5 shadow-[0_16px_45px_rgba(15,23,42,0.06)]"
+          style={{ backgroundColor: theme.bg, border: `1px solid ${theme.border}` }}
+        >
+          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">현재 권한 모드</div>
+          <div className="mt-3 text-xl font-semibold tracking-[-0.04em]" style={{ color: theme.primary }}>
+            {theme.name}
+          </div>
+          <div className="mt-2 text-sm leading-6 text-slate-600">
+            {theme.description}
+          </div>
         </div>
-        <div className="text-xs text-gray-600 mt-2 leading-relaxed">
-          {theme.description}
-        </div>
-      </div>
 
-      <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto">
-        {menus.map((menu) => (
-          <NavLink
-            key={menu.path}
-            to={menu.path}
-            end={menu.path === `/${user.role.toLowerCase()}`}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors ${isActive
-                ? 'font-medium bg-white shadow-sm'
-                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-              }`
-            }
-            style={({ isActive }) =>
-              isActive ? { color: theme.primary, borderLeft: `3px solid ${theme.primary}` } : {}
-            }
-          >
-            <menu.icon size={18} />
-            {menu.title}
-          </NavLink>
-        ))}
-      </nav>
+        <nav className="mt-4 flex gap-3 overflow-x-auto pb-1 lg:block lg:space-y-1 lg:overflow-visible lg:pb-0">
+          {menus.map((menu) => (
+            <NavLink
+              key={menu.path}
+              to={menu.path}
+              end={menu.path === `/${user.role.toLowerCase()}`}
+              className={({ isActive }) =>
+                `group flex min-w-max items-center gap-3 rounded-full px-4 py-3 text-sm font-medium transition-all lg:min-w-0 lg:rounded-[1.2rem] ${
+                  isActive
+                    ? 'bg-white shadow-[0_14px_30px_rgba(15,23,42,0.06)]'
+                    : 'text-slate-600 hover:bg-white/85 hover:text-slate-900'
+                }`
+              }
+              style={({ isActive }) =>
+                isActive ? { color: theme.primary } : {}
+              }
+            >
+              <div
+                className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+                style={{
+                  backgroundColor: `${theme.primary}14`,
+                  color: theme.primary,
+                }}
+              >
+                <menu.icon size={17} />
+              </div>
+              <span className="whitespace-nowrap lg:whitespace-normal">{menu.title}</span>
+            </NavLink>
+          ))}
+        </nav>
+      </div>
     </aside>
   );
 };

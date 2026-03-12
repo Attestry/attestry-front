@@ -262,11 +262,11 @@ const ServiceProcessingPage = () => {
       <header className="flex flex-col gap-4 border-b border-gray-200 pb-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">수신 요청 처리</h1>
-          <p className="mt-1 text-gray-500">수락된 `ACCEPTED` 서비스 요청을 완료 상태로 처리합니다. 완료되면 고객 화면에서는 `서비스 완료`로 반영됩니다.</p>
+          <p className="mt-1 text-gray-500">서비스 처리가 완료되면 작업 내용과 제품 사진을 정리해 신뢰도 높은 완료 이력으로 남겨주세요.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {canManageService && (
-            <button type="button" onClick={() => setScannerOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm font-semibold text-green-700 hover:bg-green-100">
+            <button type="button" onClick={() => setScannerOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100">
               QR 스캔
             </button>
           )}
@@ -280,12 +280,12 @@ const ServiceProcessingPage = () => {
       {notice && <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{notice}</div>}
       {error && <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{error}</div>}
       {!canManageService && canViewService && (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           목록 조회만 가능합니다. 완료 처리는 서비스 처리 권한이 있는 멤버만 수행할 수 있습니다.
         </div>
       )}
       {scannedPassportId && !error && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           스캔된 제품 Passport: {scannedPassportId}
         </div>
       )}
@@ -484,6 +484,7 @@ const ServiceProcessingPage = () => {
         isOpen={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onScanSuccess={handleQrScanSuccess}
+        accent="service"
       />
       <ServicePassportDetailModal
         passportId={detailPassportId}
