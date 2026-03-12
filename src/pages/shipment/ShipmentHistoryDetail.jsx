@@ -6,6 +6,7 @@ import {
     RotateCcw
 } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
+import { normalizeApiErrorMessage } from '../../utils/permissionUi';
 
 // Local API Fetch Helper matching the store
 const apiFetch = async (url, options = {}) => {
@@ -23,7 +24,7 @@ const apiFetch = async (url, options = {}) => {
             const errorData = await response.json();
             errorMsg = errorData.message || errorMsg;
         } catch (e) { }
-        throw new Error(errorMsg);
+        throw new Error(normalizeApiErrorMessage(errorMsg, response.status, '출고 정보를 불러오지 못했습니다.'));
     }
 
     if (response.status === 204) return null;

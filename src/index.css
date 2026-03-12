@@ -1,5 +1,108 @@
 @import "tailwindcss";
 
+@layer components {
+  .tracera-shell {
+    @apply border border-white/80 bg-white/72 shadow-[0_24px_70px_rgba(15,23,42,0.07)] backdrop-blur-xl;
+  }
+
+  .tracera-panel {
+    @apply rounded-[1.75rem] border border-slate-200/90 bg-white shadow-[0_16px_45px_rgba(15,23,42,0.05)];
+  }
+
+  .tracera-panel-soft {
+    @apply rounded-[1.5rem] border border-white/80 bg-white/78 shadow-[0_18px_48px_rgba(15,23,42,0.06)] backdrop-blur-xl;
+  }
+
+  .tracera-input {
+    @apply h-13 w-full rounded-[1.1rem] border border-slate-200 bg-white/90 pl-12 pr-4 text-sm text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-900/6;
+  }
+
+  .tracera-button-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3.5 text-sm font-semibold !text-white shadow-[0_18px_40px_rgba(15,23,42,0.22)] transition-all hover:-translate-y-0.5 hover:bg-stone-800 focus:outline-none focus:ring-4 focus:ring-stone-300/30 disabled:cursor-not-allowed disabled:opacity-70;
+  }
+
+  .tracera-button-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-5 py-3.5 text-sm font-semibold !text-slate-950 shadow-[0_12px_28px_rgba(15,23,42,0.08)] transition-all hover:-translate-y-0.5 hover:border-stone-300 hover:bg-stone-50 focus:outline-none focus:ring-4 focus:ring-stone-200/50;
+  }
+
+  .tracera-badge {
+    @apply inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-700 shadow-sm;
+  }
+
+  .tracera-workflow-page {
+    @apply relative overflow-hidden;
+    background:
+      radial-gradient(circle at 12% 0%, rgba(212, 184, 150, 0.16), transparent 28%),
+      radial-gradient(circle at 88% 0%, rgba(148, 163, 184, 0.12), transparent 24%),
+      linear-gradient(180deg, #fcfcfb 0%, #f4f1eb 100%);
+  }
+
+  .tracera-workflow-hero {
+    @apply relative overflow-hidden rounded-[2rem] border border-slate-200 px-6 py-7 text-white shadow-[0_28px_80px_-36px_rgba(15,23,42,0.72)] md:px-8 md:py-8;
+    background: linear-gradient(135deg, #1f1a17 0%, #342c27 54%, #766556 100%);
+  }
+
+  .tracera-workflow-hero::before {
+    content: "";
+    position: absolute;
+    inset: auto -2rem -3rem auto;
+    width: 12rem;
+    height: 12rem;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.12);
+    filter: blur(30px);
+  }
+
+  .tracera-workflow-hero::after {
+    content: "";
+    position: absolute;
+    inset: -3rem auto auto -2rem;
+    width: 11rem;
+    height: 11rem;
+    border-radius: 9999px;
+    background: rgba(251, 191, 36, 0.12);
+    filter: blur(34px);
+  }
+
+  .tracera-workflow-tag {
+    @apply inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold tracking-[0.16em] text-slate-100;
+  }
+
+  .tracera-workflow-section {
+    @apply rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_20px_50px_-40px_rgba(15,23,42,0.46)] md:p-6;
+  }
+
+  .tracera-workflow-subtle {
+    @apply rounded-[1.4rem] border border-slate-200 bg-slate-50/80 p-4;
+  }
+
+  .tracera-workflow-field {
+    @apply w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-300 focus:bg-white focus:ring-4 focus:ring-amber-100;
+  }
+
+  .tracera-workflow-button {
+    @apply inline-flex min-h-[48px] items-center justify-center rounded-xl px-5 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60;
+    background: linear-gradient(135deg, #221d1a 0%, #3a312b 100%);
+  }
+
+  .tracera-workflow-button:hover {
+    background: linear-gradient(135deg, #2d2520 0%, #4a3c33 100%);
+  }
+
+  .tracera-workflow-button-secondary {
+    @apply inline-flex min-h-[48px] items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50;
+  }
+
+  .tracera-workflow-step {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white shadow-sm;
+    background: linear-gradient(135deg, #2b241f 0%, #655448 100%);
+  }
+
+  .tracera-workflow-actionbar {
+    @apply flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 md:flex-row md:items-center md:justify-between;
+  }
+}
+
 @layer utilities {
   .animate-in {
     animation-duration: 300ms;
@@ -9,6 +112,11 @@
   .fade-in {
     opacity: 0;
     animation-name: fadeIn;
+  }
+
+  .tracera-keepall {
+    word-break: keep-all;
+    overflow-wrap: normal;
   }
 }
 
@@ -26,10 +134,45 @@
 
 :root {
   font-family: 'Pretendard', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #0f172a;
+  background-color: #f8f6f1;
+  --color-page: #f8f6f1;
+  --color-surface: rgba(255, 255, 255, 0.78);
+  --color-border: rgba(148, 163, 184, 0.22);
+  --color-ink: #0f172a;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  background-color: #f9fafb;
-  /* gray-50 */
+  min-width: 320px;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.95), rgba(248, 246, 241, 0.92) 40%, rgba(241, 245, 249, 0.82) 100%);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(15, 23, 42, 0.14);
+  color: #020617;
 }

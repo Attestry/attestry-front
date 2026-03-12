@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { RefreshCw, Search, ChevronLeft, ChevronRight, QrCode, PackageCheck, X } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 import QRScannerModal from '../../components/shipment/QRScannerModal';
-import { createHttpError, getCurrentMembership, hasEffectiveScope, toPermissionMessage } from '../../utils/permissionUi';
+import { createHttpError, getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
+import { parsePassportIdFromQr } from '../../utils/qrPayload';
 
 const apiFetch = async (url, options = {}) => {
     const token = useAuthStore.getState().accessToken;
@@ -20,7 +21,7 @@ const apiFetch = async (url, options = {}) => {
             const errorData = await response.json();
             errorMsg = errorData.message || errorMsg;
         } catch (e) { }
-        throw createHttpError(errorMsg, response.status);
+        throw createHttpError(normalizeApiErrorMessage(errorMsg, response.status), response.status);
     }
     if (response.status === 204) return null;
     return response.json();
@@ -106,6 +107,17 @@ const DistributionManagement = () => {
         }
     };
 
+    const ensureDistributionCandidate = async (passportId) => {
+        const query = new URLSearchParams({
+            page: 0,
+            size: 20,
+            keyword: passportId
+        }).toString();
+        const data = await apiFetch(`/workflows/distributions/candidates?${query}`);
+        const matchedCandidate = (data.content || []).find((candidate) => candidate.passportId === passportId);
+        return { matchedCandidate, data };
+    };
+
     useEffect(() => {
         setPage(0);
         fetchHistory(0, searchTerm);
@@ -126,24 +138,57 @@ const DistributionManagement = () => {
     };
 
     const handleQRScanSuccess = (decodedText) => {
-        setIsQRScannerModalOpen(false);
+        void (async () => {
+            setIsQRScannerModalOpen(false);
 
-        let passportId = decodedText;
-        if (decodedText.includes('passports/')) {
-            const parts = decodedText.split('passports/');
-            if (parts.length > 1) {
-                passportId = parts[1].split('/')[0];
+            const passportId = parsePassportIdFromQr(decodedText);
+            if (!passportId) {
+                alert("QR 코드에서 올바른 제품 식별자를 추출할 수 없습니다.");
+                return;
             }
-        }
 
-        if (!passportId) {
-            alert("QR 코드에서 올바른 정보를 추출할 수 없습니다.");
-            return;
-        }
+            if (!currentMembership?.tenantId) {
+                alert("현재 선택된 운영 테넌트 정보를 확인할 수 없습니다. 다시 로그인하거나 역할을 확인해 주세요.");
+                return;
+            }
 
-        setScannedPassportId(passportId);
-        setIsPartnerModalOpen(true);
-        fetchPartnerLinks();
+            setLoading(true);
+            setError('');
+            try {
+                const existingCandidate = history.find((item) => item.passportId === passportId);
+                let matchedCandidate = existingCandidate;
+                let candidateData = null;
+
+                if (!matchedCandidate) {
+                    const result = await ensureDistributionCandidate(passportId);
+                    matchedCandidate = result.matchedCandidate;
+                    candidateData = result.data;
+                }
+
+                if (!matchedCandidate) {
+                    alert("해당 제품은 현재 유통 위임 가능한 상태가 아닙니다. 이미 위임되었거나 권한 범위 밖의 제품일 수 있습니다.");
+                    return;
+                }
+
+                if (candidateData) {
+                    setHistory(candidateData.content || []);
+                    setTotalPages(candidateData.totalPages || 0);
+                    setTotalElements(candidateData.totalElements || 0);
+                    setSearchTerm(passportId);
+                    setPage(0);
+                    setActiveTab('candidates');
+                }
+
+                setScannedPassportId(passportId);
+                setIsPartnerModalOpen(true);
+                await fetchPartnerLinks();
+            } catch (error) {
+                console.error("Failed to validate distribution candidate via QR:", error);
+                setError(toPermissionMessage(error, 'DELEGATION_GRANT', 'QR로 스캔한 제품을 유통 대기 목록에서 확인하지 못했습니다.'));
+            } finally {
+                setLoading(false);
+            }
+        })();
     };
 
     const handleGrantDelegation = async (partnerLink) => {

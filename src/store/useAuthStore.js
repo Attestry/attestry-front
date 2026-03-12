@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { normalizeApiErrorMessage } from '../utils/permissionUi';
 
 // Roles definition
 export const ROLES = {
@@ -17,9 +18,9 @@ export const TENANT_ROLES = {
 
 export const ROLE_THEMES = {
   [ROLES.USER]: { name: '일반 회원', primary: '#111827', border: '#e5e7eb', bg: '#f9fafb' },
-  [ROLES.BRAND]: { name: '브랜드(Brand)', primary: '#2563eb', border: '#bfdbfe', bg: '#eff6ff' },
-  [ROLES.RETAIL]: { name: '리테일(Retail)', primary: '#16a34a', border: '#bbf7d0', bg: '#f0fdf4' },
-  [ROLES.SERVICE]: { name: '서비스(Service)', primary: '#d97706', border: '#fde68a', bg: '#fffbeb' },
+  [ROLES.BRAND]: { name: '브랜드(Brand)', primary: '#2856D8', border: '#C9D6FB', bg: '#F5F8FF' },
+  [ROLES.RETAIL]: { name: '리테일(Retail)', primary: '#4D8B6A', border: '#CFE6D9', bg: '#F5FBF7' },
+  [ROLES.SERVICE]: { name: '서비스(Service)', primary: '#C27A2C', border: '#F1D5B6', bg: '#FFF8F1' },
   [ROLES.PLATFORM_ADMIN]: { name: '플랫폼 관리자', primary: '#9333ea', border: '#e9d5ff', bg: '#faf5ff' },
 };
 
@@ -41,7 +42,7 @@ const apiFetch = async (url, options = {}) => {
     } catch (e) {
       // Ignore JSON parse error if body is empty
     }
-    throw new Error(errorMsg);
+    throw new Error(normalizeApiErrorMessage(errorMsg, response.status));
   }
 
   if (response.status === 204) return null;

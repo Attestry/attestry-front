@@ -3,7 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { PackageCheck, UploadCloud, X, Loader2, FileText, Search, ChevronLeft, ChevronRight, QrCode } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 import QRScannerModal from '../../components/shipment/QRScannerModal';
-import { PERMISSION_GUIDES, createHttpError, getCurrentMembership, hasEffectiveScope, toPermissionMessage } from '../../utils/permissionUi';
+import { PERMISSION_GUIDES, createHttpError, getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
+import { parsePassportIdFromQr } from '../../utils/qrPayload';
 
 // Local API Fetch Helper matching the store
 const apiFetch = async (url, options = {}) => {
@@ -23,7 +24,7 @@ const apiFetch = async (url, options = {}) => {
         } catch (e) {
             // Ignore JSON parse error if body is empty
         }
-        throw createHttpError(errorMsg, response.status);
+        throw createHttpError(normalizeApiErrorMessage(errorMsg, response.status), response.status);
     }
 
     if (response.status === 204) return null;
@@ -187,7 +188,7 @@ const ShipmentManagement = () => {
                 });
 
                 if (!presignRes.uploadUrl || !presignRes.evidenceId || !presignRes.evidenceGroupId) {
-                    throw new Error("Failed to get presigned URL from server.");
+                    throw new Error("증빙 업로드 준비에 실패했습니다. 잠시 후 다시 시도해주세요.");
                 }
 
                 currentEvidenceGroupId = presignRes.evidenceGroupId;
@@ -202,7 +203,7 @@ const ShipmentManagement = () => {
                 });
 
                 if (!uploadRes.ok) {
-                    throw new Error(`Failed to upload file ${file.name} to storage.`);
+                    throw new Error(`${file.name} 파일 업로드에 실패했습니다. 다시 시도해주세요.`);
                 }
 
                 // 3. Optional: Generate actual file hash
@@ -253,15 +254,7 @@ const ShipmentManagement = () => {
     const handleQRScanSuccess = async (decodedText) => {
         setIsQRScannerModalOpen(false);
 
-        // Extract passportId from URL: .../ledgers/passports/{passportId}/entries
-        // Handle various formats: just the ID or the full URL
-        let passportId = decodedText;
-        if (decodedText.includes('passports/')) {
-            const parts = decodedText.split('passports/');
-            if (parts.length > 1) {
-                passportId = parts[1].split('/')[0];
-            }
-        }
+        const passportId = parsePassportIdFromQr(decodedText);
 
         if (!passportId) {
             alert("QR 코드에서 올바른 정보를 추출할 수 없습니다.");

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Building2, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
+import { normalizeApiErrorMessage } from '../../utils/permissionUi';
 
 const PAGE_SIZE = 20;
 
@@ -24,7 +25,9 @@ const fetchWithAuth = async (url, options = {}) => {
     } catch (e) {
       // ignore json parse error
     }
-    throw new Error(errorMsg);
+    const error = new Error(normalizeApiErrorMessage(errorMsg, response.status, '양도 완료 목록을 불러오지 못했습니다.'));
+    error.status = response.status;
+    throw error;
   }
 
   return response.status === 204 ? null : response.json();

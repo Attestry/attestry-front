@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
+import { normalizeApiErrorMessage } from '../../utils/permissionUi';
 
 const parseErrorMessage = async (response) => {
   const prefix = `[${response.status}]`;
@@ -21,13 +22,13 @@ const parseErrorMessage = async (response) => {
     if (contentType.includes('application/json')) {
       const data = await response.json();
       const message = data?.message || data?.error || data?.code || data?.path;
-      return message ? `${prefix} ${message}` : `${prefix} 요청 처리에 실패했습니다.`;
+      return normalizeApiErrorMessage(message ? `${prefix} ${message}` : '', response.status, '요청 처리에 실패했습니다.');
     }
 
     const text = await response.text();
-    return text?.trim() ? `${prefix} ${text.slice(0, 180)}` : `${prefix} 요청 처리에 실패했습니다.`;
+    return normalizeApiErrorMessage(text?.trim() ? `${prefix} ${text.slice(0, 180)}` : '', response.status, '요청 처리에 실패했습니다.');
   } catch {
-    return `${prefix} 요청 처리에 실패했습니다.`;
+    return normalizeApiErrorMessage('', response.status, '요청 처리에 실패했습니다.');
   }
 };
 
