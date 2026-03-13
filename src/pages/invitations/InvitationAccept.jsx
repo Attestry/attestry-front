@@ -7,7 +7,7 @@ const InvitationAccept = () => {
     const { invitationId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
-    const { isAuthenticated, accessToken, acceptInvitation, fetchMyMemberships, reissueToken, logout } = useAuthStore();
+    const { isAuthenticated, accessToken, acceptInvitation, fetchMyMemberships, logout } = useAuthStore();
 
     const [status, setStatus] = useState('idle'); // idle, loading, success, error
     const [error, setError] = useState(null);
@@ -53,9 +53,9 @@ const InvitationAccept = () => {
                     return;
                 }
 
-                // 5. Success - Sync new roles/tenants and refresh token for new scopes
+                // 5. Success - Sync memberships only. If backend invalidates the token later,
+                // the global auth handler will redirect on the next protected call.
                 await fetchMyMemberships();
-                await reissueToken();
 
                 setStatus('success');
 
@@ -71,7 +71,7 @@ const InvitationAccept = () => {
         };
 
         run();
-    }, [isAuthenticated, accessToken, invitationId, acceptInvitation, fetchMyMemberships, reissueToken, navigate, logout, selfUrl]);
+    }, [isAuthenticated, accessToken, invitationId, acceptInvitation, fetchMyMemberships, navigate, logout, selfUrl]);
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 sm:p-12">
@@ -146,4 +146,3 @@ const InvitationAccept = () => {
 };
 
 export default InvitationAccept;
-

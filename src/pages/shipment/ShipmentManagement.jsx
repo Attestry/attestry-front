@@ -3,32 +3,17 @@ import { Link, useLocation } from 'react-router-dom';
 import { PackageCheck, UploadCloud, X, Loader2, FileText, Search, ChevronLeft, ChevronRight, QrCode } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 import QRScannerModal from '../../components/shipment/QRScannerModal';
+import { apiFetchJson } from '../../utils/api';
 import { PERMISSION_GUIDES, createHttpError, getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
 import { parsePassportIdFromQr } from '../../utils/qrPayload';
 
 // Local API Fetch Helper matching the store
 const apiFetch = async (url, options = {}) => {
     const token = useAuthStore.getState().accessToken;
-    const headers = {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-    };
-
-    const response = await fetch(url, { ...options, headers });
-    if (!response.ok) {
-        let errorMsg = 'API Error';
-        try {
-            const errorData = await response.json();
-            errorMsg = errorData.message || errorMsg;
-        } catch (e) {
-            // Ignore JSON parse error if body is empty
-        }
-        throw createHttpError(normalizeApiErrorMessage(errorMsg, response.status), response.status);
-    }
-
-    if (response.status === 204) return null;
-    return response.json();
+    return apiFetchJson(url, options, {
+        token,
+        fallbackMessage: normalizeApiErrorMessage('', undefined)
+    });
 };
 
 const calculateSHA256 = async (file) => {

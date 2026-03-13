@@ -1,5 +1,7 @@
 import useAuthStore from '../../store/useAuthStore';
+import { apiFetchJson } from '../../utils/api';
 import { normalizeApiErrorMessage } from '../../utils/permissionUi';
+import { getCurrentMembership, hasEffectiveScope } from '../../utils/permissionUi';
 import {
   SERVICE_REQUEST_METHOD_OPTIONS,
   SERVICE_TYPE_OPTIONS,
@@ -22,15 +24,13 @@ export const SERVICE_VIEW_PERMISSION_GUIDE =
   '현재 계정은 서비스 요청 조회 권한이 없어 목록을 볼 수 없습니다.';
 
 export const hasServiceViewPermission = (memberships = [], tenantId) => {
-  const currentMembership = (memberships || []).find((membership) => membership?.tenantId === tenantId);
-  const effectiveScopes = currentMembership?.effectiveScopes || [];
-  return effectiveScopes.includes('TENANT_READ_ONLY') || effectiveScopes.includes('SERVICE_COMPLETE');
+  const currentMembership = getCurrentMembership(memberships, tenantId, 'SERVICE');
+  return hasEffectiveScope(currentMembership, 'TENANT_READ_ONLY') || hasEffectiveScope(currentMembership, 'SERVICE_COMPLETE');
 };
 
 export const hasServiceManagePermission = (memberships = [], tenantId) => {
-  const currentMembership = (memberships || []).find((membership) => membership?.tenantId === tenantId);
-  const effectiveScopes = currentMembership?.effectiveScopes || [];
-  return effectiveScopes.includes('SERVICE_COMPLETE');
+  const currentMembership = getCurrentMembership(memberships, tenantId, 'SERVICE');
+  return hasEffectiveScope(currentMembership, 'SERVICE_COMPLETE');
 };
 
 export const toServiceErrorMessage = (error, fallbackMessage) => {
@@ -44,29 +44,7 @@ export const toServiceErrorMessage = (error, fallbackMessage) => {
 
 export const fetchWithAuth = async (url, options = {}) => {
   const token = useAuthStore.getState().accessToken;
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok) {
-    let errorMsg = `API Error: ${response.status}`;
-    try {
-      const errorData = await response.json();
-      errorMsg = errorData.message || errorMsg;
-    } catch (e) {
-      // ignore json parse error
-    }
-    const error = new Error(normalizeApiErrorMessage(errorMsg, response.status));
-    error.status = response.status;
-    throw error;
-  }
-
-  return response.status === 204 ? null : response.json();
+  return apiFetchJson(url, options, { token, fallbackMessage: normalizeApiErrorMessage('', undefined) });
 };
 
 export const fetchProviderRequests = async (tenantId, status, page = 0, size = 20) => {

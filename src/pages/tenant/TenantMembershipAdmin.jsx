@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, UserPlus, ShieldAlert, Check, X, Shield, Settings, Key, Mail, Building, Plus, Minus, UserCircle, ExternalLink, Phone, Fingerprint, Info } from 'lucide-react';
 import useAuthStore, { ROLE_THEMES, TENANT_ROLES } from '../../store/useAuthStore';
+import { getCurrentMembership, hasEffectiveScope } from '../../utils/permissionUi';
 
 const TenantMembershipAdmin = () => {
     const {
@@ -15,16 +16,16 @@ const TenantMembershipAdmin = () => {
     const [selectedDetail, setSelectedDetail] = useState(null);
     const [detailModalLoading, setDetailModalLoading] = useState(false);
 
-    const currentUserMembership = myMemberships.find(m => m.tenantId === user?.tenantId) || myMemberships[0];
+    const currentUserMembership = getCurrentMembership(myMemberships, user?.tenantId, user?.role);
     const theme = ROLE_THEMES[user?.role];
 
     // invitation permission
     const hasInvitePermission = currentUserMembership?.roleCodes?.some(r => r.toUpperCase().includes('ADMIN') || r.toUpperCase().includes('OWNER')) ||
-        currentUserMembership?.effectiveScopes?.some(s => s.toUpperCase().includes('INVITATION_CREATE'));
+        hasEffectiveScope(currentUserMembership, 'TENANT_INVITATION_CREATE');
 
     // general management permission (status, roles)
     const hasManagePermission = currentUserMembership?.roleCodes?.some(r => r.toUpperCase().includes('ADMIN') || r.toUpperCase().includes('OWNER')) ||
-        currentUserMembership?.effectiveScopes?.some(s => s.toUpperCase().includes('ROLE_ASSIGN'));
+        hasEffectiveScope(currentUserMembership, 'TENANT_ROLE_ASSIGN');
 
     useEffect(() => {
         const fetchData = async () => {

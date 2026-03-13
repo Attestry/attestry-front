@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { PackageCheck, Users, Briefcase, RefreshCw, Wrench, FileCheck, ClipboardList, ShieldAlert } from 'lucide-react';
 import useAuthStore, { ROLE_THEMES, ROLES } from '../../store/useAuthStore';
+import { getCurrentMembership } from '../../utils/permissionUi';
 
 const SIDEBAR_MENUS = {
   [ROLES.BRAND]: [
@@ -26,7 +27,6 @@ const SIDEBAR_MENUS = {
   [ROLES.PLATFORM_ADMIN]: [
     { title: '업체 승인 관리', path: '/admin/onboarding', icon: ShieldAlert },
     { title: '디지털 자산 등록 신청 관리', path: '/admin/purchase-claims', icon: ShieldAlert },
-    { title: '플랫폼 퍼미션 템플릿', path: '/admin/templates', icon: Briefcase },
   ],
 };
 
@@ -36,7 +36,7 @@ const Sidebar = () => {
   if (!user) return null;
 
   const theme = ROLE_THEMES[user.role];
-  const currentMembership = myMemberships.find((m) => m.tenantId === user?.tenantId) || myMemberships[0];
+  const currentMembership = getCurrentMembership(myMemberships, user?.tenantId, user?.role);
   const isBrandGroup = currentMembership?.groupType === 'BRAND';
 
   let menus = SIDEBAR_MENUS[user.role] ? [...SIDEBAR_MENUS[user.role]] : [];

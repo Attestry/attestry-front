@@ -3,11 +3,13 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
 import { ChevronRight, Lock, Mail } from 'lucide-react';
 import TraceraLogo from '../../components/layout/TraceraLogo';
+import { consumeAuthNotice } from '../../utils/authSession';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [notice] = useState(() => consumeAuthNotice());
     const { login, error } = useAuthStore();
     const navigate = useNavigate();
     const location = useLocation();
@@ -115,9 +117,9 @@ const LoginPage = () => {
                             </div>
                         </div>
 
-                        {error && (
+                        {(notice || error) && (
                             <div className="rounded-[1.1rem] border border-red-200 bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-600">
-                                {error}
+                                {notice || error}
                             </div>
                         )}
 
@@ -147,13 +149,7 @@ const LoginPage = () => {
                             </div>
                         </div>
 
-                        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <button
-                                onClick={() => handleAutoFill('user')}
-                                className="tracera-button-secondary w-full"
-                            >
-                                일반 유저
-                            </button>
+                        <div className="mt-6 grid grid-cols-1 gap-3">
                             <button
                                 onClick={() => handleAutoFill('admin')}
                                 className="tracera-button-secondary w-full"

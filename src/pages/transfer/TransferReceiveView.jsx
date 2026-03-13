@@ -12,6 +12,7 @@ import {
 import useAuthStore from '../../store/useAuthStore';
 import QRScannerModal from '../../components/shipment/QRScannerModal';
 import { parseTransferQrPayload } from '../../utils/qrPayload';
+import { apiFetchJson } from '../../utils/api';
 import { normalizeApiErrorMessage } from '../../utils/permissionUi';
 
 const parseErrorMessage = async (response) => {
@@ -33,18 +34,11 @@ const parseErrorMessage = async (response) => {
 };
 
 const apiJson = async (url, token, options = {}) => {
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(options.headers || {}),
-  };
-
-  const response = await fetch(url, { ...options, headers });
-  if (!response.ok) {
-    throw new Error(await parseErrorMessage(response));
+  try {
+    return await apiFetchJson(url, options, { token });
+  } catch (error) {
+    throw new Error(normalizeApiErrorMessage(error?.message, error?.status, '요청 처리에 실패했습니다.'));
   }
-  if (response.status === 204) return null;
-  return response.json();
 };
 
 const parseReceiveCode = (value) => {

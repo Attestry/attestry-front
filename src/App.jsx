@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import useAuthStore, { ROLES } from './store/useAuthStore';
 import DashboardLayout from './components/layout/DashboardLayout';
 import MainLayout from './components/layout/MainLayout';
-import BrandView from './pages/brand/BrandView';
 import RetailView from './pages/retail/RetailView';
 import RetailInventoryView from './pages/retail/RetailInventoryView';
 import RetailBrandInventoryDetail from './pages/retail/RetailBrandInventoryDetail';
@@ -37,6 +36,7 @@ import ShipmentHistoryDetail from './pages/shipment/ShipmentHistoryDetail';
 import DistributionManagement from './pages/distribution/DistributionManagement';
 import PublicPassportView from './pages/product/PublicPassportView';
 import { getRoleLandingPath } from './utils/roleNavigation';
+import { AUTH_EVENT_NAME } from './utils/authSession';
 
 const ProtectedRoute = ({ allowedRoles, children }) => {
   const { isAuthenticated, user } = useAuthStore();
@@ -71,6 +71,15 @@ const App = () => {
       fetchMyMemberships();
     }
   }, [isAuthenticated, fetchMyMemberships]);
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      useAuthStore.getState().setToken(null);
+    };
+
+    window.addEventListener(AUTH_EVENT_NAME, handleAuthExpired);
+    return () => window.removeEventListener(AUTH_EVENT_NAME, handleAuthExpired);
+  }, []);
 
   return (
     <BrowserRouter>

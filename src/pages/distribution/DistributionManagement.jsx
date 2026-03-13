@@ -3,28 +3,16 @@ import { Link } from 'react-router-dom';
 import { RefreshCw, Search, ChevronLeft, ChevronRight, QrCode, PackageCheck, X } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 import QRScannerModal from '../../components/shipment/QRScannerModal';
+import { apiFetchJson } from '../../utils/api';
 import { createHttpError, getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
 import { parsePassportIdFromQr } from '../../utils/qrPayload';
 
 const apiFetch = async (url, options = {}) => {
     const token = useAuthStore.getState().accessToken;
-    const headers = {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-    };
-
-    const response = await fetch(url, { ...options, headers });
-    if (!response.ok) {
-        let errorMsg = 'API Error';
-        try {
-            const errorData = await response.json();
-            errorMsg = errorData.message || errorMsg;
-        } catch (e) { }
-        throw createHttpError(normalizeApiErrorMessage(errorMsg, response.status), response.status);
-    }
-    if (response.status === 204) return null;
-    return response.json();
+    return apiFetchJson(url, options, {
+        token,
+        fallbackMessage: normalizeApiErrorMessage('', undefined)
+    });
 };
 
 const DistributionManagement = () => {

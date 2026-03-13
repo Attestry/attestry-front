@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, LogOut, User } from 'lucide-react';
-import { flushSync } from 'react-dom';
 import { Link } from 'react-router-dom';
 import useAuthStore, { ROLES } from '../../store/useAuthStore';
 import { getRoleLandingPath } from '../../utils/roleNavigation';
@@ -14,7 +13,7 @@ const labelForRole = (role) => (
 );
 
 const AccountMenu = ({ user, navigate }) => {
-  const { setRole, reissueToken } = useAuthStore();
+  const { switchRole } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef(null);
 
@@ -30,8 +29,11 @@ const AccountMenu = ({ user, navigate }) => {
   }, []);
 
   const changeRole = async (role) => {
-    flushSync(() => setRole(role));
-    await reissueToken();
+    const result = await switchRole(role);
+    if (!result?.success) {
+      alert(result?.message || '프로필 전환에 실패했습니다.');
+      return;
+    }
     navigate(getRoleLandingPath(role));
     setIsOpen(false);
   };

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Loader2, ShieldCheck, X } from 'lucide-react';
 import QRCode from 'qrcode';
+import { unwrapApiResponse } from '../../utils/api';
 
 const EVENT_LABELS = {
   'GENESIS:MINTED': '제품 제조 및 검수 완료',
@@ -51,6 +52,30 @@ const findPayloadValue = (entries, keys) => {
   return null;
 };
 
+const readJsonSafe = async (response, fallbackMessage) => {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.toLowerCase().includes('application/json')) {
+    const text = await response.text();
+    const preview = String(text || '').trim().slice(0, 120);
+    throw new Error(`${fallbackMessage} (JSON 아님: ${preview || 'empty response'})`);
+  }
+  const payload = await response.json();
+  return unwrapApiResponse(payload);
+};
+
+const buildLedgerBackedDetail = (passportId, stateData, ownerData, entries) => {
+  const safeEntries = Array.isArray(entries) ? entries : [];
+  return {
+    passportId: stateData?.passportId || passportId,
+    assetId: stateData?.assetId || null,
+    assetState: stateData?.assetState || null,
+    riskFlag: stateData?.riskFlag || null,
+    ownerId: ownerData?.ownerId || null,
+    modelName: findPayloadValue(safeEntries, ['modelName', 'model_name', 'model']) || null,
+    serialNumber: findPayloadValue(safeEntries, ['serialNumber', 'serial_number', 'serialNo', 'serial_no']) || null,
+  };
+};
+
 const ProductPassportDetailModal = ({ passportId, isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -73,8 +98,7 @@ const ProductPassportDetailModal = ({ passportId, isOpen, onClose }) => {
       setExpandedIds(new Set());
 
       try {
-        const [detailRes, stateRes, ownerRes, entriesRes, verifyRes] = await Promise.allSettled([
-          fetch(`/products/passports/${encodeURIComponent(passportId)}`),
+        const [stateRes, ownerRes, entriesRes, verifyRes] = await Promise.allSettled([
           fetch(`/products/passports/${encodeURIComponent(passportId)}/state`),
           fetch(`/products/passports/${encodeURIComponent(passportId)}/owner`),
           fetch(`/ledgers/passports/${encodeURIComponent(passportId)}/entries`),
@@ -83,37 +107,26 @@ const ProductPassportDetailModal = ({ passportId, isOpen, onClose }) => {
 
         if (!active) return;
 
-        let detailData = null;
-        if (detailRes.status === 'fulfilled' && detailRes.value.ok) {
-          detailData = await detailRes.value.json();
-        }
-        if (!detailData) {
-          const fallback = {};
-          if (stateRes.status === 'fulfilled' && stateRes.value.ok) {
-            const stateData = await stateRes.value.json();
-            fallback.passportId = stateData?.passportId || passportId;
-            fallback.assetId = stateData?.assetId || null;
-            fallback.assetState = stateData?.assetState || null;
-            fallback.riskFlag = stateData?.riskFlag || null;
-          }
-          if (ownerRes.status === 'fulfilled' && ownerRes.value.ok) {
-            const ownerData = await ownerRes.value.json();
-            fallback.ownerId = ownerData?.ownerId || null;
-          }
-          detailData = Object.keys(fallback).length ? fallback : null;
-        }
-        setDetail(detailData);
-
+        let entryData = [];
         if (entriesRes.status === 'fulfilled' && entriesRes.value.ok) {
-          const entryData = await entriesRes.value.json();
-          setEntries(Array.isArray(entryData) ? entryData : []);
+          const parsedEntries = await readJsonSafe(entriesRes.value, '원장 이력 응답 형식이 올바르지 않습니다.');
+          entryData = Array.isArray(parsedEntries) ? parsedEntries : [];
+          setEntries(entryData);
         } else {
           setEntries([]);
           setLedgerError('원장 이력을 불러오지 못했습니다.');
         }
 
+        const stateData = stateRes.status === 'fulfilled' && stateRes.value.ok
+          ? await readJsonSafe(stateRes.value, '상태 응답 형식이 올바르지 않습니다.')
+          : null;
+        const ownerData = ownerRes.status === 'fulfilled' && ownerRes.value.ok
+          ? await readJsonSafe(ownerRes.value, '소유자 응답 형식이 올바르지 않습니다.')
+          : null;
+        setDetail(buildLedgerBackedDetail(passportId, stateData, ownerData, entryData));
+
         if (verifyRes.status === 'fulfilled' && verifyRes.value.ok) {
-          const verifyData = await verifyRes.value.json();
+          const verifyData = await readJsonSafe(verifyRes.value, '원장 검증 응답 형식이 올바르지 않습니다.');
           setVerification(verifyData || null);
         } else {
           setVerification(null);

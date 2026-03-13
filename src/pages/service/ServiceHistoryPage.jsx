@@ -98,7 +98,7 @@ const ServiceHistoryPage = () => {
       {error && <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{error}</div>}
       {notice && <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{notice}</div>}
       {!canManageService && canViewService && (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           이력 조회는 가능하지만 서비스 처리 권한이 없어 상태 변경 기능은 사용할 수 없습니다.
         </div>
       )}

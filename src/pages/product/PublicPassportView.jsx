@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AlertTriangle, Check, CheckCircle2, ChevronDown, ChevronUp, Copy, Loader2, ShieldCheck } from 'lucide-react';
 import QRCode from 'qrcode';
+import { unwrapApiResponse } from '../../utils/api';
 
 const EVENT_LABELS = {
   'GENESIS:MINTED': '제품 제조 및 검수 완료',
@@ -15,13 +16,6 @@ const EVENT_LABELS = {
   'RISK:STOLEN_FLAGGED': '도난 신고 등록',
   'RISK:LOST_FLAGGED': '분실 신고 등록',
   'RISK:RISK_CLEARED': '위험 상태 해제',
-};
-
-const maskId = (value) => {
-  const raw = String(value || '').trim();
-  if (!raw) return '-';
-  if (raw.length <= 2) return `${raw[0]}*`;
-  return `${raw[0]}${'*'.repeat(Math.min(6, Math.max(3, raw.length - 2)))}${raw[raw.length - 1]}`;
 };
 
 const formatKst = (value) => {
@@ -44,7 +38,12 @@ const actorLabel = (entry) => {
   const actorId = String(entry?.actor?.id || '').trim();
   if (!actorId) return 'SYSTEM';
   if (actorId.toUpperCase() === 'SYSTEM') return 'SYSTEM';
-  return maskId(actorId);
+  return actorId;
+};
+
+const actorRoleLabel = (entry) => {
+  const actorRole = String(entry?.actor?.role || '').trim();
+  return actorRole || '-';
 };
 
 const eventTitle = (entry) => {
@@ -75,7 +74,21 @@ const readJsonSafe = async (response, fallbackMessage) => {
     const preview = String(text || '').trim().slice(0, 120);
     throw new Error(`${fallbackMessage} (JSON 아님: ${preview || 'empty response'})`);
   }
-  return response.json();
+  const payload = await response.json();
+  return unwrapApiResponse(payload);
+};
+
+const buildLedgerBackedDetail = (passportId, stateData, ownerData, entries) => {
+  const safeEntries = Array.isArray(entries) ? entries : [];
+  return {
+    passportId: stateData?.passportId || passportId,
+    assetId: stateData?.assetId || null,
+    assetState: stateData?.assetState || null,
+    riskFlag: stateData?.riskFlag || null,
+    ownerId: ownerData?.ownerId || null,
+    modelName: findPayloadValue(safeEntries, ['modelName', 'model_name', 'model']) || null,
+    serialNumber: findPayloadValue(safeEntries, ['serialNumber', 'serial_number', 'serialNo', 'serial_no']) || null,
+  };
 };
 
 const PublicPassportView = () => {
@@ -106,8 +119,7 @@ const PublicPassportView = () => {
       setLedgerError('');
 
       try {
-        const [detailRes, stateRes, ownerRes, entriesRes, verifyRes] = await Promise.allSettled([
-          fetch(`/products/passports/${encodeURIComponent(passportId)}`),
+        const [stateRes, ownerRes, entriesRes, verifyRes] = await Promise.allSettled([
           fetch(`/products/passports/${encodeURIComponent(passportId)}/state`),
           fetch(`/products/passports/${encodeURIComponent(passportId)}/owner`),
           fetch(`/ledgers/passports/${encodeURIComponent(passportId)}/entries`),
@@ -116,32 +128,12 @@ const PublicPassportView = () => {
 
         if (!active) return;
 
-        let detailData = null;
-        if (detailRes.status === 'fulfilled' && detailRes.value.ok) {
-          detailData = await readJsonSafe(detailRes.value, '디지털 자산 정보 응답 형식이 올바르지 않습니다.');
-        }
-
-        if (!detailData) {
-          const fallback = {};
-          if (stateRes.status === 'fulfilled' && stateRes.value.ok) {
-            const stateData = await readJsonSafe(stateRes.value, '상태 응답 형식이 올바르지 않습니다.');
-            fallback.passportId = stateData?.passportId || passportId;
-            fallback.assetId = stateData?.assetId || null;
-            fallback.assetState = stateData?.assetState || null;
-            fallback.riskFlag = stateData?.riskFlag || null;
-          }
-          if (ownerRes.status === 'fulfilled' && ownerRes.value.ok) {
-            const ownerData = await readJsonSafe(ownerRes.value, '소유자 응답 형식이 올바르지 않습니다.');
-            fallback.ownerId = ownerData?.ownerId || null;
-          }
-          detailData = Object.keys(fallback).length ? fallback : null;
-        }
-        setDetail(detailData);
-
+        let entryData = [];
         if (entriesRes.status === 'fulfilled') {
           if (entriesRes.value.ok) {
-            const entryData = await readJsonSafe(entriesRes.value, '원장 이력 응답 형식이 올바르지 않습니다.');
-            setEntries(Array.isArray(entryData) ? entryData : []);
+            const parsedEntries = await readJsonSafe(entriesRes.value, '원장 이력 응답 형식이 올바르지 않습니다.');
+            entryData = Array.isArray(parsedEntries) ? parsedEntries : [];
+            setEntries(entryData);
           } else {
             setEntries([]);
             setLedgerError(`[${entriesRes.value.status}] 원장 이력을 불러오지 못했습니다.`);
@@ -151,6 +143,15 @@ const PublicPassportView = () => {
           setLedgerError('원장 이력을 불러오지 못했습니다.');
         }
 
+        const stateData = stateRes.status === 'fulfilled' && stateRes.value.ok
+          ? await readJsonSafe(stateRes.value, '상태 응답 형식이 올바르지 않습니다.')
+          : null;
+        const ownerData = ownerRes.status === 'fulfilled' && ownerRes.value.ok
+          ? await readJsonSafe(ownerRes.value, '소유자 응답 형식이 올바르지 않습니다.')
+          : null;
+        const detailData = buildLedgerBackedDetail(passportId, stateData, ownerData, entryData);
+        setDetail(detailData);
+
         if (verifyRes.status === 'fulfilled' && verifyRes.value.ok) {
           const verifyData = await readJsonSafe(verifyRes.value, '원장 검증 응답 형식이 올바르지 않습니다.');
           setVerification(verifyData || null);
@@ -158,7 +159,7 @@ const PublicPassportView = () => {
           setVerification(null);
         }
 
-        const hasDetail = !!detailData;
+        const hasDetail = !!detailData?.passportId;
         const hasLedger = entriesRes.status === 'fulfilled' && entriesRes.value.ok;
         if (!hasDetail && !hasLedger) {
           throw new Error('공개 가능한 디지털 자산 또는 원장 이력이 없습니다.');
@@ -311,7 +312,7 @@ const PublicPassportView = () => {
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">현재 소유자</p>
-              <p className="mt-1 text-base font-bold text-slate-900">{maskId(latestOwner)}</p>
+              <p className="mt-1 text-base font-bold text-slate-900 break-all">{latestOwner || '-'}</p>
             </div>
           </div>
 
@@ -352,7 +353,8 @@ const PublicPassportView = () => {
                     <h3 className="mt-1 text-lg font-bold text-slate-900">{eventTitle(entry)}</h3>
 
                     <div className="mt-3 grid gap-2 text-sm text-slate-700">
-                      <p><span className="font-semibold">수행자:</span> {actorLabel(entry)}</p>
+                      <p className="break-all"><span className="font-semibold">수행자 ID:</span> {actorLabel(entry)}</p>
+                      <p><span className="font-semibold">수행자 역할:</span> {actorRoleLabel(entry)}</p>
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">증명 요약:</span>
                         <span className="font-mono text-xs break-all text-slate-800">{hash}</span>

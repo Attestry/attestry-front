@@ -2,31 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package, Search, Calendar, Filter, Download, Plus, FileDigit, Database, Factory, Hash, Code, Loader2, X, UploadCloud, FileText, AlertCircle } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
+import { apiFetchJson } from '../../utils/api';
 import { PERMISSION_GUIDES, createHttpError, getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
 
 // Role-based utility to fetch with Auth Token
 const fetchWithAuth = async (url, options = {}) => {
     const token = useAuthStore.getState().accessToken;
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            // Only set Content-Type if it's not FormData (multipart)
-            ...(!(options.body instanceof FormData) && { 'Content-Type': 'application/json' }),
-            ...(token && { Authorization: `Bearer ${token}` }),
-            ...options.headers,
-        },
+    return apiFetchJson(url, options, {
+        token,
+        fallbackMessage: normalizeApiErrorMessage('', undefined)
     });
-    if (!response.ok) {
-        let errorMsg = `API Error: ${response.status}`;
-        try {
-            const errorData = await response.json();
-            errorMsg = errorData.message || errorMsg;
-        } catch (e) {
-            // parsing error skipped
-        }
-        throw createHttpError(normalizeApiErrorMessage(errorMsg, response.status), response.status);
-    }
-    return response.status !== 204 ? response.json() : null;
 };
 
 const ProductManagement = () => {
@@ -45,6 +30,8 @@ const ProductManagement = () => {
     const [hasMore, setHasMore] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [totalElements, setTotalElements] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+    const [isMobileView, setIsMobileView] = useState(() => window.innerWidth < 768);
     const observerTarget = useRef(null);
 
     // Modal states
@@ -76,6 +63,14 @@ const ProductManagement = () => {
 
     // Void 버튼 노출 조건: BRAND_VOID 스코프
     const hasVoidPermission = hasEffectiveScope(currentMembership, 'BRAND_VOID');
+
+    useEffect(() => {
+        const mediaQuery = window.matchMedia('(max-width: 767px)');
+        const handleChange = (event) => setIsMobileView(event.matches);
+        setIsMobileView(mediaQuery.matches);
+        mediaQuery.addEventListener('change', handleChange);
+        return () => mediaQuery.removeEventListener('change', handleChange);
+    }, []);
 
     const fetchProducts = async (pageNum = 0, append = false) => {
         if (!user?.tenantId) return;
@@ -112,12 +107,14 @@ const ProductManagement = () => {
             // Check if there are more pages
             setHasMore(!data?.last);
             setTotalElements(data?.totalElements || 0);
+            setTotalPages(data?.totalPages || 0);
             setPage(pageNum);
         } catch (error) {
             console.error("Failed to fetch products:", error);
             setProducts([]);
             setHasMore(false);
             setTotalElements(0);
+            setTotalPages(0);
             setError(toPermissionMessage(error, 'DEFAULT', '제품 목록을 불러오지 못했습니다.'));
         } finally {
             setLoading(false);
@@ -130,10 +127,12 @@ const ProductManagement = () => {
             fetchProducts(0, false); // Always fetch first page when filters change
         }, 300); // Debounce search and filter
         return () => clearTimeout(timer);
-    }, [user?.tenantId, searchTerm, assetStateFilter, startDate, endDate]);
+    }, [user?.tenantId, searchTerm, assetStateFilter, startDate, endDate, isMobileView]);
 
     // Intersection Observer for infinite scrolling
     useEffect(() => {
+        if (!isMobileView) return undefined;
+
         const observer = new IntersectionObserver(
             entries => {
                 if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
@@ -152,7 +151,14 @@ const ProductManagement = () => {
                 observer.unobserve(observerTarget.current);
             }
         };
-    }, [hasMore, loading, loadingMore, page, searchTerm, assetStateFilter, startDate, endDate]); // Add dependencies for re-observing when filters change
+    }, [hasMore, isMobileView, loading, loadingMore, page, searchTerm, assetStateFilter, startDate, endDate]); // Add dependencies for re-observing when filters change
+
+    const visiblePageNumbers = (() => {
+        if (totalPages <= 1) return [];
+        const start = Math.max(0, page - 2);
+        const end = Math.min(totalPages, start + 5);
+        return Array.from({ length: end - start }, (_, idx) => start + idx);
+    })();
 
     const handleMintChange = (e) => {
         const { name, value } = e.target;
@@ -446,7 +452,7 @@ const ProductManagement = () => {
                 </table>
 
                 {/* Infinite Scroll trigger point & loader */}
-                {!loading && (
+                {!loading && isMobileView && (
                     <div ref={observerTarget} className="flex justify-center py-6 border-t border-gray-50">
                         {loadingMore && (
                             <div className="flex items-center gap-2 text-gray-400">
@@ -457,6 +463,46 @@ const ProductManagement = () => {
                         {!hasMore && products.length > 0 && (
                             <span className="text-sm font-medium text-gray-400">모든 제품을 불러왔습니다.</span>
                         )}
+                    </div>
+                )}
+
+                {!loading && !isMobileView && totalPages > 1 && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-50 px-4 py-4">
+                        <div className="text-sm text-gray-500">
+                            페이지 {page + 1} / {totalPages}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => fetchProducts(page - 1, false)}
+                                disabled={page === 0}
+                                className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                이전
+                            </button>
+                            {visiblePageNumbers.map((pageNumber) => (
+                                <button
+                                    key={pageNumber}
+                                    type="button"
+                                    onClick={() => fetchProducts(pageNumber, false)}
+                                    className={`min-w-10 rounded-lg px-3 py-2 text-sm font-semibold ${
+                                        pageNumber === page
+                                            ? 'bg-indigo-600 text-white'
+                                            : 'border border-gray-200 text-gray-600'
+                                    }`}
+                                >
+                                    {pageNumber + 1}
+                                </button>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => fetchProducts(page + 1, false)}
+                                disabled={page >= totalPages - 1}
+                                className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                다음
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

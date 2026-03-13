@@ -8,30 +8,16 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import useAuthStore from '../../store/useAuthStore';
+import { apiFetchJson } from '../../utils/api';
 import { normalizeApiErrorMessage } from '../../utils/permissionUi';
 
 // Role-based utility to fetch with Auth Token
 const fetchWithAuth = async (url, options = {}) => {
     const token = useAuthStore.getState().accessToken;
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token && { Authorization: `Bearer ${token}` }),
-            ...options.headers,
-        },
+    return apiFetchJson(url, options, {
+        token,
+        fallbackMessage: normalizeApiErrorMessage('', undefined, '제품 상세 정보를 불러오지 못했습니다.')
     });
-    if (!response.ok) {
-        let errorMsg = `API Error: ${response.status}`;
-        try {
-            const errorData = await response.json();
-            errorMsg = errorData.message || errorMsg;
-        } catch (e) { }
-        const error = new Error(normalizeApiErrorMessage(errorMsg, response.status, '제품 상세 정보를 불러오지 못했습니다.'));
-        error.status = response.status;
-        throw error;
-    }
-    return response.status !== 204 ? response.json() : null;
 };
 
 const ProductDetail = () => {

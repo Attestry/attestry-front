@@ -11,6 +11,7 @@ export default defineConfig({
       '/api-v1/auth': 'http://localhost:8080',
       '/onboarding': 'http://localhost:8080',
       '/me': 'http://localhost:8080',
+      '/memberships': 'http://localhost:8080',
       '/tenants': 'http://localhost:8080',
       '/workflows': 'http://localhost:8080',
       '/products': {

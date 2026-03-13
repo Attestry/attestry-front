@@ -6,29 +6,16 @@ import {
     RotateCcw
 } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
+import { apiFetchJson } from '../../utils/api';
 import { normalizeApiErrorMessage } from '../../utils/permissionUi';
 
 // Local API Fetch Helper matching the store
 const apiFetch = async (url, options = {}) => {
     const token = useAuthStore.getState().accessToken;
-    const headers = {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-    };
-
-    const response = await fetch(url, { ...options, headers });
-    if (!response.ok) {
-        let errorMsg = 'API Error';
-        try {
-            const errorData = await response.json();
-            errorMsg = errorData.message || errorMsg;
-        } catch (e) { }
-        throw new Error(normalizeApiErrorMessage(errorMsg, response.status, '출고 정보를 불러오지 못했습니다.'));
-    }
-
-    if (response.status === 204) return null;
-    return response.json();
+    return apiFetchJson(url, options, {
+        token,
+        fallbackMessage: normalizeApiErrorMessage('', undefined, '출고 정보를 불러오지 못했습니다.')
+    });
 };
 
 const ShipmentHistoryDetail = () => {

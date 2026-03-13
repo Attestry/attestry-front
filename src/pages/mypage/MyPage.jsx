@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import QRCode from 'qrcode';
 import useAuthStore from '../../store/useAuthStore';
+import { apiFetchJson } from '../../utils/api';
 import { User, Shield, FileText, Settings, Loader2, WalletCards, Copy, CheckCircle2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ROLES } from '../../store/useAuthStore';
@@ -65,15 +66,7 @@ const MyPage = () => {
       }
       try {
         setPurchaseClaimError('');
-        const response = await fetch('/workflows/purchase-claims/me', {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-        if (!response.ok) {
-          throw new Error('디지털 자산 신청 내역을 불러오지 못했습니다.');
-        }
-        const data = await response.json();
+        const data = await apiFetchJson('/workflows/purchase-claims/me', {}, { token: accessToken });
         setMyPurchaseClaims(Array.isArray(data) ? data : []);
       } catch (e) {
         setPurchaseClaimError(e.message || '디지털 자산 신청 내역을 불러오지 못했습니다.');
@@ -91,15 +84,7 @@ const MyPage = () => {
         }
         try {
           setPassportError('');
-          const response = await fetch('/products/me/passports', {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
-          if (!response.ok) {
-            throw new Error('내 디지털 자산 목록을 불러오지 못했습니다.');
-          }
-          const data = await response.json();
+          const data = await apiFetchJson('/products/me/passports', {}, { token: accessToken });
           setMyPassports(Array.isArray(data) ? data : []);
         } catch (e) {
           setPassportError(e.message || '내 디지털 자산 목록을 불러오지 못했습니다.');
@@ -338,14 +323,10 @@ const MyPage = () => {
   const fetchPendingTransfer = async (passportId) => {
     if (!passportId || !accessToken) return null;
     try {
-      const response = await fetch(`/workflows/passports/${encodeURIComponent(passportId)}/transfers/pending`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (response.status === 204) return null;
-      if (!response.ok) return undefined;
-      const data = await response.json();
+      const data = await apiFetchJson(`/workflows/passports/${encodeURIComponent(passportId)}/transfers/pending`, {}, { token: accessToken });
       return toTransferState(data);
-    } catch {
+    } catch (error) {
+      if (error?.status === 204) return null;
       return undefined;
     }
   };
@@ -390,26 +371,10 @@ const MyPage = () => {
         ...(password ? { password } : {}),
       };
 
-      const response = await fetch(`/workflows/passports/${encodeURIComponent(transferModalPassport.passportId)}/transfers`, {
+      const data = await apiFetchJson(`/workflows/passports/${encodeURIComponent(transferModalPassport.passportId)}/transfers`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
         body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        let detail = '';
-        try {
-          detail = await response.text();
-        } catch {
-          // noop
-        }
-        throw new Error(detail?.trim() || '양도 생성에 실패했습니다.');
-      }
-
-      const data = await response.json();
+      }, { token: accessToken });
       const baseUrl = `${window.location.origin}/t`;
       const shareUrl = transferCreateMode === 'QR'
         ? `${baseUrl}/${encodeURIComponent(data.transferId)}/${encodeURIComponent(data.qrNonce || '')}`
@@ -498,19 +463,9 @@ const MyPage = () => {
   const handleCancelTransfer = async () => {
     if (!activeTransfer?.transferId || !accessToken || !transferModalPassport?.passportId) return;
     try {
-      const response = await fetch(`/workflows/transfers/${encodeURIComponent(activeTransfer.transferId)}/cancel`, {
+      await apiFetchJson(`/workflows/transfers/${encodeURIComponent(activeTransfer.transferId)}/cancel`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (!response.ok) {
-        let detail = '';
-        try {
-          detail = await response.text();
-        } catch {
-          // noop
-        }
-        throw new Error(detail?.trim() || '양도 취소에 실패했습니다.');
-      }
+      }, { token: accessToken });
       clearActiveTransfer(transferModalPassport.passportId, transferStorageUserKey);
       setActiveTransfer(null);
       setTransferCreateResult(null);
@@ -565,20 +520,7 @@ const MyPage = () => {
       try {
         setPurchaseClaimEvidenceLoading(true);
         setPurchaseClaimEvidenceError('');
-        const response = await fetch(`/workflows/purchase-claims/${encodeURIComponent(selectedPurchaseClaim.claimId)}/evidences`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        if (!response.ok) {
-          let detail = '';
-          try {
-            const text = await response.text();
-            detail = text?.trim() ? ` ${text.slice(0, 140)}` : '';
-          } catch {
-            // noop
-          }
-          throw new Error(`[${response.status}] 증빙 자료 파일 조회에 실패했습니다.${detail}`);
-        }
-        const data = await response.json();
+        const data = await apiFetchJson(`/workflows/purchase-claims/${encodeURIComponent(selectedPurchaseClaim.claimId)}/evidences`, {}, { token: accessToken });
         setSelectedPurchaseClaimEvidences(Array.isArray(data) ? data : []);
       } catch {
         setSelectedPurchaseClaimEvidences([]);
@@ -1066,7 +1008,22 @@ const MyPage = () => {
                 </div>
                 <div className="col-span-2">
                   <div className="text-gray-500 mb-1">증빙 자료 파일</div>
-                  {selectedApp.evidenceOriginalFileName ? (
+                  {Array.isArray(selectedApp.evidenceFiles) && selectedApp.evidenceFiles.length > 0 ? (
+                    <div className="space-y-2">
+                      {selectedApp.evidenceFiles.map((file, idx) => (
+                        <a
+                          key={file.evidenceFileId || idx}
+                          href={file.downloadUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-medium text-indigo-600 hover:text-indigo-800 hover:underline break-all"
+                        >
+                          <FileText size={16} />
+                          {file.originalFileName || `첨부파일 ${idx + 1}`}
+                        </a>
+                      ))}
+                    </div>
+                  ) : selectedApp.evidenceOriginalFileName ? (
                     <a
                       href={selectedApp.evidenceDownloadUrl}
                       target="_blank"

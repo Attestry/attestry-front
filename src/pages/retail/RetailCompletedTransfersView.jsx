@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, CheckCircle2, RefreshCw } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
+import { apiFetchJson } from '../../utils/api';
 import { createHttpError, getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
 
 const PAGE_SIZE = 20;
@@ -8,27 +9,10 @@ const BRANDS_PAGE_SIZE = 10;
 
 const fetchWithAuth = async (url, options = {}) => {
   const token = useAuthStore.getState().accessToken;
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    },
+  return apiFetchJson(url, options, {
+    token,
+    fallbackMessage: normalizeApiErrorMessage('', undefined)
   });
-
-  if (!response.ok) {
-    let errorMsg = `API Error: ${response.status}`;
-    try {
-      const errorData = await response.json();
-      errorMsg = errorData.message || errorMsg;
-    } catch (e) {
-      // ignore json parse error
-    }
-    throw createHttpError(normalizeApiErrorMessage(errorMsg, response.status), response.status);
-  }
-
-  return response.status === 204 ? null : response.json();
 };
 
 const RetailCompletedTransfersView = () => {
