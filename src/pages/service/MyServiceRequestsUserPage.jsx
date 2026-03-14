@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, RefreshCw, Wrench, XCircle } from 'lucide-react';
+import { ChevronRight, RefreshCw, Sparkles, Wrench, XCircle } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { cancelMyServiceRequest, listMyServiceRequests } from './consumerServiceApi';
 import { formatDateTime } from './serviceApi';
@@ -19,6 +19,7 @@ const MyServiceRequestsUserPage = () => {
   const location = useLocation();
   const notice = location.state?.notice || '';
   const createdRequestId = location.state?.createdRequestId || '';
+  const isStandalonePage = location.pathname === '/service-request/my';
   const [activeStatus, setActiveStatus] = useState('PENDING');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,194 +70,226 @@ const MyServiceRequestsUserPage = () => {
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-6 py-10">
-      <header className="flex flex-col gap-4 border-b border-gray-200 pb-5 md:flex-row md:items-end md:justify-between">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-            <Wrench size={14} />
-            내 서비스 요청
-          </div>
-          <h1 className="mt-3 text-3xl font-bold text-gray-900">서비스 요청 현황</h1>
-          <p className="mt-2 text-sm text-gray-500">
-            서비스 업체로 보낸 요청의 현재 상태를 확인합니다. 업체가 수락하면 `서비스 접수`, 완료하면 `서비스 완료`로 표시됩니다.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => load(activeStatus, page)}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50"
-        >
-          <RefreshCw size={16} />
-          새로고침
-        </button>
-      </header>
-
-      {notice && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          {notice}
-        </div>
-      )}
-
-      {error && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {error}
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        {TABS.map((status) => {
-          const meta = STATUS_META[status];
-          const active = activeStatus === status;
-          return (
-            <button
-              key={status}
-              type="button"
-              onClick={() => setActiveStatus(status)}
-              className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${active ? meta.badge : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'}`}
-            >
-              {meta.label}
-            </button>
-          );
-        })}
-      </div>
-
-      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-          <h2 className="text-base font-bold text-gray-900">{STATUS_META[activeStatus].label} 목록</h2>
-          <span className="text-xs font-semibold text-gray-500">총 {totalElements}개</span>
-        </div>
-
-        {loading ? (
-          <div className="px-5 py-10 text-sm text-gray-500">불러오는 중...</div>
-        ) : items.length === 0 ? (
-          <div className="px-5 py-10 text-sm text-gray-500">해당 상태의 서비스 요청이 없습니다.</div>
-        ) : (
-          <>
-            <ul className="divide-y divide-gray-100">
-              {items.map((item) => {
-                const meta = STATUS_META[item.status] || STATUS_META.PENDING;
-                const isHighlighted = highlightedId && highlightedId === item.serviceRequestId;
-                return (
-                  <li
-                    key={item.serviceRequestId}
-                    className={`px-5 py-4 ${isHighlighted ? 'bg-amber-50/60' : ''}`}
-                  >
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-gray-900">{item.modelName || '-'}</div>
-                        <div className="mt-1 text-xs text-gray-500">Serial: {item.serialNumber || '-'} | Passport: {item.passportId}</div>
-                        <div className="mt-1 text-xs text-gray-400">서비스 업체: {item.providerTenantName || '-'} ({item.providerTenantId || '-'})</div>
-                        <div className="mt-1 text-xs text-gray-400">요청 방식: {getServiceRequestMethodLabel(item.serviceRequestMethod)}</div>
-                        <div className="mt-1 text-xs text-gray-400">서비스 유형: {getServiceTypeLabel(item.serviceType)}</div>
-                        <div className="mt-1 text-xs text-gray-400">요청 시각: {formatDateTime(item.submittedAt)}</div>
-                        {item.symptomDescription && (
-                          <div className="mt-2 text-xs text-gray-600">증상 설명: {item.symptomDescription}</div>
-                        )}
-                        {item.requestedReservationAt && (
-                          <div className="mt-1 text-xs text-gray-600">희망 예약일: {formatDateTime(item.requestedReservationAt)}</div>
-                        )}
-                        {item.contactMemo && (
-                          <div className="mt-1 text-xs text-gray-600">연락 메모: {item.contactMemo}</div>
-                        )}
-                        {Array.isArray(item.beforeEvidenceFiles) && item.beforeEvidenceFiles.length > 0 && (
-                          <div className="mt-2 text-xs text-gray-600">
-                            신청 첨부:
-                            {' '}
-                            {item.beforeEvidenceFiles.map((file) => (
-                              <a
-                                key={file.evidenceId}
-                                href={file.downloadUrl || '#'}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="ml-2 text-blue-600 underline"
-                              >
-                                {file.originalFileName}
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                        {item.serviceResultDetail && (
-                          <div className="mt-2 text-xs text-gray-600">처리 결과: {item.serviceResultDetail}</div>
-                        )}
-                        {item.completionMemo && (
-                          <div className="mt-1 text-xs text-gray-600">완료 메모: {item.completionMemo}</div>
-                        )}
-                        {item.rejectReason && (
-                          <div className="mt-2 text-xs text-rose-600">반려 사유: {item.rejectReason}</div>
-                        )}
-                        {item.cancelReason && (
-                          <div className="mt-2 text-xs text-slate-600">취소 사유: {item.cancelReason}</div>
-                        )}
-                        {Array.isArray(item.afterEvidenceFiles) && item.afterEvidenceFiles.length > 0 && (
-                          <div className="mt-2 text-xs text-gray-600">
-                            완료 첨부:
-                            {' '}
-                            {item.afterEvidenceFiles.map((file) => (
-                              <a
-                                key={file.evidenceId}
-                                href={file.downloadUrl || '#'}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="ml-2 text-blue-600 underline"
-                              >
-                                {file.originalFileName}
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {item.status === 'PENDING' && (
-                          <button
-                            type="button"
-                            onClick={() => handleCancel(item)}
-                            disabled={!!actionLoading}
-                            className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <XCircle size={14} />
-                            취소
-                          </button>
-                        )}
-                        {isHighlighted && (
-                          <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-amber-700">
-                            방금 요청됨
-                          </span>
-                        )}
-                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${meta.badge}`}>
-                          {meta.label}
-                        </span>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-            <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/60 px-5 py-4">
-              <span className="text-xs text-gray-500">페이지 {page + 1} / {totalPages}</span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => load(activeStatus, Math.max(0, page - 1))}
-                  disabled={page === 0}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  이전
-                </button>
-                <button
-                  type="button"
-                  onClick={() => load(activeStatus, Math.min(totalPages - 1, page + 1))}
-                  disabled={page >= totalPages - 1}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  다음
-                </button>
+    <div className={isStandalonePage ? 'tracera-page-shell min-h-[calc(100vh-4rem)]' : ''}>
+      <div className={isStandalonePage ? 'mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8 lg:py-10' : 'space-y-6'}>
+        <header className={isStandalonePage ? 'tracera-page-hero' : 'tracera-page-card px-5 py-6 sm:px-6'}>
+          <div className="relative z-10 tracera-page-toolbar">
+            <div className="min-w-0">
+              <div className={isStandalonePage ? 'tracera-page-tag' : 'tracera-page-pill'}>
+                <Wrench size={14} />
+                MY SERVICE REQUESTS
               </div>
+              <h1 className="tracera-keepall mt-4 text-3xl font-semibold tracking-[-0.055em] text-slate-950 sm:text-[2.45rem]">
+                신청한 서비스 이력
+              </h1>
+              <p className="tracera-keepall mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-[0.96rem]">
+                서비스 업체로 보낸 요청의 현재 상태와 첨부 이력을 한 화면에서 확인합니다. 접수, 완료, 반려, 취소 흐름이 같은 기준으로 정리됩니다.
+              </p>
             </div>
-          </>
+
+            <div className="flex flex-col gap-2 sm:items-end">
+              <button
+                type="button"
+                onClick={() => load(activeStatus, page)}
+                className="tracera-page-cta whitespace-nowrap"
+              >
+                <RefreshCw size={16} />
+                새로고침
+              </button>
+              {totalElements > 0 && (
+                <div className="tracera-page-pill">
+                  <Sparkles size={13} />
+                  총 {totalElements}건
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {notice && (
+          <div className="tracera-page-card-soft border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-700">
+            {notice}
+          </div>
         )}
-      </section>
+
+        {error && (
+          <div className="tracera-page-card-soft border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-800">
+            {error}
+          </div>
+        )}
+
+        <div className="tracera-page-card px-4 py-4 sm:px-5">
+          <div className="flex flex-wrap gap-2">
+            {TABS.map((status) => {
+              const meta = STATUS_META[status];
+              const active = activeStatus === status;
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => setActiveStatus(status)}
+                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${active ? `${meta.badge} shadow-sm` : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
+                >
+                  {meta.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <section className="tracera-page-card overflow-hidden">
+          <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">{STATUS_META[activeStatus].label} 목록</h2>
+              <p className="mt-1 text-xs text-slate-500">현재 상태 기준으로 필터링된 서비스 요청 목록입니다.</p>
+            </div>
+            <span className="tracera-page-pill w-fit">총 {totalElements}개</span>
+          </div>
+
+          {loading ? (
+            <div className="px-5 py-12 text-sm text-slate-500">불러오는 중...</div>
+          ) : items.length === 0 ? (
+            <div className="px-5 py-12 text-sm text-slate-500">해당 상태의 서비스 요청이 없습니다.</div>
+          ) : (
+            <>
+              <ul className="grid gap-4 p-4 sm:p-5">
+                {items.map((item) => {
+                  const meta = STATUS_META[item.status] || STATUS_META.PENDING;
+                  const isHighlighted = highlightedId && highlightedId === item.serviceRequestId;
+                  return (
+                    <li
+                      key={item.serviceRequestId}
+                      className={`tracera-page-card-soft p-4 sm:p-5 ${isHighlighted ? 'border-amber-200 bg-amber-50/60' : ''}`}
+                    >
+                      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="text-base font-semibold text-slate-900">{item.modelName || '-'}</div>
+                            {isHighlighted && (
+                              <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-amber-700 shadow-sm">
+                                방금 요청됨
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-2 break-all text-xs text-slate-500">Serial: {item.serialNumber || '-'} | Passport: {item.passportId}</div>
+
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <InfoRow label="서비스 업체" value={`${item.providerTenantName || '-'} (${item.providerTenantId || '-'})`} />
+                            <InfoRow label="요청 방식" value={getServiceRequestMethodLabel(item.serviceRequestMethod)} />
+                            <InfoRow label="서비스 유형" value={getServiceTypeLabel(item.serviceType)} />
+                            <InfoRow label="요청 시각" value={formatDateTime(item.submittedAt)} />
+                            {item.requestedReservationAt && <InfoRow label="희망 예약일" value={formatDateTime(item.requestedReservationAt)} />}
+                            {item.contactMemo && <InfoRow label="연락 메모" value={item.contactMemo} />}
+                          </div>
+
+                          {item.symptomDescription && (
+                            <DetailBlock label="증상 설명" value={item.symptomDescription} />
+                          )}
+                          {item.serviceResultDetail && (
+                            <DetailBlock label="처리 결과" value={item.serviceResultDetail} />
+                          )}
+                          {item.completionMemo && (
+                            <DetailBlock label="완료 메모" value={item.completionMemo} />
+                          )}
+                          {item.rejectReason && (
+                            <DetailBlock label="반려 사유" value={item.rejectReason} tone="danger" />
+                          )}
+                          {item.cancelReason && (
+                            <DetailBlock label="취소 사유" value={item.cancelReason} />
+                          )}
+                          {Array.isArray(item.beforeEvidenceFiles) && item.beforeEvidenceFiles.length > 0 && (
+                            <AttachmentRow label="신청 첨부" files={item.beforeEvidenceFiles} />
+                          )}
+                          {Array.isArray(item.afterEvidenceFiles) && item.afterEvidenceFiles.length > 0 && (
+                            <AttachmentRow label="완료 첨부" files={item.afterEvidenceFiles} />
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 xl:flex-col xl:items-end">
+                          <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${meta.badge}`}>
+                            {meta.label}
+                          </span>
+                          {item.status === 'PENDING' && (
+                            <button
+                              type="button"
+                              onClick={() => handleCancel(item)}
+                              disabled={!!actionLoading}
+                              className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <XCircle size={14} />
+                              취소
+                            </button>
+                          )}
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400">
+                            상세 이력 정리됨
+                            <ChevronRight size={12} />
+                          </span>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/60 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-xs text-slate-500">페이지 {page + 1} / {totalPages}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => load(activeStatus, Math.max(0, page - 1))}
+                    disabled={page === 0}
+                    className="tracera-button-secondary rounded-xl px-3 py-2 text-sm shadow-none disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    이전
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => load(activeStatus, Math.min(totalPages - 1, page + 1))}
+                    disabled={page >= totalPages - 1}
+                    className="tracera-button-secondary rounded-xl px-3 py-2 text-sm shadow-none disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    다음
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </section>
+      </div>
     </div>
   );
 };
+
+const InfoRow = ({ label, value }) => (
+  <div className="rounded-2xl border border-slate-200/90 bg-white/90 px-4 py-3 shadow-[0_12px_32px_-30px_rgba(15,23,42,0.22)]">
+    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</div>
+    <div className="mt-1 break-words text-sm font-medium text-slate-700">{value}</div>
+  </div>
+);
+
+const DetailBlock = ({ label, value, tone = 'default' }) => (
+  <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${tone === 'danger' ? 'border-rose-200 bg-rose-50/80 text-rose-700' : 'border-slate-200 bg-slate-50/80 text-slate-600'}`}>
+    <span className="font-semibold">{label}:</span> {value}
+  </div>
+);
+
+const AttachmentRow = ({ label, files }) => (
+  <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</div>
+    <div className="mt-2 flex flex-wrap gap-2">
+      {files.map((file) => (
+        <a
+          key={file.evidenceId}
+          href={file.downloadUrl || '#'}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-white"
+        >
+          {file.originalFileName}
+        </a>
+      ))}
+    </div>
+  </div>
+);
 
 export default MyServiceRequestsUserPage;

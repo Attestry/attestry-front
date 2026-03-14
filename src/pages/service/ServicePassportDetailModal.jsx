@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Loader2, ShieldCheck, X } from 'lucide-react';
 import QRCode from 'qrcode';
 import { unwrapApiResponse } from '../../utils/api';
+import useAuthStore from '../../store/useAuthStore';
 
 const EVENT_LABELS = {
   'GENESIS:MINTED': '제품 제조 및 검수 완료',
@@ -14,7 +15,6 @@ const EVENT_LABELS = {
   'LIFECYCLE:VOIDED': '제품 사용 중지 처리',
   'RISK:STOLEN_FLAGGED': '도난 신고 등록',
   'RISK:LOST_FLAGGED': '분실 신고 등록',
-  'RISK:RISK_CLEARED': '위험 상태 해제',
 };
 
 const formatDateTime = (value) => {
@@ -31,9 +31,35 @@ const maskId = (value) => {
   return `${raw[0]}${'*'.repeat(Math.min(6, Math.max(3, raw.length - 2)))}${raw[raw.length - 1]}`;
 };
 
-const eventTitle = (entry) => {
+const resolveRiskClearedLabel = (entry, entries) => {
+  const clearedRiskFlag = String(entry?.payload?.clearedRiskFlag || '').toUpperCase();
+  if (clearedRiskFlag === 'STOLEN') return '도난 신고 취소';
+  if (clearedRiskFlag === 'LOST') return '분실 신고 취소';
+
+  const clearedAt = new Date(entry?.occurredAt || 0).getTime();
+  const latestFlaggedEntry = (Array.isArray(entries) ? entries : [])
+    .filter((candidate) => {
+      const category = String(candidate?.event?.category || '').toUpperCase();
+      const action = String(candidate?.event?.action || '').toUpperCase();
+      if (category !== 'RISK') return false;
+      if (action !== 'STOLEN_FLAGGED' && action !== 'LOST_FLAGGED') return false;
+      const occurredAt = new Date(candidate?.occurredAt || 0).getTime();
+      return Number.isFinite(occurredAt) && occurredAt <= clearedAt;
+    })
+    .sort((a, b) => new Date(b?.occurredAt || 0).getTime() - new Date(a?.occurredAt || 0).getTime())[0];
+
+  const latestAction = String(latestFlaggedEntry?.event?.action || '').toUpperCase();
+  if (latestAction === 'STOLEN_FLAGGED') return '도난 신고 취소';
+  if (latestAction === 'LOST_FLAGGED') return '분실 신고 취소';
+  return '분실/도난 신고 취소';
+};
+
+const eventTitle = (entry, entries) => {
   const category = String(entry?.event?.category || '').toUpperCase();
   const action = String(entry?.event?.action || '').toUpperCase();
+  if (category === 'RISK' && action === 'RISK_CLEARED') {
+    return resolveRiskClearedLabel(entry, entries);
+  }
   return EVENT_LABELS[`${category}:${action}`] || `${category || 'EVENT'} · ${action || 'UNKNOWN'}`;
 };
 
@@ -77,6 +103,7 @@ const buildLedgerBackedDetail = (passportId, stateData, ownerData, entries) => {
 };
 
 const ProductPassportDetailModal = ({ passportId, isOpen, onClose }) => {
+  const accessToken = useAuthStore((state) => state.accessToken);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [ledgerError, setLedgerError] = useState('');
@@ -91,6 +118,11 @@ const ProductPassportDetailModal = ({ passportId, isOpen, onClose }) => {
     if (!isOpen || !passportId) return;
 
     let active = true;
+    const fetchWithAuth = (url) => (
+      accessToken
+        ? fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })
+        : fetch(url)
+    );
     const load = async () => {
       setLoading(true);
       setError('');
@@ -99,10 +131,10 @@ const ProductPassportDetailModal = ({ passportId, isOpen, onClose }) => {
 
       try {
         const [stateRes, ownerRes, entriesRes, verifyRes] = await Promise.allSettled([
-          fetch(`/products/passports/${encodeURIComponent(passportId)}/state`),
-          fetch(`/products/passports/${encodeURIComponent(passportId)}/owner`),
-          fetch(`/ledgers/passports/${encodeURIComponent(passportId)}/entries`),
-          fetch(`/ledgers/passports/${encodeURIComponent(passportId)}/verify`),
+          fetchWithAuth(`/products/passports/${encodeURIComponent(passportId)}/state`),
+          fetchWithAuth(`/products/passports/${encodeURIComponent(passportId)}/owner`),
+          fetchWithAuth(`/ledgers/passports/${encodeURIComponent(passportId)}/entries`),
+          fetchWithAuth(`/ledgers/passports/${encodeURIComponent(passportId)}/verify`),
         ]);
 
         if (!active) return;
@@ -143,7 +175,7 @@ const ProductPassportDetailModal = ({ passportId, isOpen, onClose }) => {
     return () => {
       active = false;
     };
-  }, [isOpen, passportId]);
+  }, [isOpen, passportId, accessToken]);
 
   const latestOwner = useMemo(() => {
     if (detail?.ownerId) return detail.ownerId;
@@ -287,7 +319,7 @@ const ProductPassportDetailModal = ({ passportId, isOpen, onClose }) => {
                     const expanded = expandedIds.has(entry.ledgerId);
                     return (
                       <article key={entry.ledgerId} className="rounded-2xl border border-gray-200 bg-white p-4">
-                        <div className="text-sm font-semibold text-gray-900">{eventTitle(entry)}</div>
+                        <div className="text-sm font-semibold text-gray-900">{eventTitle(entry, entries)}</div>
                         <div className="mt-1 text-xs text-gray-500">{formatDateTime(entry.occurredAt)}</div>
                         <button
                           type="button"

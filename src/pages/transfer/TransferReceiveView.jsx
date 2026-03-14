@@ -285,20 +285,19 @@ const TransferReceiveView = () => {
   };
 
   return (
-    <div className="tracera-workflow-page min-h-[calc(100vh-64px)]">
+    <div className="tracera-page-shell min-h-[calc(100vh-64px)]">
       <div className="mx-auto w-full max-w-5xl px-4 py-10 md:px-6 md:py-12 space-y-6">
-        <header className="tracera-workflow-hero bg-[linear-gradient(135deg,#171717_0%,#2a2623_52%,#6b584b_100%)]">
+        <header className="tracera-page-hero">
           <div className="relative space-y-3">
-            <div className="tracera-workflow-tag">
+            <div className="tracera-page-tag">
               <ShieldCheck size={14} /> OWNERSHIP TRANSFER
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold leading-tight tracking-tight">
-              제품의 소유권을 안전하게 인증하고,
-              <br className="hidden md:block" />
-              내 계정으로 깔끔하게 이전하세요.
+            <h1 className="tracera-keepall text-3xl font-semibold leading-tight tracking-[-0.055em] text-slate-950 sm:text-[2.5rem]">
+              제품의 소유권을 안전하게 인증하고
+              <span className="block text-slate-600">내 계정으로 단정하게 이전하세요</span>
             </h1>
-            <p className="max-w-2xl text-sm leading-6 text-slate-200">
-              현장 스캔 또는 수락코드 입력 방식으로 소유권 이전을 완료할 수 있습니다. 어떤 방식이든 기록은 동일하게 안전하게 남습니다.
+            <p className="tracera-keepall max-w-2xl text-sm leading-7 text-slate-600">
+              현장 스캔과 수락코드 입력 모두 같은 보안 흐름으로 처리됩니다. 어떤 방식이든 이전 기록은 동일한 기준으로 남습니다.
             </p>
           </div>
         </header>
@@ -309,7 +308,7 @@ const TransferReceiveView = () => {
           </div>
         )}
 
-        <section className="tracera-workflow-section space-y-4">
+        <section className="tracera-page-card space-y-4 p-5 md:p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
             <button
               type="button"
@@ -332,7 +331,7 @@ const TransferReceiveView = () => {
         </section>
 
         {mode === 'QR' ? (
-          <section className="tracera-workflow-section">
+          <section className="tracera-page-card p-5 md:p-6">
             <div className="relative mx-auto max-w-xl">
               <div className="absolute inset-0 -z-10 rounded-3xl bg-[radial-gradient(circle_at_50%_0,rgba(191,146,105,.22),transparent_62%)]" />
               <button
@@ -352,7 +351,7 @@ const TransferReceiveView = () => {
             {scannerStatus && <p className="mt-4 text-center text-sm text-[#7a5940]">{scannerStatus}</p>}
           </section>
         ) : (
-          <form onSubmit={onSubmitCode} className="tracera-workflow-section space-y-5">
+          <form onSubmit={onSubmitCode} className="tracera-page-card space-y-5 p-5 md:p-6">
             <div className="rounded-[1.5rem] border border-slate-200 bg-[linear-gradient(140deg,#ffffff,#f8fbff)] p-5">
               <h3 className="text-base font-semibold text-slate-900">코드로 소유권 인증</h3>
               <p className="mt-1 text-sm text-slate-600">수락코드를 입력하면 디지털 자산 이전을 진행합니다.</p>
@@ -372,7 +371,7 @@ const TransferReceiveView = () => {
             <button
               type="submit"
               disabled={!isAuthenticated || submitting || !password.trim()}
-              className="tracera-workflow-button w-full gap-2 bg-[linear-gradient(135deg,#0f172a_0%,#1f2937_100%)] hover:brightness-110"
+              className="tracera-button-primary w-full gap-2 rounded-2xl"
             >
               <Lock size={15} /> {submitting ? '처리 중...' : '코드로 수락 확정'}
             </button>
@@ -392,7 +391,7 @@ const TransferReceiveView = () => {
         )}
 
         {result && (
-          <section className="rounded-[1.75rem] border border-emerald-200 bg-emerald-50/80 p-5 md:p-6 shadow-[0_18px_40px_-34px_rgba(5,150,105,.55)]">
+          <section className="tracera-page-card border border-emerald-200 bg-emerald-50/80 p-5 md:p-6">
             <h2 className="mb-3 text-lg font-semibold text-emerald-900">이전 완료</h2>
             <dl className="grid grid-cols-1 gap-2 text-sm text-emerald-900 md:grid-cols-2">
               <div><dt className="font-medium">Transfer ID</dt><dd>{result.transferId || '-'}</dd></div>

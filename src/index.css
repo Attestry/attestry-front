@@ -101,6 +101,66 @@
   .tracera-workflow-actionbar {
     @apply flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 md:flex-row md:items-center md:justify-between;
   }
+
+  .tracera-page-shell {
+    @apply relative overflow-hidden;
+    background:
+      radial-gradient(circle at 10% 8%, rgba(196, 165, 124, 0.14), transparent 24%),
+      radial-gradient(circle at 88% 0%, rgba(148, 163, 184, 0.12), transparent 20%),
+      linear-gradient(180deg, #fcfbf8 0%, #f3efe7 44%, #eef2f6 100%);
+  }
+
+  .tracera-page-hero {
+    @apply relative overflow-hidden rounded-[2.15rem] border border-white/80 px-5 py-6 text-slate-950 shadow-[0_28px_90px_-38px_rgba(15,23,42,0.24)] sm:px-7 sm:py-7;
+    background: linear-gradient(135deg, rgba(255,255,255,0.94) 0%, rgba(246,241,233,0.9) 54%, rgba(238,242,247,0.92) 100%);
+    backdrop-filter: blur(18px);
+  }
+
+  .tracera-page-hero::before {
+    content: "";
+    position: absolute;
+    inset: auto -2rem -3rem auto;
+    width: 12rem;
+    height: 12rem;
+    border-radius: 9999px;
+    background: rgba(15, 23, 42, 0.06);
+    filter: blur(36px);
+  }
+
+  .tracera-page-hero::after {
+    content: "";
+    position: absolute;
+    inset: -2rem auto auto -2rem;
+    width: 10rem;
+    height: 10rem;
+    border-radius: 9999px;
+    background: rgba(180, 120, 55, 0.12);
+    filter: blur(34px);
+  }
+
+  .tracera-page-tag {
+    @apply inline-flex items-center gap-2 rounded-full border border-white/90 bg-white/84 px-3 py-1.5 text-[11px] font-semibold tracking-[0.22em] text-slate-600 shadow-[0_10px_24px_rgba(15,23,42,0.04)];
+  }
+
+  .tracera-page-card {
+    @apply rounded-[1.75rem] border border-white/80 bg-white/82 shadow-[0_24px_64px_-42px_rgba(15,23,42,0.25)] backdrop-blur-xl;
+  }
+
+  .tracera-page-card-soft {
+    @apply rounded-[1.45rem] border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.9))] shadow-[0_18px_50px_-40px_rgba(15,23,42,0.22)];
+  }
+
+  .tracera-page-pill {
+    @apply inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm;
+  }
+
+  .tracera-page-toolbar {
+    @apply flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between;
+  }
+
+  .tracera-page-cta {
+    @apply inline-flex min-h-[46px] items-center justify-center gap-2 rounded-full border border-white/80 bg-white/88 px-4 py-3 text-sm font-semibold text-slate-700 shadow-[0_14px_28px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-0.5 hover:text-slate-950;
+  }
 }
 
 @layer utilities {

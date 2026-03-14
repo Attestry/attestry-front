@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import useAuthStore, { ROLES } from '../../store/useAuthStore';
 import { getRoleLandingPath } from '../../utils/roleNavigation';
+import { ProvenyLockup } from '../../components/layout/TraceraLogo';
 import {
   ArrowRight,
   BadgeCheck,
@@ -96,10 +97,7 @@ const MainPage = () => {
         <div className="mx-auto max-w-7xl px-4 pb-22 pt-18 sm:px-6 lg:px-8 lg:pb-30 lg:pt-28">
           <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_25rem] lg:items-end">
             <div className="max-w-5xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/82 px-4 py-2 text-[11px] font-semibold tracking-[0.24em] text-slate-600 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-                <BadgeCheck size={14} />
-                TRACERA
-              </div>
+              <ProvenyLockup to="/" />
 
               <h1 className="tracera-keepall mt-8 max-w-4xl text-[3rem] font-semibold tracking-[-0.095em] text-slate-950 sm:text-[4.8rem] lg:text-[6.2rem] lg:leading-[0.92]">
                 소유권이 바뀌어도
@@ -107,7 +105,7 @@ const MainPage = () => {
               </h1>
 
               <p className="tracera-keepall mt-7 max-w-2xl text-base leading-8 text-slate-600 sm:text-[1.06rem]">
-                Tracera는 개인 간 C2C 소유권 이전과 원장 기록을 핵심으로, 제품 이력과 서비스 이력까지 하나의 신뢰 구조 안에서 정리하는 프리미엄 트레이서빌리티 서비스입니다.
+                Proveny는 개인 간 C2C 소유권 이전과 원장 기록을 핵심으로, 제품 이력과 서비스 이력까지 하나의 신뢰 구조 안에서 정리하는 프리미엄 트레이서빌리티 서비스입니다.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -208,7 +206,7 @@ const MainPage = () => {
                 </h2>
               </div>
               <p className="tracera-keepall max-w-sm text-sm leading-7 text-slate-600">
-                Tracera의 핵심은 제품 이력과 소유권 변화를 누구나 같은 기준으로 확인할 수 있게 만드는 데 있습니다.
+                Proveny의 핵심은 제품 이력과 소유권 변화를 누구나 같은 기준으로 확인할 수 있게 만드는 데 있습니다.
               </p>
             </div>
 
@@ -340,7 +338,7 @@ const MainPage = () => {
         <div className="mt-6 overflow-hidden rounded-[2.2rem] border border-[rgba(15,23,42,0.08)] bg-[linear-gradient(135deg,#0b1220_0%,#111827_42%,#5b4638_100%)] px-6 py-8 text-white shadow-[0_32px_80px_rgba(15,23,42,0.18)] sm:px-8">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-center">
             <div>
-              <div className="text-sm font-semibold tracking-[0.18em] text-white/55">TRACERA</div>
+              <div className="text-sm font-semibold tracking-[0.18em] text-white/55">PROVENY</div>
               <p className="tracera-keepall mt-3 max-w-3xl text-[1.9rem] font-semibold tracking-[-0.05em] leading-[1.2] text-white sm:text-[2.3rem]">
                 제품이 지나온 모든 순간을
                 <span className="block text-stone-200">하나의 신뢰로 연결하는 일</span>

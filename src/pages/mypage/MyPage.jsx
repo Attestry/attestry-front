@@ -2,10 +2,43 @@ import React, { useState, useEffect, useMemo } from 'react';
 import QRCode from 'qrcode';
 import useAuthStore from '../../store/useAuthStore';
 import { apiFetchJson } from '../../utils/api';
-import { User, Shield, FileText, Settings, Loader2, WalletCards, Copy, CheckCircle2 } from 'lucide-react';
+import { User, Shield, FileText, Settings, Loader2, WalletCards, Copy, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ROLES } from '../../store/useAuthStore';
 import MyServiceRequestsUserPage from '../service/MyServiceRequestsUserPage';
+
+const RISK_OPTIONS = [
+  {
+    value: 'LOST',
+    title: '분실 신고',
+    description: '분실 사실을 기록하고 공개 원장에 이력을 남깁니다.',
+  },
+  {
+    value: 'STOLEN',
+    title: '도난 신고',
+    description: '도난 신고번호와 함께 기록하고 공개 원장에 남깁니다.',
+  },
+];
+
+const getRiskFlagLabel = (riskFlag) => {
+  if (riskFlag === 'LOST') return '분실 신고됨';
+  if (riskFlag === 'STOLEN') return '도난 신고됨';
+  return '정상';
+};
+
+const getRiskFlagClassName = (riskFlag) => {
+  if (riskFlag === 'LOST') return 'bg-amber-100 text-amber-800 border-amber-200';
+  if (riskFlag === 'STOLEN') return 'bg-rose-100 text-rose-800 border-rose-200';
+  return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+};
+
+const assetActionButtonClassName = 'inline-flex min-h-[24px] items-center justify-center rounded px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] transition-all duration-200';
+const assetActionPrimaryClassName = `${assetActionButtonClassName} border border-[#162033] bg-[linear-gradient(180deg,#0b1220_0%,#0f172a_100%)] text-slate-100 shadow-[0_10px_18px_-18px_rgba(11,18,32,0.92)] hover:border-[#22314d] hover:text-white`;
+const assetActionWarmClassName = `${assetActionPrimaryClassName}`;
+const assetActionDangerClassName = `${assetActionPrimaryClassName}`;
+const assetActionDangerSoftClassName = `${assetActionPrimaryClassName}`;
+const assetLedgerButtonClassName = `${assetActionPrimaryClassName}`;
+const assetRiskLinkClassName = 'inline-flex items-center border-b border-slate-400/60 pb-px text-[4px] font-medium tracking-[0.12em] text-slate-400 transition-colors duration-200 hover:border-slate-700 hover:text-slate-700';
 
 const MyPage = () => {
   const navigate = useNavigate();
@@ -50,6 +83,11 @@ const MyPage = () => {
   const [transferShareQrImage, setTransferShareQrImage] = useState('');
   const [transferResolveLoading, setTransferResolveLoading] = useState(false);
   const [copyToast, setCopyToast] = useState('');
+  const [riskModalPassport, setRiskModalPassport] = useState(null);
+  const [riskReportType, setRiskReportType] = useState('LOST');
+  const [riskActionLoading, setRiskActionLoading] = useState(false);
+  const [riskActionError, setRiskActionError] = useState('');
+  const [riskActionNotice, setRiskActionNotice] = useState('');
 
   // Password change state
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -57,6 +95,24 @@ const MyPage = () => {
   const [newPassword, setNewPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const transferStorageUserKey = myAccount?.userId || user?.userId || user?.id || '';
+
+  const loadMyPassports = async () => {
+    if (!accessToken) {
+      setMyPassports([]);
+      return [];
+    }
+    try {
+      setPassportError('');
+      const data = await apiFetchJson('/products/me/passports', {}, { token: accessToken });
+      const nextPassports = Array.isArray(data) ? data : [];
+      setMyPassports(nextPassports);
+      return nextPassports;
+    } catch (e) {
+      setPassportError(e.message || '내 디지털 자산 목록을 불러오지 못했습니다.');
+      setMyPassports([]);
+      return [];
+    }
+  };
 
   useEffect(() => {
     const loadMyPurchaseClaims = async () => {
@@ -76,21 +132,6 @@ const MyPage = () => {
 
     const loadData = async () => {
       setLoading(true);
-
-      const loadMyPassports = async () => {
-        if (!accessToken) {
-          setMyPassports([]);
-          return;
-        }
-        try {
-          setPassportError('');
-          const data = await apiFetchJson('/products/me/passports', {}, { token: accessToken });
-          setMyPassports(Array.isArray(data) ? data : []);
-        } catch (e) {
-          setPassportError(e.message || '내 디지털 자산 목록을 불러오지 못했습니다.');
-          setMyPassports([]);
-        }
-      };
 
       await Promise.all([
         fetchMyMemberships(),
@@ -218,6 +259,65 @@ const MyPage = () => {
         },
       },
     });
+  };
+
+  const openRiskModal = (passport) => {
+    if (!passport?.passportId) return;
+    setRiskModalPassport(passport);
+    setRiskActionError('');
+    setRiskReportType(passport.riskFlag === 'STOLEN' ? 'STOLEN' : 'LOST');
+  };
+
+  const handleRiskClick = (e, passport) => {
+    e.stopPropagation();
+    openRiskModal(passport);
+  };
+
+  const closeRiskModal = () => {
+    if (riskActionLoading) return;
+    setRiskModalPassport(null);
+    setRiskActionError('');
+  };
+
+  const handleRiskAction = async () => {
+    if (!riskModalPassport?.passportId || !accessToken || riskActionLoading) return;
+
+    setRiskActionLoading(true);
+    setRiskActionError('');
+
+    try {
+      let response = null;
+      if (riskModalPassport.riskFlag !== 'NONE') {
+        response = await apiFetchJson(`/products/passports/${encodeURIComponent(riskModalPassport.passportId)}/risk`, {
+          method: 'DELETE',
+        }, { token: accessToken });
+      } else if (riskReportType === 'STOLEN') {
+        response = await apiFetchJson(`/products/passports/${encodeURIComponent(riskModalPassport.passportId)}/risk/stolen`, {
+          method: 'POST',
+        }, { token: accessToken });
+      } else {
+        response = await apiFetchJson(`/products/passports/${encodeURIComponent(riskModalPassport.passportId)}/risk/lost`, {
+          method: 'POST',
+        }, { token: accessToken });
+      }
+
+      const nextPassports = await loadMyPassports();
+      const nextRiskFlag = String(response?.riskFlag || (riskModalPassport.riskFlag !== 'NONE' ? 'NONE' : riskReportType)).toUpperCase();
+      const updatedPassport = nextPassports.find((passport) => passport.passportId === riskModalPassport.passportId)
+        || { ...riskModalPassport, riskFlag: nextRiskFlag };
+
+      setSelectedPassport((prev) => (prev?.passportId === updatedPassport.passportId ? updatedPassport : prev));
+      setRiskActionNotice(
+        nextRiskFlag === 'NONE'
+          ? `${updatedPassport.modelName || updatedPassport.serialNumber || updatedPassport.passportId} 자산의 분실/도난 신고를 취소했습니다. 취소 이력도 공개 원장에 남습니다.`
+          : `${updatedPassport.modelName || updatedPassport.serialNumber || updatedPassport.passportId} 자산을 ${getRiskFlagLabel(nextRiskFlag)} 상태로 기록했습니다. 공개 원장에서 이력을 확인할 수 있습니다.`
+      );
+      setRiskModalPassport(null);
+    } catch (e) {
+      setRiskActionError(e.message || '분실/도난 처리에 실패했습니다.');
+    } finally {
+      setRiskActionLoading(false);
+    }
   };
 
   const generateOneTimeCode = () => {
@@ -556,6 +656,7 @@ const MyPage = () => {
     if (status === 'REJECTED') return 'bg-red-100 text-red-700';
     return 'bg-blue-100 text-blue-700';
   };
+  const isRiskActive = (passport) => String(passport?.riskFlag || 'NONE').toUpperCase() !== 'NONE';
   const displayPurchaseClaims = myPurchaseClaims || [];
   const filteredPurchaseClaims = useMemo(() => {
     const keyword = purchaseClaimSearch.trim().toLowerCase();
@@ -609,32 +710,47 @@ const MyPage = () => {
   }, [selectedPassport]);
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-12">
-      {/* Header Section */}
-      <div className="flex items-center gap-6 mb-10">
-        <div className="w-20 h-20 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl flex items-center justify-center text-white shadow-lg">
-          <User size={36} />
+    <div className="tracera-page-shell">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+        {/* Header Section */}
+        <div className="tracera-page-hero mb-6">
+          <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex min-w-0 items-start gap-4 sm:gap-6">
+              <div className="flex h-18 w-18 shrink-0 items-center justify-center rounded-[1.7rem] bg-[linear-gradient(135deg,#0f172a_0%,#3f4b5f_100%)] text-white shadow-[0_20px_48px_-24px_rgba(15,23,42,0.55)] sm:h-20 sm:w-20">
+                <User size={34} />
+              </div>
+              <div className="min-w-0">
+                <div className="tracera-page-tag">MY PAGE</div>
+                <h1 className="tracera-keepall mt-4 text-3xl font-semibold tracking-[-0.055em] text-slate-950 sm:text-[2.5rem]">
+                  {myAccount?.email || user?.email || '사용자'}님, 안녕하세요.
+                </h1>
+                <p className="tracera-keepall mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-[0.98rem]">
+                  디지털 자산, 계정 정보, 신청 이력, 서비스 요청을 하나의 문맥으로 정리해 보여줍니다.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="tracera-page-pill">자산 {ownedPassportsSorted.length}개</span>
+              <span className="tracera-page-pill">신청 {displayPurchaseClaims.length}건</span>
+              {canViewMyServiceRequests && <span className="tracera-page-pill">서비스 이력 사용 가능</span>}
+            </div>
+          </div>
         </div>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{myAccount?.email || user?.email || '사용자'}님, 안녕하세요.</h1>
-          <p className="text-gray-500 mt-2 text-lg">디지털 제품 여권 생태계의 여정을 확인하세요.</p>
-        </div>
-      </div>
 
-      <div className="flex flex-col md:flex-row gap-8">
+      <div className="flex flex-col gap-6 md:flex-row md:gap-8">
         {/* Sidebar Nav */}
-        <div className="md:w-64 flex-shrink-0">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="md:w-72 flex-shrink-0">
+          <div className="tracera-page-card overflow-hidden">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 className={`w-full flex items-center gap-3 px-5 py-4 text-left transition-colors ${activeTab === tab.id
-                  ? 'bg-gray-50 text-gray-900 font-semibold border-l-4 border-gray-900'
-                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border-l-4 border-transparent'
+                  ? 'bg-[linear-gradient(90deg,rgba(255,255,255,0.85),rgba(248,250,252,0.95))] text-slate-950 font-semibold border-l-4 border-slate-950'
+                  : 'text-slate-500 hover:bg-slate-50/80 hover:text-slate-900 border-l-4 border-transparent'
                   }`}
                 onClick={() => setActiveTab(tab.id)}
               >
-                <div className={`${activeTab === tab.id ? 'text-gray-900' : 'text-gray-400'}`}>
+                <div className={`${activeTab === tab.id ? 'text-slate-900' : 'text-slate-400'}`}>
                   {tab.icon}
                 </div>
                 {tab.label}
@@ -644,7 +760,7 @@ const MyPage = () => {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           {activeTab === 'membership' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 animate-in fade-in duration-300">
               <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
@@ -813,47 +929,74 @@ const MyPage = () => {
                     </div>
                   )}
 
+                  {riskActionNotice && (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                      {riskActionNotice}
+                    </div>
+                  )}
+
                   {ownedPassportsSorted.length > 0 ? (
                     ownedPassportsSorted.map((passport) => (
-                      <button
+                      <div
                         key={passport.passportId}
-                        type="button"
                         onClick={() => setSelectedPassport(passport)}
-                        className="w-full rounded-xl border border-blue-100 bg-blue-50/40 p-5 text-left transition-colors hover:bg-blue-50"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedPassport(passport);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        className="w-full rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <div className="text-lg font-bold text-gray-800">{passport.serialNumber || '-'}</div>
-                            <div className="mt-1 text-sm text-gray-600">모델: {passport.modelName || '-'}</div>
-                            <div className="mt-1 text-xs text-gray-500 font-mono break-all">
+                            <div className="text-lg font-bold tracking-tight text-slate-900">{passport.serialNumber || '-'}</div>
+                            <div className="mt-1 text-sm text-slate-600">모델: {passport.modelName || '-'}</div>
+                            <div className="mt-2 text-xs text-slate-400 font-mono break-all">
                               Passport: {passport.passportId}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-col items-end gap-2">
+                            {isRiskActive(passport) && (
+                              <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getRiskFlagClassName(passport.riskFlag)}`}>
+                                {getRiskFlagLabel(passport.riskFlag)}
+                              </span>
+                            )}
                             <button
                               type="button"
-                              onClick={(e) => handleTransferClick(e, passport)}
-                              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                              onClick={(e) => handleRiskClick(e, passport)}
+                              className={assetRiskLinkClassName}
                             >
-                              양도하기
+                              {isRiskActive(passport) ? '신고 취소' : '분실/도난 신고'}
                             </button>
-                            <button
-                              type="button"
-                              onClick={(e) => handleServiceRequestClick(e, passport)}
-                              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition-colors"
-                            >
-                              서비스 신청
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => handleLedgerHistoryClick(e, passport)}
-                              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
-                              원장 이력
-                            </button>
+                            <div className="flex flex-wrap items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={(e) => handleTransferClick(e, passport)}
+                                className={assetActionPrimaryClassName}
+                              >
+                                양도하기
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => handleServiceRequestClick(e, passport)}
+                                className={assetActionWarmClassName}
+                              >
+                                서비스 신청
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => handleLedgerHistoryClick(e, passport)}
+                                className={assetLedgerButtonClassName}
+                              >
+                                원장 이력
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </button>
+                      </div>
                     ))
                   ) : (
                     <div className="rounded-xl border border-blue-100 bg-blue-50/40 px-5 py-8 text-center text-sm text-gray-600">
@@ -1212,6 +1355,32 @@ const MyPage = () => {
                 <div className="font-semibold text-gray-900 break-all">{selectedPassport.assetId || '-'}</div>
               </div>
               <div>
+                <div className="text-gray-500 mb-1">리스크 상태</div>
+                <div className="flex items-center justify-between gap-3">
+                  {isRiskActive(selectedPassport) ? (
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${getRiskFlagClassName(selectedPassport.riskFlag)}`}>
+                      {getRiskFlagLabel(selectedPassport.riskFlag)}
+                    </span>
+                  ) : (
+                    <span className="text-sm font-semibold text-slate-500">신고 이력 없음</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const passport = selectedPassport;
+                      setSelectedPassport(null);
+                      openRiskModal(passport);
+                    }}
+                    className={isRiskActive(selectedPassport)
+                      ? assetActionDangerSoftClassName
+                      : assetActionDangerClassName
+                    }
+                  >
+                    {isRiskActive(selectedPassport) ? '신고 취소' : '분실/도난 신고'}
+                  </button>
+                </div>
+              </div>
+              <div>
                 <div className="text-gray-500 mb-1">보유 시작일</div>
                 <div className="font-semibold text-gray-900">
                   {selectedPassport.ownedSince ? new Date(selectedPassport.ownedSince).toLocaleString() : '-'}
@@ -1224,6 +1393,115 @@ const MyPage = () => {
                 className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-colors"
               >
                 닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {riskModalPassport && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-in fade-in duration-200 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-[linear-gradient(135deg,#fff1f2,#ffffff)]">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <AlertTriangle className="text-rose-600" />
+                {isRiskActive(riskModalPassport) ? '분실/도난 신고 취소' : '분실/도난 신고'}
+              </h3>
+              <button
+                onClick={closeRiskModal}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors"
+              >
+                <span className="text-2xl leading-none">&times;</span>
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-5 text-sm">
+              <div className="rounded-2xl border border-rose-100 bg-rose-50/60 p-5">
+                <div className="text-xs font-semibold tracking-wide text-rose-700 uppercase">신청 대상 자산</div>
+                <div className="mt-3 space-y-2">
+                  <div className="text-lg font-bold tracking-tight text-gray-900">
+                    {riskModalPassport.modelName || riskModalPassport.serialNumber || riskModalPassport.passportId}
+                  </div>
+                  <div className="text-xs text-gray-600">Serial: {riskModalPassport.serialNumber || '-'}</div>
+                  <div className="text-xs text-gray-500 font-mono break-all">Passport: {riskModalPassport.passportId}</div>
+                </div>
+              </div>
+
+              {riskActionError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {riskActionError}
+                </div>
+              )}
+
+              {isRiskActive(riskModalPassport) ? (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <div className="text-xs font-semibold text-slate-500">현재 상태</div>
+                    <div className="mt-2">
+                      <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${getRiskFlagClassName(riskModalPassport.riskFlag)}`}>
+                        {getRiskFlagLabel(riskModalPassport.riskFlag)}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      신고를 취소하면 현재 리스크 상태가 해제되고, 해제 이력 역시 원장에 기록됩니다.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-700">신고 유형 선택</div>
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {RISK_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setRiskReportType(option.value)}
+                          className={`rounded-2xl border px-4 py-4 text-left transition ${riskReportType === option.value
+                            ? 'border-rose-200 bg-rose-50 text-rose-900 shadow-[0_16px_40px_-28px_rgba(225,29,72,.28)]'
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="text-sm font-semibold">{option.title}</div>
+                          <div className="mt-2 text-xs leading-5">{option.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {riskReportType === 'STOLEN' ? (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm leading-6 text-rose-900">
+                      도난 신고는 별도 입력 없이 바로 접수되며, 신청 즉시 공개 원장에 이력이 남습니다.
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-900">
+                      분실 신고는 별도 첨부 없이 바로 접수되며, 신청 즉시 공개 원장에 이력이 남습니다.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeRiskModal}
+                disabled={riskActionLoading}
+                className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-colors disabled:opacity-50"
+              >
+                닫기
+              </button>
+              <button
+                type="button"
+                onClick={handleRiskAction}
+                disabled={riskActionLoading}
+                className={`px-6 py-2 rounded-lg font-medium text-white transition-colors disabled:opacity-50 ${isRiskActive(riskModalPassport) ? 'bg-slate-900 hover:bg-slate-800' : 'bg-rose-600 hover:bg-rose-700'}`}
+              >
+                {riskActionLoading
+                  ? '처리 중...'
+                  : (isRiskActive(riskModalPassport)
+                    ? '신고 취소하기'
+                    : (riskReportType === 'STOLEN' ? '도난 신고하기' : '분실 신고하기'))}
               </button>
             </div>
           </div>
@@ -1400,6 +1678,7 @@ const MyPage = () => {
           {copyToast}
         </div>
       )}
+      </div>
     </div>
   );
 };

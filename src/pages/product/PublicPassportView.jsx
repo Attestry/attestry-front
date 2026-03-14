@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { AlertTriangle, Check, CheckCircle2, ChevronDown, ChevronUp, Copy, Loader2, ShieldCheck } from 'lucide-react';
 import QRCode from 'qrcode';
 import { unwrapApiResponse } from '../../utils/api';
+import useAuthStore from '../../store/useAuthStore';
 
 const EVENT_LABELS = {
   'GENESIS:MINTED': '제품 제조 및 검수 완료',
@@ -15,7 +16,6 @@ const EVENT_LABELS = {
   'LIFECYCLE:VOIDED': '제품 사용 중지 처리',
   'RISK:STOLEN_FLAGGED': '도난 신고 등록',
   'RISK:LOST_FLAGGED': '분실 신고 등록',
-  'RISK:RISK_CLEARED': '위험 상태 해제',
 };
 
 const formatKst = (value) => {
@@ -46,9 +46,35 @@ const actorRoleLabel = (entry) => {
   return actorRole || '-';
 };
 
-const eventTitle = (entry) => {
+const resolveRiskClearedLabel = (entry, entries) => {
+  const clearedRiskFlag = String(entry?.payload?.clearedRiskFlag || '').toUpperCase();
+  if (clearedRiskFlag === 'STOLEN') return '도난 신고 취소';
+  if (clearedRiskFlag === 'LOST') return '분실 신고 취소';
+
+  const clearedAt = new Date(entry?.occurredAt || 0).getTime();
+  const latestFlaggedEntry = (Array.isArray(entries) ? entries : [])
+    .filter((candidate) => {
+      const category = String(candidate?.event?.category || '').toUpperCase();
+      const action = String(candidate?.event?.action || '').toUpperCase();
+      if (category !== 'RISK') return false;
+      if (action !== 'STOLEN_FLAGGED' && action !== 'LOST_FLAGGED') return false;
+      const occurredAt = new Date(candidate?.occurredAt || 0).getTime();
+      return Number.isFinite(occurredAt) && occurredAt <= clearedAt;
+    })
+    .sort((a, b) => new Date(b?.occurredAt || 0).getTime() - new Date(a?.occurredAt || 0).getTime())[0];
+
+  const latestAction = String(latestFlaggedEntry?.event?.action || '').toUpperCase();
+  if (latestAction === 'STOLEN_FLAGGED') return '도난 신고 취소';
+  if (latestAction === 'LOST_FLAGGED') return '분실 신고 취소';
+  return '분실/도난 신고 취소';
+};
+
+const eventTitle = (entry, entries) => {
   const category = String(entry?.event?.category || '').toUpperCase();
   const action = String(entry?.event?.action || '').toUpperCase();
+  if (category === 'RISK' && action === 'RISK_CLEARED') {
+    return resolveRiskClearedLabel(entry, entries);
+  }
   return EVENT_LABELS[`${category}:${action}`] || `${category || 'EVENT'} · ${action || 'UNKNOWN'}`;
 };
 
@@ -93,6 +119,7 @@ const buildLedgerBackedDetail = (passportId, stateData, ownerData, entries) => {
 
 const PublicPassportView = () => {
   const { passportId } = useParams();
+  const accessToken = useAuthStore((state) => state.accessToken);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [ledgerError, setLedgerError] = useState('');
@@ -107,6 +134,11 @@ const PublicPassportView = () => {
 
   useEffect(() => {
     let active = true;
+    const fetchWithAuth = (url) => (
+      accessToken
+        ? fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })
+        : fetch(url)
+    );
     const load = async () => {
       if (!passportId) {
         setError('유효하지 않은 디지털 자산입니다.');
@@ -120,10 +152,10 @@ const PublicPassportView = () => {
 
       try {
         const [stateRes, ownerRes, entriesRes, verifyRes] = await Promise.allSettled([
-          fetch(`/products/passports/${encodeURIComponent(passportId)}/state`),
-          fetch(`/products/passports/${encodeURIComponent(passportId)}/owner`),
-          fetch(`/ledgers/passports/${encodeURIComponent(passportId)}/entries`),
-          fetch(`/ledgers/passports/${encodeURIComponent(passportId)}/verify`),
+          fetchWithAuth(`/products/passports/${encodeURIComponent(passportId)}/state`),
+          fetchWithAuth(`/products/passports/${encodeURIComponent(passportId)}/owner`),
+          fetchWithAuth(`/ledgers/passports/${encodeURIComponent(passportId)}/entries`),
+          fetchWithAuth(`/ledgers/passports/${encodeURIComponent(passportId)}/verify`),
         ]);
 
         if (!active) return;
@@ -176,7 +208,7 @@ const PublicPassportView = () => {
     return () => {
       active = false;
     };
-  }, [passportId]);
+  }, [passportId, accessToken]);
 
   const publicQrUrl = useMemo(() => {
     if (!passportId) return '';
@@ -247,19 +279,22 @@ const PublicPassportView = () => {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto px-6 py-14">
-        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+      <div className="tracera-page-shell min-h-[calc(100vh-4rem)]">
+        <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="tracera-page-card p-12 text-center">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-slate-500" />
           <p className="mt-4 text-slate-600">공개 디지털 자산 원장 정보를 불러오는 중입니다.</p>
         </div>
+      </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-5xl mx-auto px-6 py-14">
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-8 shadow-sm">
+      <div className="tracera-page-shell min-h-[calc(100vh-4rem)]">
+        <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="tracera-page-card border border-red-200 bg-red-50 p-8">
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-6 w-6 text-red-600 mt-0.5" />
             <div>
@@ -272,21 +307,22 @@ const PublicPassportView = () => {
           </div>
         </div>
       </div>
+      </div>
     );
   }
 
   return (
-    <div className="bg-gradient-to-b from-slate-50 to-white">
-      <div className="max-w-5xl mx-auto px-6 py-10 space-y-7">
-        <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-[0_24px_55px_-42px_rgba(15,23,42,.75)]">
+    <div className="tracera-page-shell min-h-[calc(100vh-4rem)]">
+      <div className="mx-auto max-w-5xl space-y-7 px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+        <section className="tracera-page-hero">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-200">
+              <div className="tracera-page-tag">
                 <ShieldCheck className="h-4 w-4" />
-                Official Digital Twin
+                PUBLIC PASSPORT
               </div>
-              <h1 className="mt-3 text-2xl font-extrabold text-slate-900">스캔하여 정품 증명서를 확인하세요</h1>
-              <p className="mt-2 text-sm text-slate-500">블록체인 원장 기반으로 제품 이력을 공개 검증합니다.</p>
+              <h1 className="tracera-keepall mt-4 text-3xl font-semibold tracking-[-0.055em] text-slate-950 sm:text-[2.45rem]">스캔으로 신뢰를 확인하는 공개 디지털 여권</h1>
+              <p className="tracera-keepall mt-3 max-w-2xl text-sm leading-7 text-slate-600">제품의 핵심 이력과 원장 검증 상태를 외부에서도 같은 톤으로 읽을 수 있게 정리했습니다.</p>
             </div>
             {verification && (
               <div className={`inline-flex items-center gap-1.5 self-start rounded-full px-3 py-1 text-xs font-bold ring-1 ${verification.valid ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'
@@ -298,25 +334,25 @@ const PublicPassportView = () => {
           </div>
 
           <div className="mt-7 grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="tracera-page-card-soft p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Model</p>
               <p className="mt-1 text-lg font-bold text-slate-900">{resolvedModelName || '-'}</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="tracera-page-card-soft p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">등록 번호</p>
               <p className="mt-1 text-sm font-semibold text-slate-900 break-all">{resolvedSerialNumber || '-'}</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="tracera-page-card-soft p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Passport ID</p>
               <p className="mt-1 text-xs font-mono text-slate-700 break-all">{detail?.passportId || '-'}</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="tracera-page-card-soft p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">현재 소유자</p>
               <p className="mt-1 text-base font-bold text-slate-900 break-all">{latestOwner || '-'}</p>
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="tracera-page-card-soft mt-6 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">공개 QR (고정)</p>
             <div className="mt-3 flex flex-col items-center gap-3">
               {publicQrLoading ? (
@@ -331,7 +367,7 @@ const PublicPassportView = () => {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-[0_20px_45px_-38px_rgba(15,23,42,.8)]">
+        <section className="tracera-page-card p-7">
           <h2 className="text-xl font-extrabold text-slate-900">제품 생애 주기 이력</h2>
           <p className="mt-2 text-sm text-slate-500">
             이 제품의 제조부터 현재까지의 모든 중요 기록은 암호화되어 안전하게 보관됩니다.
@@ -348,9 +384,9 @@ const PublicPassportView = () => {
                 const expanded = expandedIds.has(entry.ledgerId);
                 const hash = entry?.integrity?.entryHash || '-';
                 return (
-                  <article key={entry.ledgerId} className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <article key={entry.ledgerId} className="tracera-page-card-soft p-5">
                     <p className="text-sm font-semibold text-slate-700">{formatKst(entry.occurredAt)}</p>
-                    <h3 className="mt-1 text-lg font-bold text-slate-900">{eventTitle(entry)}</h3>
+                    <h3 className="mt-1 text-lg font-bold text-slate-900">{eventTitle(entry, entries)}</h3>
 
                     <div className="mt-3 grid gap-2 text-sm text-slate-700">
                       <p className="break-all"><span className="font-semibold">수행자 ID:</span> {actorLabel(entry)}</p>
