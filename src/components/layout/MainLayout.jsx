@@ -120,12 +120,16 @@ const MainLayout = () => {
             </div>
           </div>
           <div className="grid gap-3 text-sm text-slate-400">
-            <div className="font-medium text-slate-200">Tracera</div>
+            <div className="font-medium text-slate-200">Proveny</div>
+            <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-stone-300">
+              <span className="h-px w-8 bg-stone-500/70" />
+              Product 민영 & 선욱
+            </div>
             <Link to="/onboarding" className="inline-flex items-center gap-2 transition-colors hover:text-white">
               업체 신청 페이지
               <ChevronRight size={15} />
             </Link>
-            <div>© 2026 Tracera. The new era of product traceability.</div>
+            <div>© 2026 Proveny. The new era of product traceability.</div>
           </div>
         </div>
       </footer>

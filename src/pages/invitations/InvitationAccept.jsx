@@ -139,7 +139,7 @@ const InvitationAccept = () => {
             </div>
 
             <p className="mt-8 text-gray-400 text-sm">
-                Attestry DPP Ledger &copy; 2026
+                Proveny DPP Ledger &copy; 2026
             </p>
         </div>
     );

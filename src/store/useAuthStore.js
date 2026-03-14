@@ -32,12 +32,23 @@ const apiFetch = async (url, options = {}) => {
   return apiFetchJson(url, options, { token, fallbackMessage: normalizeApiErrorMessage('', undefined) });
 };
 
-const isAdminEmail = (email) => String(email || '').toLowerCase().includes('admin');
-
 const membershipRoleOf = (membership) => {
   const groupType = String(membership?.groupType || '').toUpperCase();
   return ROLES[groupType] || null;
 };
+
+const hasPlatformAdminScope = (membership) => (
+  (membership?.effectiveScopes || []).some((scope) => {
+    const normalized = String(scope || '').toUpperCase();
+    return normalized === 'PLATFORM_ADMIN' || normalized === 'SCOPE_PLATFORM_ADMIN';
+  })
+);
+
+const hasPlatformAdminAccess = (memberships = []) => (
+  (memberships || []).some((membership) =>
+    String(membership?.status || '').toUpperCase() === 'ACTIVE' && hasPlatformAdminScope(membership)
+  )
+);
 
 const pickPreferredMembership = (memberships, preferredTenantId, preferredRole) => {
   const allMemberships = memberships || [];
@@ -126,11 +137,8 @@ const useAuthStore = create((set, get) => ({
         id: data.userId,
         email,
         tenantId: data.tenantId,
-        role: isAdminEmail(email) ? ROLES.PLATFORM_ADMIN : ROLES.USER,
-        availableRoles: [
-          ROLES.USER,
-          ...(isAdminEmail(email) ? [ROLES.PLATFORM_ADMIN] : [])
-        ]
+        role: ROLES.USER,
+        availableRoles: [ROLES.USER]
       };
 
       // Store token and user
@@ -160,9 +168,10 @@ const useAuthStore = create((set, get) => ({
         const role = membershipRoleOf(m);
         return role ? [role] : [];
       });
+      const hasPlatformAdminRole = hasPlatformAdminAccess(memberships);
 
       let availableRoles = [ROLES.USER, ...membershipRoles];
-      if (isAdminEmail(get().user?.email)) {
+      if (hasPlatformAdminRole) {
         availableRoles.push(ROLES.PLATFORM_ADMIN);
       }
       availableRoles = [...new Set(availableRoles)];
@@ -181,7 +190,7 @@ const useAuthStore = create((set, get) => ({
 
         if (resolveRoleFromMemberships) {
           nextRole = selectedMembershipRole
-            || (isAdminEmail(currentUser.email) ? ROLES.PLATFORM_ADMIN : ROLES.USER);
+            || (hasPlatformAdminRole ? ROLES.PLATFORM_ADMIN : ROLES.USER);
         }
 
         const newUser = {

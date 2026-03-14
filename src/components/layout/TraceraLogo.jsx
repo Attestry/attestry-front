@@ -2,58 +2,68 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 const sizeClasses = {
-  compact: 'h-[2.5rem] w-[2.5rem]',
-  default: 'h-[3.8rem] w-[3.8rem]',
+  compact: 'h-[3.25rem] w-[3.25rem]',
+  default: 'h-[5.4rem] w-[5.4rem]',
 };
 
 const LogoMark = ({ compact = false, tone = 'light' }) => {
   const isDark = tone === 'dark';
+  const logoSrc = isDark ? '/proveny-symbol-dark.svg' : '/proveny-symbol.svg';
 
   return (
-    <div
-      className={`relative ${compact ? sizeClasses.compact : sizeClasses.default} overflow-hidden rounded-[1rem] shadow-[0_18px_40px_rgba(15,23,42,0.16)]`}
-    >
-      <div
-        className={`absolute inset-0 ${
-          isDark
-            ? 'bg-[linear-gradient(145deg,#06090f_0%,#111827_55%,#1f2937_100%)]'
-            : 'bg-[linear-gradient(145deg,#06090f_0%,#111827_55%,#1f2937_100%)]'
-        }`}
+    <div className={`relative ${compact ? sizeClasses.compact : sizeClasses.default} overflow-visible`}>
+      {isDark && (
+        <div className="absolute inset-[-18%] rounded-full bg-[radial-gradient(circle,rgba(232,202,160,0.18)_0%,rgba(232,202,160,0.06)_38%,transparent_72%)] blur-md" />
+      )}
+      <img
+        src={logoSrc}
+        alt=""
+        aria-hidden="true"
+        className="relative h-full w-full object-contain drop-shadow-[0_14px_28px_rgba(15,23,42,0.14)]"
       />
-      <div className="absolute inset-[5%] rounded-[0.82rem] border border-white/8" />
-      <svg viewBox="0 0 100 100" aria-hidden="true" className="absolute inset-[20%]">
-        <defs>
-          <linearGradient id="traceraGold" x1="8%" y1="10%" x2="90%" y2="92%">
-            <stop offset="0%" stopColor="#f5cd98" />
-            <stop offset="52%" stopColor="#c98a4a" />
-            <stop offset="100%" stopColor="#7d4d22" />
-          </linearGradient>
-        </defs>
-        <g fill="none" stroke="url(#traceraGold)" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 28h64" strokeWidth="6.4" />
-          <path d="M50 28v44" strokeWidth="6.4" />
-          <path d="M30 72h40" strokeWidth="6.4" />
-          <path d="M32 28l18 22 18-22" strokeWidth="5.2" opacity="0.95" />
-          <path d="M39 72l11-12 11 12" strokeWidth="5.2" opacity="0.9" />
-        </g>
-      </svg>
     </div>
   );
 };
 
-const TraceraLogo = ({ to = '/', onClick, compact = false, tone = 'light' }) => {
+const TraceraLogo = ({ to = '/', onClick, compact = false, tone = 'light', showLabel = true }) => {
   const isDark = tone === 'dark';
 
   return (
-    <Link to={to} onClick={onClick} className="group inline-flex flex-col items-center justify-center gap-1.5">
+    <Link to={to} onClick={onClick} aria-label="Proveny home" className="group inline-flex flex-col items-center justify-center gap-0">
       <LogoMark compact={compact} tone={tone} />
-      <div
-        className={`font-semibold tracking-[0.26em] transition-colors ${
-          compact ? 'text-[0.62rem]' : 'text-[0.78rem]'
-        } ${isDark ? 'text-stone-300 group-hover:text-white' : 'text-slate-800 group-hover:text-slate-950'}`}
-        style={{ fontWeight: 600 }}
-      >
-        TRACERA
+      {showLabel && (
+        <div
+          className={`-mt-0.5 font-semibold leading-none tracking-[0.12em] transition-colors ${compact ? 'text-[0.64rem]' : 'text-[0.88rem]'} ${isDark ? 'text-stone-300 group-hover:text-white' : 'text-slate-800 group-hover:text-slate-950'}`}
+          style={{ fontFamily: '"Avenir Next", "Pretendard", system-ui, sans-serif' }}
+        >
+          PROVENY
+        </div>
+      )}
+    </Link>
+  );
+};
+
+export const ProvenyLockup = ({ to = '/', onClick, tone = 'light', compact = false }) => {
+  const isDark = tone === 'dark';
+
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      aria-label="Proveny home"
+      className={`inline-flex items-center gap-2.5 rounded-[1.35rem] border px-3 py-2.5 pr-4 shadow-[0_14px_30px_rgba(15,23,42,0.05)] backdrop-blur ${isDark ? 'border-white/10 bg-white/6' : 'border-white/85 bg-white/78'}`}
+    >
+      <LogoMark compact tone={tone} />
+      <div className="min-w-0">
+        <div className={`text-[8px] font-semibold uppercase tracking-[0.24em] ${isDark ? 'text-stone-300/80' : 'text-slate-500'}`}>
+          Verified Ownership Network
+        </div>
+        <div
+          className={`mt-0.5 font-semibold leading-none tracking-[0.18em] ${compact ? 'text-[1rem]' : 'text-[1.12rem] sm:text-[1.22rem]'} ${isDark ? 'text-white' : 'text-slate-950'}`}
+          style={{ fontFamily: '"Avenir Next", "Pretendard", system-ui, sans-serif' }}
+        >
+          PROVENY
+        </div>
       </div>
     </Link>
   );

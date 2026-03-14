@@ -105,7 +105,7 @@ const ProductDetail = () => {
                         <p class="serial-no">S/N: ${product.serialNumber}</p>
                         <img src="${dataUrl}" class="qr-image" />
                         <div class="footer">
-                            <p class="footer-text">Attestry Original Authenticated Product</p>
+                            <p class="footer-text">Proveny Original Authenticated Product</p>
                             <p class="public-code">${product.qrPublicCode}</p>
                         </div>
                     </div>
@@ -157,10 +157,10 @@ const ProductDetail = () => {
     const { shipment } = product;
 
     return (
-        <div className="p-8 max-w-5xl mx-auto animate-in fade-in duration-500">
+        <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8 animate-in fade-in duration-500">
             {/* Navigation & Header */}
-            <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
+            <div className="mb-6 flex flex-col gap-4 sm:mb-8 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
                     <button
                         onClick={handleBack}
                         className="flex items-center gap-2 text-gray-400 hover:text-indigo-600 font-bold mb-4 transition-colors cursor-pointer group"
@@ -168,8 +168,8 @@ const ProductDetail = () => {
                         <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
                         목록으로 돌아가기
                     </button>
-                    <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight flex items-center gap-3">
-                        {product.modelName}
+                    <h1 className="flex flex-wrap items-center gap-2 text-2xl font-extrabold tracking-tight text-gray-900 sm:gap-3 sm:text-3xl">
+                        <span className="min-w-0 break-words">{product.modelName}</span>
                         <span className={`text-xs px-2.5 py-0.5 rounded-full border ${product.assetState === 'ACTIVE'
                             ? 'bg-green-50 text-green-700 border-green-100'
                             : 'bg-gray-100 text-gray-700 border-gray-200'
@@ -177,17 +177,17 @@ const ProductDetail = () => {
                             {product.assetState}
                         </span>
                     </h1>
-                    <p className="text-gray-500 mt-1 font-mono text-sm uppercase tracking-wider">
+                    <p className="mt-1 break-all font-mono text-xs uppercase tracking-wider text-gray-500 sm:text-sm">
                         SN: {product.serialNumber}
                     </p>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                     <a
                         href={publicPassportUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm hover:bg-gray-50 transition-colors"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 sm:w-auto"
                     >
                         <ShieldCheck size={16} className="text-green-500" />
                         공개 원장 확인
@@ -195,16 +195,16 @@ const ProductDetail = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
                 {/* Left Column: Product Specs */}
                 <div className="lg:col-span-2 space-y-8">
                     {/* Basic Info Card */}
                     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
+                        <div className="flex items-center gap-2 border-b border-gray-50 px-4 py-4 sm:px-6">
                             <Database size={18} className="text-indigo-500" />
                             <h2 className="font-bold text-gray-900">제품 상세 사양</h2>
                         </div>
-                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12">
+                        <div className="grid grid-cols-1 gap-x-8 gap-y-5 p-4 sm:grid-cols-2 sm:gap-x-12 sm:gap-y-6 sm:p-6">
                             <InfoItem icon={<Hash size={16} />} label="Passport ID" value={product.passportId} mono isCopyable />
                             <InfoItem icon={<Database size={16} />} label="Asset ID" value={product.assetId} mono />
                             <InfoItem icon={<Calendar size={16} />} label="제조 일시" value={new Date(product.manufacturedAt).toLocaleString()} />
@@ -217,17 +217,17 @@ const ProductDetail = () => {
 
                     {/* Shipment Info Card */}
                     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
+                        <div className="flex items-center gap-2 border-b border-gray-50 px-4 py-4 sm:px-6">
                             <Package size={18} className="text-orange-500" />
                             <h2 className="font-bold text-gray-900">최신 물류 정보 (Shipment)</h2>
                         </div>
                         {shipment ? (
-                            <div className="p-6">
-                                <div className="flex items-center gap-4 mb-8">
+                            <div className="p-4 sm:p-6">
+                                <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center">
                                     <div className={`p-3 rounded-2xl ${shipment.status === 'RELEASED' ? 'bg-indigo-50 text-indigo-600' : 'bg-orange-50 text-orange-600'}`}>
                                         <Package size={24} />
                                     </div>
-                                    <div>
+                                    <div className="min-w-0">
                                         <div className="text-sm font-bold text-gray-900">
                                             {shipment.status === 'RELEASED' ? '출고 완료' : '반품됨'}
                                         </div>
@@ -235,12 +235,12 @@ const ProductDetail = () => {
                                             {new Date(shipment.releasedAt).toLocaleString()} 처리됨
                                         </div>
                                     </div>
-                                    <div className="ml-auto flex items-center gap-1.5 px-3 py-1 bg-gray-50 rounded-full text-[10px] font-bold text-gray-500 border border-gray-100">
+                                    <div className="flex w-fit items-center gap-1.5 rounded-full border border-gray-100 bg-gray-50 px-3 py-1 text-[10px] font-bold text-gray-500 sm:ml-auto">
                                         ROUND {shipment.shipmentRound}
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-50 pt-6 mt-2">
+                                <div className="mt-2 grid grid-cols-1 gap-5 border-t border-gray-50 pt-6 sm:grid-cols-2 sm:gap-6">
                                     <InfoItem icon={<User size={16} />} label="출고 처리자 이메일" value={shipment.releasedByUserEmail} mono />
                                     {shipment.status === 'RETURNED' && (
                                         <InfoItem icon={<User size={16} />} label="반품 처리자 이메일" value={shipment.returnedByUserEmail} mono />
@@ -254,10 +254,10 @@ const ProductDetail = () => {
                                         <h3 className="text-sm font-bold text-gray-900">증빙 자료 (Evidence)</h3>
                                     </div>
                                     {shipment.evidenceFiles?.length > 0 ? (
-                                        <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                             {shipment.evidenceFiles.map((file) => (
                                                 <li key={file.evidenceId} className="group p-3 border border-gray-50 rounded-xl hover:border-indigo-200 hover:bg-indigo-50/30 transition-all">
-                                                    <div className="flex items-center gap-3">
+                                                    <div className="flex items-start gap-3">
                                                         <div className="p-2 bg-white rounded-lg group-hover:bg-white border border-gray-50 transition-colors shadow-sm text-center">
                                                             <FileText size={18} className="text-gray-400 group-hover:text-indigo-500" />
                                                         </div>
@@ -272,7 +272,7 @@ const ProductDetail = () => {
                                                         <a
                                                             href={file.downloadUrl}
                                                             download={file.originalFileName}
-                                                            className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
+                                                            className="ml-auto p-2 text-gray-400 transition-colors hover:text-indigo-600"
                                                             title="다운로드"
                                                         >
                                                             <Download size={18} />
@@ -300,18 +300,18 @@ const ProductDetail = () => {
 
                     {/* Distribution Info Card */}
                     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
+                        <div className="flex items-center gap-2 border-b border-gray-50 px-4 py-4 sm:px-6">
                             <RefreshCw size={18} className="text-indigo-500" />
                             <h2 className="font-bold text-gray-900">유통 위임 정보 (Distribution)</h2>
                         </div>
                         {product.distribution ? (
-                            <div className="p-6">
-                                <div className="flex items-center gap-4 mb-6">
+                            <div className="p-4 sm:p-6">
+                                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
                                     <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600">
                                         <ShieldCheck size={24} />
                                     </div>
-                                    <div>
-                                        <div className="text-sm font-bold text-gray-900">
+                                    <div className="min-w-0">
+                                        <div className="break-words text-sm font-bold text-gray-900">
                                             {product.distribution.targetTenantName || product.distribution.tenantName} ({product.distribution.targetTenantId || product.distribution.tenantId})
                                         </div>
                                         <div className="text-xs text-gray-500">
@@ -319,7 +319,7 @@ const ProductDetail = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-50 pt-6">
+                                <div className="grid grid-cols-1 gap-5 border-t border-gray-50 pt-6 sm:grid-cols-2 sm:gap-6">
                                     <InfoItem icon={<ShieldCheck size={16} />} label="유통 상태" value={product.distribution.status === 'DISTRIBUTED' ? '유통 완료' : product.distribution.status || '-'} variant={product.distribution.status === 'DISTRIBUTED' ? 'success' : 'default'} />
                                     <InfoItem icon={<Clock size={16} />} label="유통 일시" value={product.distribution.distributedAt ? new Date(product.distribution.distributedAt).toLocaleString() : (product.distribution.grantedAt ? new Date(product.distribution.grantedAt).toLocaleString() : '-')} />
                                 </div>
@@ -338,13 +338,13 @@ const ProductDetail = () => {
                 {/* Right Column */}
                 <div className="space-y-8">
                     {/* QR Code Section */}
-                    <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden group/qr">
+                    <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 text-center shadow-sm group/qr sm:p-6">
                         <div className="p-3 bg-indigo-50 rounded-2xl mb-4 group-hover/qr:scale-110 transition-transform duration-300">
                             <QrCode size={24} className="text-indigo-600" />
                         </div>
                         <h3 className="text-sm font-bold text-gray-900 mb-4 tracking-tight">제품 인증 QR 코드</h3>
 
-                        <div className="bg-white p-3 rounded-2xl shadow-inner border border-gray-50 mb-6 relative">
+                        <div className="relative mb-6 rounded-2xl border border-gray-50 bg-white p-3 shadow-inner">
                             {/* SVG for screen display */}
                             <QRCodeSVG
                                 value={publicPassportUrl}
@@ -372,17 +372,17 @@ const ProductDetail = () => {
                                 </p>
                             </div>
 
-                            <div className="flex gap-2 pt-2">
+                            <div className="flex flex-col gap-2 pt-2 sm:flex-row">
                                 <button
                                     onClick={downloadQRCode}
-                                    className="flex-1 flex items-center justify-center gap-2 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 hover:border-indigo-200 transition-all cursor-pointer shadow-sm"
+                                    className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 shadow-sm transition-all hover:border-indigo-200 hover:bg-gray-50 cursor-pointer"
                                 >
                                     <Download size={14} className="text-indigo-500" />
                                     이미지 저장
                                 </button>
                                 <button
                                     onClick={handlePrint}
-                                    className="flex-1 flex items-center justify-center gap-2 py-2 bg-indigo-600 border border-transparent rounded-lg text-xs font-bold text-white hover:bg-indigo-700 transition-all cursor-pointer shadow-md"
+                                    className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-transparent bg-indigo-600 py-2 text-xs font-bold text-white shadow-md transition-all hover:bg-indigo-700 cursor-pointer"
                                 >
                                     <Printer size={14} />
                                     QR 인쇄
@@ -397,17 +397,17 @@ const ProductDetail = () => {
                     </div>
 
                     {/* Quick Stats */}
-                    <div className="bg-indigo-600 rounded-2xl p-6 text-white shadow-lg shadow-indigo-100">
+                    <div className="rounded-2xl bg-indigo-600 p-5 text-white shadow-lg shadow-indigo-100 sm:p-6">
                         <h3 className="font-bold mb-4 flex items-center gap-2">
                             <CheckCircle2 size={18} />
                             최근 상태 요약
                         </h3>
                         <div className="space-y-4">
-                            <div className="flex justify-between items-center text-sm border-b border-indigo-500 pb-3">
+                            <div className="flex items-center justify-between gap-3 border-b border-indigo-500 pb-3 text-sm">
                                 <span className="text-indigo-100">Asset State</span>
                                 <span className="font-bold font-mono">{product.assetState}</span>
                             </div>
-                            <div className="flex justify-between items-center text-sm">
+                            <div className="flex items-center justify-between gap-3 text-sm">
                                 <span className="text-indigo-100">Risk Level</span>
                                 <span className={`font-bold px-2 py-0.5 rounded ${product.riskFlag === 'NONE' ? 'bg-indigo-500' : 'bg-red-400'}`}>
                                     {product.riskFlag}
@@ -438,13 +438,13 @@ const InfoItem = ({ icon, label, value, mono = false, isCopyable = false, varian
     };
 
     return (
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
             <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
                 {icon}
                 {label}
             </div>
             <div
-                className={`text-sm truncate flex items-center gap-2 ${mono ? 'font-mono' : 'font-medium'} ${variantStyles[variant]} ${isCopyable ? 'cursor-pointer' : ''}`}
+                className={`flex min-w-0 flex-wrap items-center gap-2 break-all text-sm ${mono ? 'font-mono' : 'font-medium'} ${variantStyles[variant]} ${isCopyable ? 'cursor-pointer' : ''}`}
                 onClick={handleCopy}
             >
                 {value}

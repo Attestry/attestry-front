@@ -46,12 +46,13 @@ const SignupPage = () => {
                     <section className="hidden lg:block">
                         <div className="max-w-2xl">
                             <TraceraLogo to="/" />
-                            <h1 className="mt-10 text-5xl font-semibold tracking-[-0.07em] text-slate-950">
+                            <div className="tracera-page-tag mt-10">SIGN UP EXPERIENCE</div>
+                            <h1 className="mt-6 text-5xl font-semibold tracking-[-0.07em] text-slate-950">
                                 브랜드와 사용자,
                                 <span className="block text-slate-600">그 사이의 제품 경험을 연결합니다</span>
                             </h1>
                             <p className="mt-6 max-w-xl text-base leading-8 text-slate-600">
-                                Tracera는 제품의 이력을 더 신뢰 가능하게 정리하고, 이후 서비스와 지속가능성 데이터까지 이어지게 만듭니다.
+                                Proveny는 제품의 이력을 더 신뢰 가능하게 정리하고, 이후 서비스와 지속가능성 데이터까지 이어지게 만듭니다.
                             </p>
                             <div className="mt-10 grid gap-4">
                                 <div className="tracera-panel-soft px-5 py-4">
@@ -71,7 +72,7 @@ const SignupPage = () => {
                             <TraceraLogo to="/" />
                         </div>
                         <div className="text-center lg:text-left">
-                            <div className="text-sm font-semibold tracking-[0.18em] text-slate-500">회원가입</div>
+                            <div className="tracera-page-pill">회원가입</div>
                             <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-slate-950">회원가입</h2>
                             <p className="mt-3 text-sm leading-7 text-slate-600">
                                 이미 계정이 있으신가요? <Link to={loginHref} className="font-semibold text-slate-950 underline-offset-4 hover:underline">로그인 하기</Link>

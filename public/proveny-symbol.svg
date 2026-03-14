@@ -1,0 +1,36 @@
+<svg width="320" height="320" viewBox="0 0 320 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="pvBlue" x1="52" y1="162" x2="168" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="pvSilver" x1="104" y1="92" x2="222" y2="206" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F8FBFF"/>
+      <stop offset="0.38" stop-color="#D9E0EA"/>
+      <stop offset="1" stop-color="#8A95A8"/>
+    </linearGradient>
+    <linearGradient id="pvGold" x1="156" y1="64" x2="268" y2="164" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E8D7BC"/>
+      <stop offset="0.45" stop-color="#C89A63"/>
+      <stop offset="1" stop-color="#8A6139"/>
+    </linearGradient>
+    <filter id="pvMiddleShadow" x="84" y="84" width="152" height="148" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="7" stdDeviation="5" flood-color="#6A4D3B" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <g transform="rotate(-18 111 209)">
+    <rect x="54" y="154" width="114" height="110" rx="34" stroke="url(#pvBlue)" stroke-width="18"/>
+  </g>
+  <g transform="rotate(16 160 158)" filter="url(#pvMiddleShadow)">
+    <rect x="103" y="103" width="114" height="110" rx="34" stroke="#243041" stroke-opacity="0.2" stroke-width="18"/>
+    <rect x="103" y="103" width="114" height="110" rx="34" stroke="url(#pvSilver)" stroke-width="14" opacity="0.98"/>
+  </g>
+  <g transform="rotate(-18 209 111)">
+    <rect x="152" y="56" width="114" height="110" rx="34" stroke="url(#pvGold)" stroke-width="18"/>
+  </g>
+
+  <path d="M120 202C134 191 145 180 160 160C175 140 186 129 200 118" stroke="#0F172A" stroke-opacity="0.12" stroke-width="7" stroke-linecap="round"/>
+  <path d="M122 152C132 146 141 139 149 130" stroke="#FFF7EE" stroke-opacity="0.7" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M171 190C181 183 190 174 198 164" stroke="#66748A" stroke-opacity="0.22" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

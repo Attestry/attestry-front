@@ -80,7 +80,7 @@ const ServiceProviderListPage = () => {
               빠르게 선택하세요
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-slate-200 md:text-base">
-              Tracera에 연결된 서비스 업체를 비교하고, 내 제품에 맞는 접수 흐름으로 바로 이어집니다.
+              Proveny에 연결된 서비스 업체를 비교하고, 내 제품에 맞는 접수 흐름으로 바로 이어집니다.
             </p>
             {selectedPassport && (
               <div className="mt-4 inline-flex max-w-full items-center gap-2 rounded-2xl border border-white/20 bg-white/12 px-4 py-3 text-sm font-medium text-white shadow-sm backdrop-blur-sm">

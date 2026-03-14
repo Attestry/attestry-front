@@ -220,31 +220,32 @@ const PurchaseClaimView = () => {
   }
 
   return (
-    <div className="tracera-workflow-page max-w-7xl mx-auto py-8 px-4 md:px-6 space-y-8 [font-family:var(--claim-font,ui-sans-serif,system-ui)]">
-      <header className="tracera-workflow-hero">
-        <div className="tracera-workflow-tag">
+    <div className="tracera-page-shell [font-family:var(--claim-font,ui-sans-serif,system-ui)]">
+      <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 md:px-6 lg:px-8">
+      <header className="tracera-page-hero">
+        <div className="tracera-page-tag">
           PRODUCT CLAIM
         </div>
-        <h1 className="mt-4 text-3xl md:text-4xl font-bold tracking-tight">제품 등록 신청</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-200 md:text-base">
-          시리얼 정보와 구매 증빙을 제출하면, 제품 등록 심사와 디지털 자산 발급 흐름이 깔끔하게 이어집니다.
+        <h1 className="mt-4 text-3xl md:text-4xl font-semibold tracking-[-0.055em] text-slate-950">제품 등록 신청</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 md:text-base">
+          시리얼 정보와 구매 증빙을 제출하면, 등록 심사와 디지털 자산 발급 흐름이 같은 톤 안에서 깔끔하게 이어집니다.
         </p>
       </header>
 
       {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 flex items-start gap-2">
+        <div className="tracera-page-card-soft rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 flex items-start gap-2">
           <AlertCircle size={16} className="mt-0.5" />
           <span>{error}</span>
         </div>
       )}
       {success && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-start gap-2">
+        <div className="tracera-page-card-soft rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-start gap-2">
           <CheckCircle2 size={16} className="mt-0.5" />
           <span>{success}</span>
         </div>
       )}
 
-      <section className="tracera-workflow-section space-y-5">
+      <section className="tracera-page-card space-y-5 p-5 md:p-6">
         <div className="flex items-center gap-3">
           <div className="tracera-workflow-step">1</div>
           <h2 className="text-lg md:text-xl font-semibold text-slate-900">등록 신청 정보 입력</h2>
@@ -280,7 +281,7 @@ const PurchaseClaimView = () => {
         </div>
       </section>
 
-      <section className="tracera-workflow-section space-y-5">
+      <section className="tracera-page-card space-y-5 p-5 md:p-6">
         <div className="flex items-center gap-3">
           <div className="tracera-workflow-step">2</div>
           <h2 className="text-lg md:text-xl font-semibold text-slate-900">증빙 파일 제출</h2>
@@ -429,6 +430,7 @@ const PurchaseClaimView = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

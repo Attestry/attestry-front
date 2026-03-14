@@ -1,48 +1,54 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  server: {
-    proxy: {
-      '/auth': 'http://localhost:8080',
-      '/api-v1/auth': 'http://localhost:8080',
-      '/onboarding': 'http://localhost:8080',
-      '/me': 'http://localhost:8080',
-      '/memberships': 'http://localhost:8080',
-      '/tenants': 'http://localhost:8080',
-      '/workflows': 'http://localhost:8080',
-      '/products': {
-        target: 'http://localhost:8080',
-        bypass: (req, res, proxyOptions) => {
-          if (req.headers.accept?.indexOf('text/html') !== -1) {
-            return '/index.html';
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const apiUrl = env.VITE_API_URL || 'http://localhost:8080';
+  const ledgerUrl = env.VITE_LEDGER_API_URL || 'http://localhost:8081';
+
+  return {
+    plugins: [react(), tailwindcss()],
+    server: {
+      proxy: {
+        '/auth': apiUrl,
+        '/api-v1/auth': apiUrl,
+        '/onboarding': apiUrl,
+        '/me': apiUrl,
+        '/memberships': apiUrl,
+        '/tenants': apiUrl,
+        '/workflows': apiUrl,
+        '/products': {
+          target: apiUrl,
+          bypass: (req, res, proxyOptions) => {
+            if (req.headers.accept?.indexOf('text/html') !== -1) {
+              return '/index.html';
+            }
           }
-        }
-      },
-      '/ledgers': 'http://localhost:8080',
-      '/admin': {
-        target: 'http://localhost:8080',
-        bypass: (req, res, proxyOptions) => {
-          if (req.headers.accept?.indexOf('text/html') !== -1) {
-            return '/index.html';
+        },
+        '/ledgers': ledgerUrl,
+        '/admin': {
+          target: apiUrl,
+          bypass: (req, res, proxyOptions) => {
+            if (req.headers.accept?.indexOf('text/html') !== -1) {
+              return '/index.html';
+            }
           }
-        }
-      },
-      '/invitations': {
-        target: 'http://localhost:8080',
-        bypass: (req, res, proxyOptions) => {
-          if (req.headers.accept?.indexOf('text/html') !== -1) {
-            return '/index.html';
+        },
+        '/invitations': {
+          target: apiUrl,
+          bypass: (req, res, proxyOptions) => {
+            if (req.headers.accept?.indexOf('text/html') !== -1) {
+              return '/index.html';
+            }
           }
-        }
-      },
-      '/api/invitations': {
-        target: 'http://localhost:8080',
-        rewrite: (path) => path.replace(/^\/api/, '')
-      },
+        },
+        '/api/invitations': {
+          target: apiUrl,
+          rewrite: (path) => path.replace(/^\/api/, '')
+        },
+      }
     }
-  }
+  };
 })
