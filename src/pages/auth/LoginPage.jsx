@@ -36,16 +36,6 @@ const LoginPage = () => {
         }
     };
 
-    const handleAutoFill = (type) => {
-        if (type === 'admin') {
-            setEmail('platform.admin@attestry.local');
-            setPassword('PlatformAdm1n!2026');
-        } else {
-            setEmail('test-curl@example.com');
-            setPassword('Password123!');
-        }
-    }
-
     return (
         <div className="animate-in fade-in duration-500">
             <div className="relative min-h-screen overflow-hidden bg-[linear-gradient(180deg,#fbfaf7_0%,#f5f1e8_36%,#eef2f7_100%)] px-4 py-10 sm:px-6 lg:px-8">
@@ -139,26 +129,6 @@ const LoginPage = () => {
                             </button>
                         </div>
                     </form>
-
-                    <div className="mt-8">
-                        <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-slate-200" />
-                            </div>
-                            <div className="relative flex justify-center text-sm">
-                                <span className="bg-[var(--color-page)] px-3 text-slate-400 lg:bg-transparent">빠른 테스트 계정</span>
-                            </div>
-                        </div>
-
-                        <div className="mt-6 grid grid-cols-1 gap-3">
-                            <button
-                                onClick={() => handleAutoFill('admin')}
-                                className="tracera-button-secondary w-full"
-                            >
-                                플랫폼 관리자
-                            </button>
-                        </div>
-                    </div>
 
                         <Link to="/" className="mt-8 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900">
                             홈페이지로 돌아가기
