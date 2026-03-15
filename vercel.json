@@ -2,44 +2,88 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
+      "source": "/api/auth",
+      "destination": "https://api.proveny.live/auth"
+    },
+    {
       "source": "/api/auth/:path*",
       "destination": "https://api.proveny.live/auth/:path*"
+    },
+    {
+      "source": "/api/api-v1/auth",
+      "destination": "https://api.proveny.live/api-v1/auth"
     },
     {
       "source": "/api/api-v1/auth/:path*",
       "destination": "https://api.proveny.live/api-v1/auth/:path*"
     },
     {
+      "source": "/api/onboarding",
+      "destination": "https://api.proveny.live/onboarding"
+    },
+    {
       "source": "/api/onboarding/:path*",
       "destination": "https://api.proveny.live/onboarding/:path*"
+    },
+    {
+      "source": "/api/me",
+      "destination": "https://api.proveny.live/me"
     },
     {
       "source": "/api/me/:path*",
       "destination": "https://api.proveny.live/me/:path*"
     },
     {
+      "source": "/api/memberships",
+      "destination": "https://api.proveny.live/memberships"
+    },
+    {
       "source": "/api/memberships/:path*",
       "destination": "https://api.proveny.live/memberships/:path*"
+    },
+    {
+      "source": "/api/tenants",
+      "destination": "https://api.proveny.live/tenants"
     },
     {
       "source": "/api/tenants/:path*",
       "destination": "https://api.proveny.live/tenants/:path*"
     },
     {
+      "source": "/api/workflows",
+      "destination": "https://api.proveny.live/workflows"
+    },
+    {
       "source": "/api/workflows/:path*",
       "destination": "https://api.proveny.live/workflows/:path*"
+    },
+    {
+      "source": "/api/products",
+      "destination": "https://api.proveny.live/products"
     },
     {
       "source": "/api/products/:path*",
       "destination": "https://api.proveny.live/products/:path*"
     },
     {
+      "source": "/api/admin",
+      "destination": "https://api.proveny.live/admin"
+    },
+    {
       "source": "/api/admin/:path*",
       "destination": "https://api.proveny.live/admin/:path*"
     },
     {
+      "source": "/api/invitations",
+      "destination": "https://api.proveny.live/invitations"
+    },
+    {
       "source": "/api/invitations/:path*",
       "destination": "https://api.proveny.live/invitations/:path*"
+    },
+    {
+      "source": "/api/ledgers",
+      "destination": "https://ledger.proveny.live/ledgers"
     },
     {
       "source": "/api/ledgers/:path*",
