@@ -12,40 +12,48 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
     server: {
       proxy: {
-        '/auth': apiUrl,
-        '/api-v1/auth': apiUrl,
-        '/onboarding': apiUrl,
-        '/me': apiUrl,
-        '/memberships': apiUrl,
-        '/tenants': apiUrl,
-        '/workflows': apiUrl,
-        '/products': {
+        '/api/auth': {
           target: apiUrl,
-          bypass: (req, res, proxyOptions) => {
-            if (req.headers.accept?.indexOf('text/html') !== -1) {
-              return '/index.html';
-            }
-          }
+          rewrite: (path) => path.replace(/^\/api/, '')
         },
-        '/ledgers': ledgerUrl,
-        '/admin': {
+        '/api/api-v1/auth': {
           target: apiUrl,
-          bypass: (req, res, proxyOptions) => {
-            if (req.headers.accept?.indexOf('text/html') !== -1) {
-              return '/index.html';
-            }
-          }
+          rewrite: (path) => path.replace(/^\/api/, '')
         },
-        '/invitations': {
+        '/api/onboarding': {
           target: apiUrl,
-          bypass: (req, res, proxyOptions) => {
-            if (req.headers.accept?.indexOf('text/html') !== -1) {
-              return '/index.html';
-            }
-          }
+          rewrite: (path) => path.replace(/^\/api/, '')
+        },
+        '/api/me': {
+          target: apiUrl,
+          rewrite: (path) => path.replace(/^\/api/, '')
+        },
+        '/api/memberships': {
+          target: apiUrl,
+          rewrite: (path) => path.replace(/^\/api/, '')
+        },
+        '/api/tenants': {
+          target: apiUrl,
+          rewrite: (path) => path.replace(/^\/api/, '')
+        },
+        '/api/workflows': {
+          target: apiUrl,
+          rewrite: (path) => path.replace(/^\/api/, '')
+        },
+        '/api/products': {
+          target: apiUrl,
+          rewrite: (path) => path.replace(/^\/api/, '')
+        },
+        '/api/admin': {
+          target: apiUrl,
+          rewrite: (path) => path.replace(/^\/api/, '')
         },
         '/api/invitations': {
           target: apiUrl,
+          rewrite: (path) => path.replace(/^\/api/, '')
+        },
+        '/api/ledgers': {
+          target: ledgerUrl,
           rewrite: (path) => path.replace(/^\/api/, '')
         },
       }

@@ -1,6 +1,8 @@
 import { normalizeApiErrorMessage } from './permissionUi';
 import { dispatchAuthExpired } from './authSession';
 
+const API_PREFIX = '/api';
+
 const isApiEnvelope = (payload) => (
   payload &&
   typeof payload === 'object' &&
@@ -36,6 +38,31 @@ const readBody = async (response) => {
 export const unwrapApiResponse = (payload) => (
   isApiEnvelope(payload) ? payload.data ?? null : payload
 );
+
+export const resolveApiUrl = (url) => {
+  if (typeof url !== 'string') return url;
+
+  const normalizedUrl = url.trim();
+  if (!normalizedUrl) return normalizedUrl;
+
+  if (
+    /^(?:[a-z]+:)?\/\//i.test(normalizedUrl)
+    || normalizedUrl.startsWith('data:')
+    || normalizedUrl.startsWith('blob:')
+  ) {
+    return normalizedUrl;
+  }
+
+  if (normalizedUrl === API_PREFIX || normalizedUrl.startsWith(`${API_PREFIX}/`)) {
+    return normalizedUrl;
+  }
+
+  if (normalizedUrl.startsWith('/')) {
+    return `${API_PREFIX}${normalizedUrl}`;
+  }
+
+  return `${API_PREFIX}/${normalizedUrl}`;
+};
 
 export const parseApiResponse = async (response, fallbackMessage = '') => {
   if (!response.ok) {
@@ -74,7 +101,7 @@ export const apiFetchJson = async (url, options = {}, config = {}) => {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(url, {
+  const response = await fetch(resolveApiUrl(url), {
     ...options,
     headers,
   });

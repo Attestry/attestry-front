@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AlertTriangle, Check, CheckCircle2, ChevronDown, ChevronUp, Copy, Loader2, ShieldCheck } from 'lucide-react';
 import QRCode from 'qrcode';
-import { unwrapApiResponse } from '../../utils/api';
+import { resolveApiUrl, unwrapApiResponse } from '../../utils/api';
 import useAuthStore from '../../store/useAuthStore';
 
 const EVENT_LABELS = {
@@ -136,8 +136,8 @@ const PublicPassportView = () => {
     let active = true;
     const fetchWithAuth = (url) => (
       accessToken
-        ? fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })
-        : fetch(url)
+        ? fetch(resolveApiUrl(url), { headers: { Authorization: `Bearer ${accessToken}` } })
+        : fetch(resolveApiUrl(url))
     );
     const load = async () => {
       if (!passportId) {

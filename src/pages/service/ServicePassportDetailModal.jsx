@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Loader2, ShieldCheck, X } from 'lucide-react';
 import QRCode from 'qrcode';
-import { unwrapApiResponse } from '../../utils/api';
+import { resolveApiUrl, unwrapApiResponse } from '../../utils/api';
 import useAuthStore from '../../store/useAuthStore';
 
 const EVENT_LABELS = {
@@ -120,8 +120,8 @@ const ProductPassportDetailModal = ({ passportId, isOpen, onClose }) => {
     let active = true;
     const fetchWithAuth = (url) => (
       accessToken
-        ? fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })
-        : fetch(url)
+        ? fetch(resolveApiUrl(url), { headers: { Authorization: `Bearer ${accessToken}` } })
+        : fetch(resolveApiUrl(url))
     );
     const load = async () => {
       setLoading(true);
