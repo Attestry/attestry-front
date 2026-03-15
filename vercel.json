@@ -1,0 +1,61 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/products/passports/:passportId",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/invitations/:invitationId/accept",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "https://api.proveny.live/auth/:path*"
+    },
+    {
+      "source": "/api-v1/auth/:path*",
+      "destination": "https://api.proveny.live/api-v1/auth/:path*"
+    },
+    {
+      "source": "/onboarding/:path*",
+      "destination": "https://api.proveny.live/onboarding/:path*"
+    },
+    {
+      "source": "/me/:path*",
+      "destination": "https://api.proveny.live/me/:path*"
+    },
+    {
+      "source": "/memberships/:path*",
+      "destination": "https://api.proveny.live/memberships/:path*"
+    },
+    {
+      "source": "/tenants/:path*",
+      "destination": "https://api.proveny.live/tenants/:path*"
+    },
+    {
+      "source": "/workflows/:path*",
+      "destination": "https://api.proveny.live/workflows/:path*"
+    },
+    {
+      "source": "/products/:path*",
+      "destination": "https://api.proveny.live/products/:path*"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "https://api.proveny.live/admin/:path*"
+    },
+    {
+      "source": "/invitations/:path*",
+      "destination": "https://api.proveny.live/invitations/:path*"
+    },
+    {
+      "source": "/ledgers/:path*",
+      "destination": "https://ledger.proveny.live/ledgers/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
