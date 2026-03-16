@@ -36,6 +36,7 @@ const QRScannerModal = ({
         : 'border-blue-100 bg-blue-50 text-blue-700 hover:bg-blue-100';
     const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
     const isSafari = /Safari/i.test(userAgent) && !/Chrome|CriOS|EdgiOS|FxiOS|Android/i.test(userAgent);
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(userAgent);
 
     useEffect(() => {
         if (isOpen) {
@@ -102,12 +103,14 @@ const QRScannerModal = ({
             const rearCamera = cameras.find((camera) =>
                 /back|rear|environment/gi.test(`${camera.label || ''}`)
             );
+            const mobileRearFallback = isMobile && cameras.length > 1 ? cameras[cameras.length - 1]?.id : null;
             const cameraCandidates = [
-                rearCamera?.id || null,
-                cameras[0]?.id || null,
                 { facingMode: { exact: "environment" } },
                 { facingMode: { ideal: "environment" } },
                 { facingMode: "environment" },
+                rearCamera?.id || null,
+                mobileRearFallback,
+                cameras[0]?.id || null,
                 { facingMode: "user" },
             ].filter(Boolean);
 

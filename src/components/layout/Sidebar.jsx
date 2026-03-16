@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { PackageCheck, Users, Briefcase, RefreshCw, Wrench, FileCheck, ClipboardList, ShieldAlert } from 'lucide-react';
 import useAuthStore, { ROLE_THEMES, ROLES } from '../../store/useAuthStore';
 import { getCurrentMembership } from '../../utils/permissionUi';
@@ -32,6 +32,8 @@ const SIDEBAR_MENUS = {
 
 const Sidebar = () => {
   const { user, myMemberships } = useAuthStore();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   if (!user) return null;
 
@@ -44,6 +46,8 @@ const Sidebar = () => {
   if (user.role === ROLES.BRAND && isBrandGroup) {
     menus.unshift({ title: '제품 관리 (Product Passports)', path: '/brand/products', icon: PackageCheck });
   }
+
+  const selectedMenuPath = menus.find((menu) => location.pathname.startsWith(menu.path))?.path || menus[0]?.path || '';
 
   return (
     <aside className="w-full border-b border-white/70 bg-[rgba(247,246,242,0.74)] backdrop-blur-xl lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:w-[18rem] lg:border-b-0 lg:border-r lg:border-r-white/80">
@@ -61,7 +65,24 @@ const Sidebar = () => {
           </div>
         </div>
 
-        <nav className="mt-4 flex gap-3 overflow-x-auto pb-1 lg:block lg:space-y-1 lg:overflow-visible lg:pb-0">
+        <div className="mt-4 lg:hidden">
+          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            메뉴 선택
+          </label>
+          <select
+            value={selectedMenuPath}
+            onChange={(e) => navigate(e.target.value)}
+            className="w-full rounded-[1rem] border border-white/80 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-[0_14px_30px_rgba(15,23,42,0.05)] outline-none transition focus:border-slate-300"
+          >
+            {menus.map((menu) => (
+              <option key={menu.path} value={menu.path}>
+                {menu.title}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <nav className="mt-4 hidden gap-3 overflow-x-auto pb-1 lg:block lg:space-y-1 lg:overflow-visible lg:pb-0">
           {menus.map((menu) => (
             <NavLink
               key={menu.path}
