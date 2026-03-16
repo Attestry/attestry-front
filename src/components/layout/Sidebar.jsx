@@ -52,7 +52,7 @@ const Sidebar = () => {
           className="rounded-[1.75rem] p-5 shadow-[0_16px_45px_rgba(15,23,42,0.06)]"
           style={{ backgroundColor: theme.bg, border: `1px solid ${theme.border}` }}
         >
-          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">현재 권한 모드</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">현재 역할</div>
           <div className="mt-3 text-xl font-semibold tracking-[-0.04em]" style={{ color: theme.primary }}>
             {theme.name}
           </div>

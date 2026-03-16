@@ -207,7 +207,7 @@ const TenantMembershipAdmin = () => {
             {/* Header */}
             <div className="mb-8">
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">멤버십 관리</h1>
-                <p className="text-gray-500">테넌트 소속 팀원의 권한과 계정 상태를 실시간으로 제어합니다.</p>
+                <p className="text-gray-500">소속 팀원의 권한과 계정 상태를 실시간으로 제어합니다.</p>
             </div>
 
             {/* Top Layout: Invite Section */}

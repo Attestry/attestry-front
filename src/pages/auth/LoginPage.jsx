@@ -52,7 +52,7 @@ const LoginPage = () => {
                                 <span className="block text-slate-600">신뢰 가능한 서비스 경험으로</span>
                             </h1>
                             <p className="mt-6 max-w-xl text-base leading-8 text-slate-600">
-                                Proveny는 제품의 생애주기, 소유권, 서비스 이력, 지속가능성 데이터를 하나의 흐름으로 연결합니다.
+                                Proveny는 제품 이력, 소유권, 서비스 흐름을 하나의 기록으로 연결합니다.
                             </p>
                             <div className="mt-10 grid gap-4">
                                 <div className="tracera-panel-soft px-5 py-4">

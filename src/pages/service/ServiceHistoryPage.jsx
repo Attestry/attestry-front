@@ -68,11 +68,11 @@ const ServiceHistoryPage = () => {
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-4 border-b border-gray-200 pb-4 md:flex-row md:items-end md:justify-between">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">완료 이력 관리</h1>
-          <p className="mt-1 text-gray-500">완료, 반려, 취소된 서비스 요청 이력을 상태별로 조회합니다. 고객 화면의 상태값과 같은 기준으로 반영됩니다.</p>
+          <p className="mt-1 text-sm leading-6 text-gray-500 sm:text-base">완료, 반려, 취소된 서비스 요청 이력을 상태별로 조회합니다. 고객 화면의 상태값과 같은 기준으로 반영됩니다.</p>
         </div>
-        <button type="button" onClick={() => load(activeStatus, page)} disabled={!canViewService} className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50">
+        <button type="button" onClick={() => load(activeStatus, page)} disabled={!canViewService} className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
           <RefreshCw size={16} />
           새로고침
         </button>
@@ -104,7 +104,7 @@ const ServiceHistoryPage = () => {
       )}
 
       <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+        <div className="flex flex-col gap-2 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base font-bold text-gray-900">{SERVICE_STATUS_META[activeStatus].label} 이력</h2>
           <span className="text-xs font-semibold text-gray-500">총 {totalElements}개</span>
         </div>
@@ -127,8 +127,8 @@ const ServiceHistoryPage = () => {
                       >
                         {item.modelName || '-'}
                       </button>
-                      <div className="mt-1 text-xs text-gray-500">Serial: {item.serialNumber || '-'} | Passport: {item.passportId}</div>
-                      <div className="mt-1 text-xs text-gray-400">서비스 요청 ID: {item.serviceRequestId}</div>
+                      <div className="mt-1 break-all text-xs text-gray-500">Serial: {item.serialNumber || '-'} | Passport: {item.passportId}</div>
+                      <div className="mt-1 break-all text-xs text-gray-400">서비스 요청 ID: {item.serviceRequestId}</div>
                       <div className="mt-1 text-xs text-gray-400">요청 방식: {SERVICE_REQUEST_METHOD_META.labelOf(item.serviceRequestMethod)}</div>
                       <div className="mt-1 text-xs text-gray-400">서비스 유형: {SERVICE_TYPE_META.labelOf(item.serviceType)}</div>
                       <div className="mt-1 text-xs text-gray-400">서비스 업체: {item.providerTenantName || '-'} ({item.providerTenantId || '-'})</div>
@@ -148,18 +148,19 @@ const ServiceHistoryPage = () => {
                       {Array.isArray(item.afterEvidenceFiles) && item.afterEvidenceFiles.length > 0 && (
                         <div className="mt-2 text-xs text-gray-600">
                           완료 첨부:
-                          {' '}
-                          {item.afterEvidenceFiles.map((file) => (
-                            <a
-                              key={file.evidenceId}
-                              href={file.downloadUrl || '#'}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="ml-2 text-blue-600 underline"
-                            >
-                              {file.originalFileName}
-                            </a>
-                          ))}
+                          <div className="mt-2 flex flex-col gap-1">
+                            {item.afterEvidenceFiles.map((file) => (
+                              <a
+                                key={file.evidenceId}
+                                href={file.downloadUrl || '#'}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="break-all text-blue-600 underline"
+                              >
+                                {file.originalFileName}
+                              </a>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -168,7 +169,7 @@ const ServiceHistoryPage = () => {
                 </li>
               ))}
             </ul>
-            <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/60 px-5 py-4">
+            <div className="flex flex-col gap-3 border-t border-gray-100 bg-gray-50/60 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-xs text-gray-500">페이지 {page + 1} / {totalPages}</span>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => load(activeStatus, Math.max(0, page - 1))} disabled={page === 0} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50">이전</button>

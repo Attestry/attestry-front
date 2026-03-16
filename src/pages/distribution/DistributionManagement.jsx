@@ -19,6 +19,7 @@ const DistributionManagement = () => {
     const { user, myMemberships } = useAuthStore();
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('candidates');
@@ -78,6 +79,7 @@ const DistributionManagement = () => {
             setError(toPermissionMessage(error, 'DEFAULT', `${activeTab === 'candidates' ? '유통 대기' : '유통 이력'} 목록을 불러오지 못했습니다.`));
         } finally {
             setLoading(false);
+            setHasLoadedOnce(true);
         }
     };
 
@@ -240,17 +242,19 @@ const DistributionManagement = () => {
         p.targetTenantId.toLowerCase().includes(partnerSearchTerm.toLowerCase()) ||
         (p.targetTenantName && p.targetTenantName.toLowerCase().includes(partnerSearchTerm.toLowerCase()))
     );
+    const showInitialLoading = loading && !hasLoadedOnce;
+    const showRefreshing = loading && hasLoadedOnce;
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
             {/* Header Section */}
-            <div className="flex justify-between items-end mb-8">
-                <div>
-                    <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight flex items-center gap-3">
+            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0">
+                    <h1 className="flex flex-wrap items-center gap-3 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
                         <RefreshCw className="text-indigo-600" size={32} />
                         유통 관리 (Distribution Management)
                     </h1>
-                    <p className="text-gray-500 mt-2 font-medium">
+                    <p className="mt-2 text-sm font-medium leading-6 text-gray-500 sm:text-base">
                         출고된 제품의 권한을 파트너에게 위임하거나 위임 이력을 관리합니다.
                     </p>
                 </div>
@@ -263,7 +267,7 @@ const DistributionManagement = () => {
             )}
 
             {/* Tabs */}
-            <div className="flex border-b border-gray-200 mb-6 gap-8">
+            <div className="mb-6 flex gap-6 overflow-x-auto border-b border-gray-200">
                 <button
                     onClick={() => setActiveTab('candidates')}
                     className={`pb-4 text-sm font-bold transition-colors cursor-pointer ${activeTab === 'candidates' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600 border-b-2 border-transparent'}`}
@@ -279,8 +283,8 @@ const DistributionManagement = () => {
             </div>
 
             {/* Filters */}
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center justify-between mb-6">
-                <div className="relative flex-1 min-w-[300px] max-w-md">
+            <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:gap-4">
+                <div className="relative w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
                         type="text"
@@ -290,21 +294,27 @@ const DistributionManagement = () => {
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                     {hasDistributionPermission && (
                         <button
                             type="button"
                             onClick={() => setIsQRScannerModalOpen(true)}
-                            className="px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100 cursor-pointer"
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-100 transition-colors hover:bg-indigo-700 sm:w-auto sm:py-2 cursor-pointer"
                         >
                             <QrCode size={18} />
                             QR 유통
                         </button>
                     )}
-                    <div className="bg-gray-50 text-gray-600 px-4 py-2 rounded-xl text-sm font-bold flex items-center">
+                    <div className="flex items-center justify-center rounded-xl bg-gray-50 px-4 py-2 text-sm font-bold text-gray-600 sm:ml-auto">
                         총 {totalElements}건
                     </div>
                 </div>
+                {showRefreshing && (
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
+                        <RefreshCw size={16} className="animate-spin" />
+                        목록을 업데이트하는 중입니다...
+                    </div>
+                )}
             </div>
 
             {!hasDistributionPermission && (
@@ -314,8 +324,94 @@ const DistributionManagement = () => {
             )}
 
             {/* Main Table */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <table className="w-full text-left">
+            <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+                <div className="md:hidden">
+                    {showInitialLoading ? (
+                        <div className="px-6 py-12 text-center text-gray-400">데이터를 불러오는 중입니다...</div>
+                    ) : history.length === 0 ? (
+                        <div className="px-6 py-12 text-center text-gray-400">
+                            <PackageCheck size={32} className="mx-auto mb-3 opacity-50" />
+                            {activeTab === 'candidates' ? '유통 대기 중인 제품이 없습니다.' : '유통 이력 내역이 없습니다.'}
+                        </div>
+                    ) : (
+                        <div className="space-y-3 p-3">
+                            {activeTab === 'candidates' ? history.map((h) => (
+                                <div key={h.passportId} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                                    <Link to={`/brand/products/${h.passportId}`} className="block">
+                                        <div className="text-base font-bold text-gray-900">{h.modelName || '-'}</div>
+                                        <div className="mt-1 text-sm text-gray-600">{h.serialNumber}</div>
+                                    </Link>
+                                    <div className="mt-4 space-y-3 text-sm">
+                                        <div>
+                                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">Passport ID</div>
+                                            <div className="mt-1 break-all font-mono text-[12px] text-indigo-600">{h.passportId || '-'}</div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">공장</div>
+                                                <div className="mt-1 text-gray-700">{h.factoryCode || '-'}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">배치</div>
+                                                <div className="mt-1 text-gray-700">{h.productionBatch || '-'}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {hasDistributionPermission && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setScannedPassportId(h.passportId);
+                                                setIsPartnerModalOpen(true);
+                                                fetchPartnerLinks();
+                                            }}
+                                            className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700"
+                                        >
+                                            유통
+                                        </button>
+                                    )}
+                                </div>
+                            )) : history.map((h) => (
+                                <div key={h.distributionId} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                                    <div className="text-base font-bold text-gray-900">{h.targetTenantName || h.targetTenantId}</div>
+                                    <div className="mt-1 text-xs text-gray-500">
+                                        {h.targetTenantType ? `${h.targetTenantType} | ` : ''}파트너십: {h.partnerLinkId ? h.partnerLinkId.substring(0, 8) + '...' : '-'}
+                                    </div>
+                                    <Link to={`/brand/products/${h.passportId}`} className="mt-4 block">
+                                        <div className="text-sm font-bold text-gray-900">{h.modelName || h.passportId}</div>
+                                        <div className="mt-1 text-sm text-gray-600">{h.serialNumber || '-'}</div>
+                                    </Link>
+                                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                                        <div>
+                                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">상태</div>
+                                            <div className="mt-1">
+                                                <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${h.status === 'DISTRIBUTED' ? 'bg-green-100 text-green-700' : h.status === 'RECALLED' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                    {h.status === 'DISTRIBUTED' ? '유통완료' : h.status === 'RECALLED' ? '회수됨' : h.status}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">일시</div>
+                                            <div className="mt-1 text-gray-700">{h.distributedAt ? new Date(h.distributedAt).toLocaleString() : '-'}</div>
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 text-xs text-gray-500">실행자: {h.distributedByUserId || '-'}</div>
+                                    {h.status === 'DISTRIBUTED' && hasDistributionPermission && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRecallDistribution(h.distributionId)}
+                                            className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-bold text-red-600"
+                                        >
+                                            취소
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+                <div className="hidden overflow-x-auto md:block">
+                <table className="min-w-[900px] w-full text-left">
                     <thead className="bg-gray-50 border-b border-gray-100">
                         {activeTab === 'candidates' ? (
                             <tr>
@@ -334,7 +430,7 @@ const DistributionManagement = () => {
                         )}
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                        {loading ? (
+                        {showInitialLoading ? (
                             <tr>
                                 <td colSpan="4" className="px-6 py-12 text-center text-gray-400">
                                     데이터를 불러오는 중입니다...
@@ -438,6 +534,7 @@ const DistributionManagement = () => {
                         )}
                     </tbody>
                 </table>
+                </div>
 
                 {/* Pagination */}
                 {totalPages > 0 && (

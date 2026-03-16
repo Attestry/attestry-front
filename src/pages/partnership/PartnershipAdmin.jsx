@@ -136,20 +136,20 @@ const PartnershipAdmin = () => {
     };
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
             <div className="mb-8">
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">파트너십 관리</h1>
-                <p className="text-gray-500">다른 입점사(테넌트)와의 연결을 관리합니다.</p>
+                <p className="text-gray-500">다른 입점사와의 연결을 관리합니다.</p>
             </div>
 
             {/* Content Area */}
             <div className="space-y-6">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h2 className="text-lg font-bold text-gray-900">연결된 파트너 현황</h2>
                     {canCreateLink && canSearchTenant && (
                         <button
                             onClick={() => setShowLinkModal(true)}
-                            className="flex items-center gap-2 text-white px-4 py-2 rounded-xl font-semibold transition-colors"
+                            className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold text-white transition-colors sm:w-auto sm:py-2"
                             style={{ backgroundColor: theme?.primary }}
                         >
                             <Plus size={18} />
@@ -213,8 +213,73 @@ const PartnershipAdmin = () => {
                     </div>
                 )}
 
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <table className="w-full text-left">
+                <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+                    <div className="md:hidden">
+                        {myPartnerLinks.length === 0 ? (
+                            <div className="px-6 py-12 text-center text-gray-400">데이터가 없습니다.</div>
+                        ) : (
+                            <div className="space-y-3 p-3">
+                                {myPartnerLinks.map((link) => (
+                                    <div key={link.partnerLinkId} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                                        <div className="text-base font-bold text-gray-900">
+                                            {link.sourceTenantId === user?.tenantId ? (link.targetTenantName || link.targetTenantId) : (link.sourceTenantName || link.sourceTenantId)}
+                                        </div>
+                                        <div className="mt-1 break-all text-[11px] text-gray-400">ID: {link.partnerLinkId}</div>
+                                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                                            <div>
+                                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">유형</div>
+                                                <div className="mt-1">
+                                                    <span className="rounded px-2 py-1 text-[10px] font-bold" style={{ backgroundColor: theme?.bg, color: theme?.primary }}>
+                                                        {link.sourceTenantId === user?.tenantId ? link.partnerType : link.sourceType}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">상태</div>
+                                                <div className="mt-1">
+                                                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold border ${getStatusColor(link.status)}`}>
+                                                        {link.status}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 text-sm text-gray-600">만료일: {link.expiresAt ? new Date(link.expiresAt).toLocaleDateString() : '무기한'}</div>
+                                        <div className="mt-4 flex flex-wrap gap-2">
+                                            {canSuspendLink && link.sourceTenantId === user?.tenantId && link.status === 'ACTIVE' && (
+                                                <button
+                                                    onClick={() => suspendPartnerLink(link.partnerLinkId)}
+                                                    className="inline-flex flex-1 items-center justify-center rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-600"
+                                                >
+                                                    일시 정지
+                                                </button>
+                                            )}
+                                            {canResumeLink && link.sourceTenantId === user?.tenantId && link.status === 'SUSPENDED' && (
+                                                <button
+                                                    onClick={() => resumePartnerLink(link.partnerLinkId)}
+                                                    className="inline-flex flex-1 items-center justify-center rounded-xl border border-green-100 bg-green-50 px-3 py-2 text-sm font-bold text-green-600"
+                                                >
+                                                    재개
+                                                </button>
+                                            )}
+                                            {canTerminateLink && link.sourceTenantId === user?.tenantId && !['REJECTED', 'TERMINATED'].includes(link.status) && (
+                                                <button
+                                                    onClick={() => {
+                                                        const reason = prompt('해지 사유를 입력하세요:');
+                                                        if (reason) terminatePartnerLink(link.partnerLinkId, reason);
+                                                    }}
+                                                    className="inline-flex flex-1 items-center justify-center rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-bold text-red-600"
+                                                >
+                                                    연결 해지
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <div className="hidden overflow-x-auto md:block">
+                    <table className="min-w-[760px] w-full text-left">
                         <thead className="bg-gray-50 border-b border-gray-100">
                             <tr>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">파트너 테넌트</th>
@@ -291,6 +356,7 @@ const PartnershipAdmin = () => {
                             )}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </div>
 

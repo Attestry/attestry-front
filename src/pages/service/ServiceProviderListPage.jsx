@@ -91,11 +91,11 @@ const ServiceProviderListPage = () => {
               </div>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => setScannerOpen(true)} className="tracera-workflow-button-secondary">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <button type="button" onClick={() => setScannerOpen(true)} className="tracera-workflow-button-secondary w-full justify-center sm:w-auto">
               QR로 자산 선택
             </button>
-            <button type="button" onClick={() => load()} className="tracera-workflow-button">
+            <button type="button" onClick={() => load()} className="tracera-workflow-button w-full justify-center sm:w-auto">
               <RefreshCw size={16} />
               새로고침
             </button>
@@ -118,7 +118,7 @@ const ServiceProviderListPage = () => {
         <div className="tracera-workflow-section bg-[linear-gradient(145deg,#fffdf8,#ffffff)] p-5">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">선택 기준</div>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            지역, 주소, 업체명을 기준으로 비교하고 상세 화면에서 접수 정보를 확인할 수 있습니다.
+            지역, 주소, 업체명을 기준으로 비교하고 상세 화면에서 접수 정보를 바로 확인합니다.
           </p>
         </div>
       </section>

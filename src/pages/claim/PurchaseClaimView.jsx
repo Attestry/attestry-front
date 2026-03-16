@@ -227,7 +227,7 @@ const PurchaseClaimView = () => {
           PRODUCT CLAIM
         </div>
         <h1 className="mt-4 text-3xl md:text-4xl font-semibold tracking-[-0.055em] text-slate-950">제품 등록 신청</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 md:text-base">
+        <p className="mt-3 max-w-2xl whitespace-nowrap text-sm leading-7 text-slate-600 md:text-base">
           시리얼 정보와 구매 증빙을 제출하면, 등록 심사와 디지털 자산 발급 흐름이 같은 톤 안에서 깔끔하게 이어집니다.
         </p>
       </header>

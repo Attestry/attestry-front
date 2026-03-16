@@ -48,20 +48,20 @@ const SignupPage = () => {
                             <TraceraLogo to="/" />
                             <div className="tracera-page-tag mt-10">SIGN UP EXPERIENCE</div>
                             <h1 className="mt-6 text-5xl font-semibold tracking-[-0.07em] text-slate-950">
-                                브랜드와 사용자,
-                                <span className="block text-slate-600">그 사이의 제품 경험을 연결합니다</span>
+                                제품의 이력과 소유권을
+                                <span className="block text-slate-600">더 분명하고 신뢰 있게 이어갑니다</span>
                             </h1>
                             <p className="mt-6 max-w-xl text-base leading-8 text-slate-600">
-                                Proveny는 제품의 이력을 더 신뢰 가능하게 정리하고, 이후 서비스와 지속가능성 데이터까지 이어지게 만듭니다.
+                                Proveny는 제품 등록부터 소유권 이전, 서비스 이력까지 하나의 흐름으로 연결해 더 명확한 제품 경험을 만듭니다.
                             </p>
                             <div className="mt-10 grid gap-4">
                                 <div className="tracera-panel-soft px-5 py-4">
-                                    <div className="text-sm font-semibold text-slate-950">더 정확한 소유권 경험</div>
-                                    <p className="mt-2 text-sm leading-7 text-slate-600">사용자는 정리된 제품 이력을, 운영자는 일관된 관리 흐름을 경험합니다.</p>
+                                    <div className="text-sm font-semibold text-slate-950">더 분명한 소유권 경험</div>
+                                    <p className="mt-2 text-sm leading-7 text-slate-600">사용자는 제품 이력을 쉽게 이해하고, 운영자는 같은 기준으로 흐름을 관리할 수 있습니다.</p>
                                 </div>
                                 <div className="tracera-panel-soft px-5 py-4">
-                                    <div className="text-sm font-semibold text-slate-950">서비스 이후까지 이어지는 구조</div>
-                                    <p className="mt-2 text-sm leading-7 text-slate-600">수리와 점검, 공지와 순환 이력까지 끊기지 않도록 설계합니다.</p>
+                                    <div className="text-sm font-semibold text-slate-950">구매 이후까지 이어지는 기록</div>
+                                    <p className="mt-2 text-sm leading-7 text-slate-600">서비스, 점검, 순환 이력까지 끊기지 않도록 같은 제품 기록 위에서 이어집니다.</p>
                                 </div>
                             </div>
                         </div>

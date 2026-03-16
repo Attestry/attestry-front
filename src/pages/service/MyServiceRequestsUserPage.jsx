@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronRight, RefreshCw, Sparkles, Wrench, XCircle } from 'lucide-react';
+import { RefreshCw, Sparkles, Wrench, XCircle } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { cancelMyServiceRequest, listMyServiceRequests } from './consumerServiceApi';
 import { formatDateTime } from './serviceApi';
@@ -118,8 +118,8 @@ const MyServiceRequestsUserPage = () => {
           </div>
         )}
 
-        <div className="tracera-page-card px-4 py-4 sm:px-5">
-          <div className="flex flex-wrap gap-2">
+          <div className="tracera-page-card px-4 py-4 sm:px-5">
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
             {TABS.map((status) => {
               const meta = STATUS_META[status];
               const active = activeStatus === status;
@@ -128,7 +128,7 @@ const MyServiceRequestsUserPage = () => {
                   key={status}
                   type="button"
                   onClick={() => setActiveStatus(status)}
-                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${active ? `${meta.badge} shadow-sm` : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
+                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition sm:w-auto ${active ? `${meta.badge} shadow-sm` : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
                 >
                   {meta.label}
                 </button>
@@ -141,7 +141,7 @@ const MyServiceRequestsUserPage = () => {
           <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-base font-bold text-slate-900">{STATUS_META[activeStatus].label} 목록</h2>
-              <p className="mt-1 text-xs text-slate-500">현재 상태 기준으로 필터링된 서비스 요청 목록입니다.</p>
+              <p className="mt-1 text-xs text-slate-500">현재 상태 기준으로 서비스 요청된 목록입니다.</p>
             </div>
             <span className="tracera-page-pill w-fit">총 {totalElements}개</span>
           </div>
@@ -206,7 +206,7 @@ const MyServiceRequestsUserPage = () => {
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 xl:flex-col xl:items-end">
-                          <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${meta.badge}`}>
+                          <span className={`inline-flex min-h-[32px] items-center rounded-full border px-3 py-1 text-xs font-semibold ${meta.badge}`}>
                             {meta.label}
                           </span>
                           {item.status === 'PENDING' && (
@@ -214,16 +214,12 @@ const MyServiceRequestsUserPage = () => {
                               type="button"
                               onClick={() => handleCancel(item)}
                               disabled={!!actionLoading}
-                              className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex min-h-[32px] items-center gap-2 rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <XCircle size={14} />
                               취소
                             </button>
                           )}
-                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400">
-                            상세 이력 정리됨
-                            <ChevronRight size={12} />
-                          </span>
                         </div>
                       </div>
                     </li>
@@ -276,16 +272,16 @@ const DetailBlock = ({ label, value, tone = 'default' }) => (
 const AttachmentRow = ({ label, files }) => (
   <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</div>
-    <div className="mt-2 flex flex-wrap gap-2">
+    <div className="mt-2 flex flex-col gap-2">
       {files.map((file) => (
         <a
           key={file.evidenceId}
           href={file.downloadUrl || '#'}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-white"
+          className="inline-flex max-w-full items-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-white"
         >
-          {file.originalFileName}
+          <span className="break-all">{file.originalFileName}</span>
         </a>
       ))}
     </div>

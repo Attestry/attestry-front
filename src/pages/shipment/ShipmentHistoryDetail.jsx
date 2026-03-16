@@ -91,7 +91,7 @@ const ShipmentHistoryDetail = () => {
     const isReturned = shipment.status === 'RETURNED';
 
     return (
-        <div className="p-8 max-w-5xl mx-auto animate-in fade-in duration-500">
+        <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 animate-in fade-in duration-500">
             {/* Navigation & Header */}
             <div className="mb-8">
                 <Link
@@ -112,7 +112,7 @@ const ShipmentHistoryDetail = () => {
                                 {isReleased ? '출고완료' : isReturned ? '반송됨' : shipment.status}
                             </span>
                         </h1>
-                        <p className="text-gray-500 mt-1 font-mono text-sm uppercase tracking-wider">
+                        <p className="mt-1 break-all font-mono text-sm uppercase tracking-wider text-gray-500">
                             ID: {shipment.shipmentId}
                         </p>
                     </div>
@@ -128,7 +128,7 @@ const ShipmentHistoryDetail = () => {
                             <Package size={18} className="text-indigo-500" />
                             <h2 className="font-bold text-gray-900">운송 및 처리 정보</h2>
                         </div>
-                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12">
+                        <div className="grid grid-cols-1 gap-x-12 gap-y-6 p-4 sm:p-6 md:grid-cols-2">
                             <InfoItem icon={<Package size={16} />} label="제품명 (Model)" value={shipment.modelName || '-'} />
                             <InfoItem icon={<Hash size={16} />} label="시리얼 번호 (S/N)" value={shipment.serialNumber || '-'} isCopyable />
                             <InfoItem icon={<Hash size={16} />} label="Passport ID" value={shipment.passportId} mono isCopyable />
@@ -163,7 +163,7 @@ const ShipmentHistoryDetail = () => {
                             )}
                         </div>
 
-                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                        <div className="px-4 py-4 bg-gray-50 border-t border-gray-100 flex justify-start sm:px-6 sm:justify-end">
                             <Link
                                 to={`/${currentMembership?.groupType.toLowerCase()}/products/${shipment.passportId}`}
                                 className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
@@ -292,7 +292,7 @@ const InfoItem = ({ icon, label, value, mono = false, isCopyable = false }) => {
                 {label}
             </div>
             <div
-                className={`text-sm truncate flex items-center gap-2 ${mono ? 'font-mono' : 'font-medium'} text-gray-900 ${isCopyable ? 'cursor-pointer' : ''}`}
+                className={`flex items-center gap-2 break-all text-sm ${mono ? 'font-mono' : 'font-medium'} text-gray-900 ${isCopyable ? 'cursor-pointer' : ''}`}
                 onClick={handleCopy}
             >
                 {value}

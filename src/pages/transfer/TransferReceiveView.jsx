@@ -294,7 +294,7 @@ const TransferReceiveView = () => {
             </div>
             <h1 className="tracera-keepall text-3xl font-semibold leading-tight tracking-[-0.055em] text-slate-950 sm:text-[2.5rem]">
               제품의 소유권을 안전하게 인증하고
-              <span className="block text-slate-600">내 계정으로 단정하게 이전하세요</span>
+              <span className="block text-slate-600">내 계정으로 안전하게 이전하세요</span>
             </h1>
             <p className="tracera-keepall max-w-2xl text-sm leading-7 text-slate-600">
               현장 스캔과 수락코드 입력 모두 같은 보안 흐름으로 처리됩니다. 어떤 방식이든 이전 기록은 동일한 기준으로 남습니다.

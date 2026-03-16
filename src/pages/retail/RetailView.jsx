@@ -75,7 +75,57 @@ const RetailView = () => {
                         <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
                     </div>
                 </div>
-                    <div className="overflow-x-auto">
+                    <div className="divide-y divide-gray-100 md:hidden">
+                        {[
+                            {
+                                soldAt: '2026.03.05 14:30',
+                                product: 'Limited Edition Sneakers',
+                                serial: 'SN-2023-003Z',
+                                status: '이전 완료',
+                                statusClass: 'bg-green-50 text-green-600',
+                                action: '증명서 보기',
+                                actionStyle: { color: theme.primary },
+                            },
+                            {
+                                soldAt: '2026.03.05 11:15',
+                                product: 'Classic Leather Bag',
+                                serial: 'SN-BAG-992X',
+                                status: '고객 수락 대기',
+                                statusClass: 'bg-yellow-50 text-yellow-700',
+                                action: '재알림 발송',
+                                actionStyle: { color: theme.primary },
+                            },
+                            {
+                                soldAt: '2026.03.04 18:45',
+                                product: 'Wool Blend Coat',
+                                serial: 'SN-COT-881Y',
+                                status: '등록 전',
+                                statusClass: 'bg-gray-100 text-gray-600',
+                                action: '이전 시작',
+                                actionStyle: { backgroundColor: theme.primary },
+                                primaryAction: true,
+                            },
+                        ].map((row) => (
+                            <div key={`${row.serial}-${row.soldAt}`} className="space-y-3 px-5 py-4">
+                                <div className="text-xs text-gray-500">{row.soldAt}</div>
+                                <div className="font-semibold text-gray-900 break-words">{row.product}</div>
+                                <div className="break-all text-sm text-gray-500">{row.serial}</div>
+                                <span className={`inline-flex w-fit px-2 py-1 text-xs rounded-full font-medium ${row.statusClass}`}>
+                                    {row.status}
+                                </span>
+                                {row.primaryAction ? (
+                                    <button className="w-full rounded-lg px-3 py-2 text-xs font-medium text-white transition-colors" style={row.actionStyle}>
+                                        {row.action}
+                                    </button>
+                                ) : (
+                                    <button className="text-sm font-medium hover:underline" style={row.actionStyle}>
+                                        {row.action}
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="hidden overflow-x-auto md:block">
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-gray-50 text-gray-500 text-sm">

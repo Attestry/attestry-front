@@ -80,7 +80,7 @@ const RetailInventoryView = () => {
   );
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6 p-4 sm:p-6 lg:p-8">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">보유 제품 관리</h1>
@@ -105,7 +105,7 @@ const RetailInventoryView = () => {
             }
             setLoading(false);
           }}
-          className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 bg-white rounded-lg text-sm font-medium hover:bg-gray-50"
+          className="inline-flex w-full items-center justify-center gap-2 px-3 py-2 border border-gray-200 bg-white rounded-lg text-sm font-medium hover:bg-gray-50 md:w-auto"
         >
           <RefreshCw size={16} />
           새로고침
@@ -149,23 +149,23 @@ const RetailInventoryView = () => {
                       partnerLinkId: brand.partnerLinkId,
                     },
                   })}
-                  className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                  className="w-full px-5 py-4 flex items-start justify-between gap-3 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-start gap-3 text-left">
                     <div className="p-2 rounded-lg bg-green-50 text-green-700">
                       <Building2 size={16} />
                     </div>
                     <div className="min-w-0">
-                      <div className="font-semibold text-gray-900">{brand.brandName}</div>
-                      <div className="text-xs text-gray-500 mt-1">Tenant ID: {brand.brandTenantId}</div>
-                      <div className="text-xs text-gray-400 mt-1">PartnerLink: {brand.partnerLinkId}</div>
+                      <div className="font-semibold text-gray-900 break-words">{brand.brandName}</div>
+                      <div className="text-xs text-gray-500 mt-1 break-all">Tenant ID: {brand.brandTenantId}</div>
+                      <div className="text-xs text-gray-400 mt-1 break-all">PartnerLink: {brand.partnerLinkId}</div>
                     </div>
                   </div>
                   <ChevronRight size={16} className="text-gray-500 shrink-0" />
                 </button>
               ))}
             </div>
-            <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/60">
+            <div className="px-5 py-4 border-t border-gray-100 flex flex-col gap-3 bg-gray-50/60 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-xs text-gray-500">
                 페이지 {currentBrandPage + 1} / {totalBrandPages}
               </span>

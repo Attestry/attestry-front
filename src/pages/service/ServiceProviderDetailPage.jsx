@@ -204,7 +204,7 @@ const ServiceProviderDetailPage = () => {
           </p>
           <p className="mt-3 text-xs text-slate-300">Tenant ID: {provider?.tenantId || tenantId}</p>
           </div>
-          <button type="button" onClick={() => load()} className="tracera-workflow-button">
+          <button type="button" onClick={() => load()} className="tracera-workflow-button w-full justify-center sm:w-auto">
             <RefreshCw size={16} />
             새로고침
           </button>
@@ -302,7 +302,7 @@ const ServiceProviderDetailPage = () => {
               <div className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-4">
                 <div className="text-xs font-semibold text-amber-700">선택된 자산</div>
                 <div className="mt-2 text-sm font-semibold text-slate-950">{selectedPassport.modelName || '-'}</div>
-                <div className="mt-1 text-xs text-slate-500">
+                <div className="mt-1 break-all text-xs text-slate-500">
                   Serial: {selectedPassport.serialNumber || '-'} | Passport: {selectedPassport.passportId}
                 </div>
               </div>

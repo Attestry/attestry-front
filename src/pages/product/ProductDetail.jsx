@@ -344,7 +344,7 @@ const ProductDetail = () => {
                         </div>
                         <h3 className="text-sm font-bold text-gray-900 mb-4 tracking-tight">제품 인증 QR 코드</h3>
 
-                        <div className="relative mb-6 rounded-2xl border border-gray-50 bg-white p-3 shadow-inner">
+                            <div className="relative mb-6 flex justify-center rounded-2xl border border-gray-50 bg-white p-3 shadow-inner">
                             {/* SVG for screen display */}
                             <QRCodeSVG
                                 value={publicPassportUrl}
@@ -367,7 +367,7 @@ const ProductDetail = () => {
                         <div className="w-full space-y-3">
                             <div className="space-y-1">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Public Verification Code</p>
-                                <p className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded inline-block">
+                                <p className="inline-block break-all text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
                                     {product.qrPublicCode}
                                 </p>
                             </div>
@@ -390,9 +390,8 @@ const ProductDetail = () => {
                             </div>
                         </div>
 
-                        <p className="text-[10px] text-gray-400 mt-6 leading-relaxed">
-                            이 QR 코드는 제품의 정품 여부를<br />
-                            공개 원장에서 확인하기 위한 코드입니다.
+                        <p className="mt-6 text-[10px] leading-relaxed text-gray-400">
+                            이 QR 코드는 제품의 정품 여부를 공개 원장에서 확인하기 위한 코드입니다.
                         </p>
                     </div>
 
