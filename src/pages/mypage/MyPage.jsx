@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import QRCode from 'qrcode';
 import useAuthStore from '../../store/useAuthStore';
 import { apiFetchJson } from '../../utils/api';
@@ -82,6 +82,7 @@ const MyPage = () => {
   const [transferNow, setTransferNow] = useState(Date.now());
   const [transferShareQrImage, setTransferShareQrImage] = useState('');
   const [transferResolveLoading, setTransferResolveLoading] = useState(false);
+  const [transferCompletionInfo, setTransferCompletionInfo] = useState(null);
   const [copyToast, setCopyToast] = useState('');
   const [riskModalPassport, setRiskModalPassport] = useState(null);
   const [riskReportType, setRiskReportType] = useState('LOST');
@@ -95,8 +96,9 @@ const MyPage = () => {
   const [newPassword, setNewPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const transferStorageUserKey = myAccount?.userId || user?.userId || user?.id || '';
+  const transferResolutionReasonRef = useRef('');
 
-  const loadMyPassports = async () => {
+  const loadMyPassports = useCallback(async () => {
     if (!accessToken) {
       setMyPassports([]);
       return [];
@@ -112,7 +114,7 @@ const MyPage = () => {
       setMyPassports([]);
       return [];
     }
-  };
+  }, [accessToken]);
 
   useEffect(() => {
     const loadMyPurchaseClaims = async () => {
@@ -190,6 +192,7 @@ const MyPage = () => {
   const closeTransferModal = () => {
     setTransferModalPassport(null);
     setTransferResolveLoading(false);
+    setTransferCompletionInfo(null);
     setTransferNotice('');
   };
 
@@ -201,6 +204,8 @@ const MyPage = () => {
     setTransferCreateResult(null);
     setActiveTransfer(null);
     setTransferShareQrImage('');
+    setTransferCompletionInfo(null);
+    transferResolutionReasonRef.current = '';
     setTransferResolveLoading(true);
 
     const serverExisting = await fetchPendingTransfer(passport.passportId);
@@ -420,7 +425,7 @@ const MyPage = () => {
       : `${window.location.origin}/t/${encodeURIComponent(data.transferId)}`,
   });
 
-  const fetchPendingTransfer = async (passportId) => {
+  const fetchPendingTransfer = useCallback(async (passportId) => {
     if (!passportId || !accessToken) return null;
     try {
       const data = await apiFetchJson(`/workflows/passports/${encodeURIComponent(passportId)}/transfers/pending`, {}, { token: accessToken });
@@ -429,7 +434,7 @@ const MyPage = () => {
       if (error?.status === 204) return null;
       return undefined;
     }
-  };
+  }, [accessToken]);
 
   const formatRemaining = (ms) => {
     const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -463,6 +468,8 @@ const MyPage = () => {
     setTransferCreateResult(null);
     setActiveTransfer(null);
     setTransferShareQrImage('');
+    setTransferCompletionInfo(null);
+    transferResolutionReasonRef.current = '';
     try {
       const password = transferCreateMode === 'CODE' ? generateOneTimeCode() : null;
       const body = {
@@ -563,6 +570,7 @@ const MyPage = () => {
   const handleCancelTransfer = async () => {
     if (!activeTransfer?.transferId || !accessToken || !transferModalPassport?.passportId) return;
     try {
+      transferResolutionReasonRef.current = 'cancel';
       await apiFetchJson(`/workflows/transfers/${encodeURIComponent(activeTransfer.transferId)}/cancel`, {
         method: 'POST',
       }, { token: accessToken });
@@ -586,6 +594,7 @@ const MyPage = () => {
   useEffect(() => {
     if (!activeTransfer?.expiresAt || !transferModalPassport?.passportId) return;
     if (new Date(activeTransfer.expiresAt).getTime() <= transferNow) {
+      transferResolutionReasonRef.current = 'expired';
       clearActiveTransfer(transferModalPassport.passportId, transferStorageUserKey);
       setActiveTransfer(null);
       setTransferCreateResult(null);
@@ -593,6 +602,85 @@ const MyPage = () => {
       setTransferCreateError('기존 양도 요청이 만료되었습니다. 새로 생성해주세요.');
     }
   }, [activeTransfer, transferNow, transferModalPassport]);
+
+  useEffect(() => {
+    if (!transferModalPassport?.passportId || !activeTransfer?.transferId || transferResolveLoading || transferCreating || transferCompletionInfo) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const pollTransferResolution = async () => {
+      const pending = await fetchPendingTransfer(transferModalPassport.passportId);
+      if (cancelled || pending === undefined) return;
+
+      if (pending?.transferId) {
+        const mergedPending = pending.mode === 'CODE'
+          && activeTransfer?.mode === 'CODE'
+          && activeTransfer?.transferId === pending.transferId
+          ? {
+              ...pending,
+              oneTimeCode: activeTransfer.oneTimeCode || null,
+              receiveCode: activeTransfer.receiveCode || pending.receiveCode,
+            }
+          : pending;
+
+        if (mergedPending.transferId !== activeTransfer.transferId || mergedPending.expiresAt !== activeTransfer.expiresAt) {
+          setActiveTransfer(mergedPending);
+          setTransferCreateResult(mergedPending);
+          saveActiveTransfer(transferModalPassport.passportId, transferStorageUserKey, mergedPending);
+        }
+        return;
+      }
+
+      clearActiveTransfer(transferModalPassport.passportId, transferStorageUserKey);
+      setActiveTransfer(null);
+      setTransferCreateResult(null);
+      setTransferShareQrImage('');
+
+      const refreshedPassports = await loadMyPassports();
+      if (cancelled) return;
+
+      const stillOwned = refreshedPassports.some((passport) => passport.passportId === transferModalPassport.passportId);
+      const resolutionReason = transferResolutionReasonRef.current;
+
+      if (!stillOwned && !resolutionReason) {
+        setTransferCompletionInfo({
+          transferId: activeTransfer.transferId,
+          mode: activeTransfer.mode,
+          serialNumber: transferModalPassport.serialNumber || '-',
+          modelName: transferModalPassport.modelName || '-',
+          completedAt: new Date().toISOString(),
+        });
+        setTransferCreateError('');
+        return;
+      }
+
+      if (!resolutionReason) {
+        setTransferCreateError('양도 요청 상태가 변경되었습니다. 다시 확인해주세요.');
+      }
+      transferResolutionReasonRef.current = '';
+    };
+
+    void pollTransferResolution();
+    const intervalId = window.setInterval(() => {
+      void pollTransferResolution();
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [
+    activeTransfer,
+    fetchPendingTransfer,
+    loadMyPassports,
+    transferCompletionInfo,
+    transferCreating,
+    transferModalPassport,
+    transferResolveLoading,
+    transferStorageUserKey,
+  ]);
 
   useEffect(() => {
     const preloaded = Array.isArray(selectedPurchaseClaim?.evidences) ? selectedPurchaseClaim.evidences : [];
@@ -1570,6 +1658,48 @@ const MyPage = () => {
               {transferResolveLoading ? (
                 <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-6 text-center text-sm text-blue-700">
                   기존 양도 정보를 확인하는 중입니다...
+                </div>
+              ) : transferCompletionInfo ? (
+                <div className="space-y-4 rounded-[1.75rem] border border-emerald-200 bg-[linear-gradient(160deg,#effcf6_0%,#ffffff_72%)] p-5 sm:p-6">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 shadow-[0_14px_30px_-22px_rgba(5,150,105,.7)]">
+                    <CheckCircle2 size={28} />
+                  </div>
+                  <div className="space-y-2 text-center">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-700">Transfer Completed</div>
+                    <div className="text-2xl font-bold tracking-tight text-slate-900">양도가 완료되었습니다</div>
+                    <p className="mx-auto max-w-xl text-sm leading-6 text-slate-600">
+                      상대방이 {transferCompletionInfo.mode === 'QR' ? 'QR 스캔' : '수락코드 입력'}으로 소유권 이전을 완료했습니다.
+                      디지털 자산 소유권이 즉시 반영되며, 내 자산 목록에서도 자동으로 정리됩니다.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-emerald-100 bg-white/95 px-4 py-3">
+                      <div className="text-[11px] text-slate-500">시리얼 번호</div>
+                      <div className="mt-1 break-all text-base font-semibold text-slate-900">
+                        {transferCompletionInfo.serialNumber}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-100 bg-white/95 px-4 py-3">
+                      <div className="text-[11px] text-slate-500">모델명</div>
+                      <div className="mt-1 break-words text-base font-semibold text-slate-900">
+                        {transferCompletionInfo.modelName}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-emerald-100 bg-white/90 px-4 py-3 text-sm text-slate-600">
+                    <div className="font-medium text-slate-800">처리 시각</div>
+                    <div className="mt-1">{new Date(transferCompletionInfo.completedAt).toLocaleString()}</div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={closeTransferModal}
+                    className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_-24px_rgba(5,150,105,.85)] transition hover:bg-emerald-700"
+                  >
+                    확인
+                  </button>
                 </div>
               ) : activeTransfer ? (
                 <div className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
