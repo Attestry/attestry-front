@@ -367,10 +367,11 @@ const PublicPassportView = () => {
           </div>
         </section>
 
-        <section className="tracera-page-card p-7">
+        <section className="tracera-page-card p-5 sm:p-7">
           <h2 className="text-xl font-extrabold text-slate-900">제품 생애 주기 이력</h2>
-          <p className="mt-2 text-sm text-slate-500">
-            이 제품의 제조부터 현재까지의 모든 중요 기록은 암호화되어 안전하게 보관됩니다.
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+            이 제품이 제조부터 현재까지의 모든 중요 기록은
+            <span className="block">암호화되어 안전하게 보관됩니다.</span>
           </p>
           {ledgerError && (
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
@@ -391,17 +392,19 @@ const PublicPassportView = () => {
                     <div className="mt-3 grid gap-2 text-sm text-slate-700">
                       <p className="break-all"><span className="font-semibold">수행자 ID:</span> {actorLabel(entry)}</p>
                       <p><span className="font-semibold">수행자 역할:</span> {actorRoleLabel(entry)}</p>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">증명 요약:</span>
-                        <span className="font-mono text-xs break-all text-slate-800">{hash}</span>
-                        <button
-                          type="button"
-                          onClick={() => copyHash(hash)}
-                          className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                        >
-                          {copiedHash === hash ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                          {copiedHash === hash ? '복사됨' : '복사'}
-                        </button>
+                      <div className="rounded-xl border border-slate-200 bg-white/70 px-3 py-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="font-semibold text-slate-800">증명 요약</span>
+                          <button
+                            type="button"
+                            onClick={() => copyHash(hash)}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                          >
+                            {copiedHash === hash ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                            {copiedHash === hash ? '복사됨' : '복사'}
+                          </button>
+                        </div>
+                        <span className="mt-2 block font-mono text-xs break-all text-slate-800">{hash}</span>
                       </div>
                     </div>
 

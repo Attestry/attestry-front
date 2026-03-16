@@ -152,7 +152,7 @@ const OnboardingView = () => {
                   <div className="text-sm font-semibold tracking-[0.18em] text-slate-500">Step 01</div>
                   <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-950">어떤 유형의 파트너십을 원하시나요?</h2>
                 </div>
-                <div className="text-sm text-slate-500">원하는 운영 역할을 선택하면 다음 단계에서 필요한 입력만 보입니다.</div>
+                <div className="text-sm leading-6 text-slate-500">원하는 운영 역할을 선택하면 다음 단계에서 필요한 입력만 보여줍니다.</div>
               </div>
 
               <div className="mt-6 grid gap-4">
@@ -180,7 +180,7 @@ const OnboardingView = () => {
                 <button
                   disabled={!selectedType}
                   onClick={() => setStep(2)}
-                  className="tracera-button-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  className="tracera-button-primary w-full justify-center disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 >
                   다음 단계로
                   <ChevronRight size={15} />
@@ -191,7 +191,7 @@ const OnboardingView = () => {
 
           {step === 2 && (
             <section className="tracera-page-card p-5 sm:p-6 lg:p-7">
-              <div className="tracera-page-toolbar">
+              <div className="tracera-page-toolbar gap-3">
                 <div>
                   <div className="text-sm font-semibold tracking-[0.18em] text-slate-500">Step 02</div>
                   <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-950">기업 정보와 증빙 자료 입력</h2>

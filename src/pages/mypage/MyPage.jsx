@@ -741,21 +741,39 @@ const MyPage = () => {
         {/* Sidebar Nav */}
         <div className="md:w-72 flex-shrink-0">
           <div className="tracera-page-card overflow-hidden">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                className={`w-full flex items-center gap-3 px-5 py-4 text-left transition-colors ${activeTab === tab.id
-                  ? 'bg-[linear-gradient(90deg,rgba(255,255,255,0.85),rgba(248,250,252,0.95))] text-slate-950 font-semibold border-l-4 border-slate-950'
-                  : 'text-slate-500 hover:bg-slate-50/80 hover:text-slate-900 border-l-4 border-transparent'
-                  }`}
-                onClick={() => setActiveTab(tab.id)}
+            <div className="p-4 md:hidden">
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                메뉴 선택
+              </label>
+              <select
+                value={activeTab}
+                onChange={(e) => setActiveTab(e.target.value)}
+                className="w-full rounded-[1rem] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none"
               >
-                <div className={`${activeTab === tab.id ? 'text-slate-900' : 'text-slate-400'}`}>
-                  {tab.icon}
-                </div>
-                {tab.label}
-              </button>
-            ))}
+                {tabs.map((tab) => (
+                  <option key={tab.id} value={tab.id}>
+                    {tab.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="hidden md:block">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`w-full flex items-center gap-3 px-5 py-4 text-left transition-colors ${activeTab === tab.id
+                    ? 'bg-[linear-gradient(90deg,rgba(255,255,255,0.85),rgba(248,250,252,0.95))] text-slate-950 font-semibold border-l-4 border-slate-950'
+                    : 'text-slate-500 hover:bg-slate-50/80 hover:text-slate-900 border-l-4 border-transparent'
+                    }`}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  <div className={`${activeTab === tab.id ? 'text-slate-900' : 'text-slate-400'}`}>
+                    {tab.icon}
+                  </div>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -772,8 +790,8 @@ const MyPage = () => {
               ) : myMemberships?.length > 0 ? (
                 <div className="space-y-4">
                   {myMemberships.map((membership) => (
-                    <div key={membership.membershipId} className="p-5 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between">
-                      <div>
+                    <div key={membership.membershipId} className="p-5 bg-gray-50 border border-gray-200 rounded-xl flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
                         <div className="text-lg font-bold text-gray-800">{membership.tenantName || '이름 없음'} <span className="text-sm font-normal text-gray-500 ml-2">({membership.groupType || '알 수 없음'})</span></div>
                         <div className="text-sm text-gray-500 mt-1">
                           역할: {membership.roleCodes?.join(', ') || '없음'}
@@ -807,7 +825,7 @@ const MyPage = () => {
 
           {activeTab === 'account' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 animate-in fade-in duration-300">
-              <div className="flex justify-between items-center mb-6">
+              <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                   <Settings className="text-gray-600" />
                   나의 계정 관리
@@ -842,7 +860,7 @@ const MyPage = () => {
                   <div className="grid grid-cols-1 gap-6 max-w-lg">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-700">전화번호</label>
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         <input
                           type="text"
                           value={phoneInput}
@@ -884,7 +902,7 @@ const MyPage = () => {
                             placeholder="새 비밀번호 입력 (대문자 포함 8자 이상)"
                             className="w-full px-4 py-2 bg-white rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-gray-900 outline-none"
                           />
-                          <div className="flex gap-2 pt-2">
+                          <div className="flex flex-col gap-2 pt-2 sm:flex-row">
                             <button
                               className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
                               onClick={handlePasswordUpdate}
