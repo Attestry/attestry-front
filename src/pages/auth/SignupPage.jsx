@@ -4,13 +4,29 @@ import useAuthStore from '../../store/useAuthStore';
 import { ChevronRight, Lock, Mail, Phone, ShieldCheck } from 'lucide-react';
 import TraceraLogo from '../../components/layout/TraceraLogo';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,24}$/;
 const PASSWORD_REGEX = /^(?=.*[A-Z]).{8,}$/;
 const PHONE_REGEX = /^010-\d{4}-\d{4}$/;
 const CODE_REGEX = /^\d{8}$/;
+const PASSWORD_ERROR_MESSAGE = '비밀번호는 8자 이상이며 영문 대문자를 1자 이상 포함해야 합니다.';
+const PHONE_ERROR_MESSAGE = '전화번호는 010-0000-0000 형식으로 입력해주세요.';
+const PHONE_RANGE_ERROR_MESSAGE = '전화번호 가운데 4자리는 0000일 수 없습니다.';
+const INPUT_ERROR_CLASS = '!border-red-400 !bg-red-50 focus:!border-red-500 focus:!ring-red-100';
+
+const formatPhoneNumber = (value) => {
+    const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+};
+
+const hasInvalidPhoneRange = (value) => {
+    const digits = String(value || '').replace(/\D/g, '');
+    return digits.length >= 7 && digits.slice(3, 7) === '0000';
+};
 
 const SignupPage = () => {
-    const [formData, setFormData] = useState({ email: '', password: '', phone: '', code: '' });
+    const [formData, setFormData] = useState({ email: '', password: '', passwordConfirm: '', phone: '', code: '' });
     const [loading, setLoading] = useState(false);
     const [verificationLoading, setVerificationLoading] = useState(false);
     const [confirmLoading, setConfirmLoading] = useState(false);
@@ -37,7 +53,9 @@ const SignupPage = () => {
 
     const emailValid = EMAIL_REGEX.test(formData.email.trim());
     const passwordValid = PASSWORD_REGEX.test(formData.password);
-    const phoneValid = PHONE_REGEX.test(formData.phone.trim());
+    const passwordConfirmValid = !!formData.passwordConfirm && formData.password === formData.passwordConfirm;
+    const phoneRangeValid = !hasInvalidPhoneRange(formData.phone);
+    const phoneValid = PHONE_REGEX.test(formData.phone.trim()) && phoneRangeValid;
     const codeValid = CODE_REGEX.test(formData.code.trim());
 
     const expiresAtMs = verificationMeta?.expiresAt ? new Date(verificationMeta.expiresAt).getTime() : null;
@@ -51,10 +69,45 @@ const SignupPage = () => {
 
     const fieldErrors = useMemo(() => ({
         email: formData.email && !emailValid ? '올바른 이메일 형식을 입력해주세요.' : '',
-        password: formData.password && !passwordValid ? '비밀번호는 8자 이상이며 영문 대문자를 1자 이상 포함해야 합니다.' : '',
-        phone: formData.phone && !phoneValid ? '전화번호는 010-0000-0000 형식으로 입력해주세요.' : '',
+        password: formData.password && !passwordValid ? PASSWORD_ERROR_MESSAGE : '',
+        passwordConfirm: formData.passwordConfirm && !passwordConfirmValid ? '비밀번호가 일치하지 않습니다.' : '',
+        phone: formData.phone && !phoneRangeValid
+            ? PHONE_RANGE_ERROR_MESSAGE
+            : formData.phone && !phoneValid
+                ? PHONE_ERROR_MESSAGE
+                : '',
         code: formData.code && !codeValid ? '인증코드는 8자리 숫자입니다.' : '',
-    }), [codeValid, emailValid, formData.code, formData.email, formData.password, formData.phone, passwordValid, phoneValid]);
+    }), [codeValid, emailValid, formData.code, formData.email, formData.password, formData.passwordConfirm, formData.phone, passwordConfirmValid, passwordValid, phoneRangeValid, phoneValid]);
+
+    const passwordServerError = useMemo(() => {
+        const normalized = String(error || '').trim();
+        if (!normalized) return '';
+        if (normalized.includes('비밀번호')) return normalized;
+        return '';
+    }, [error]);
+
+    const emailServerError = useMemo(() => {
+        const normalized = String(error || '').trim();
+        if (!normalized) return '';
+        if (normalized.includes('이메일')) return normalized;
+        return '';
+    }, [error]);
+
+    const phoneServerError = useMemo(() => {
+        const normalized = String(error || '').trim();
+        if (!normalized) return '';
+        if (normalized.includes('전화번호') || normalized.includes('휴대폰 번호')) return normalized;
+        return '';
+    }, [error]);
+
+    const displayFieldErrors = {
+        ...fieldErrors,
+        email: fieldErrors.email || emailServerError,
+        password: fieldErrors.password || passwordServerError,
+        phone: fieldErrors.phone || phoneServerError,
+    };
+
+    const formError = emailServerError || passwordServerError || phoneServerError ? '' : error;
 
     const resetVerificationState = (nextEmail = '') => {
         setVerificationMeta(null);
@@ -68,6 +121,10 @@ const SignupPage = () => {
         setLocalError(null);
         if (field === 'email') {
             resetVerificationState(value);
+            return;
+        }
+        if (field === 'phone') {
+            setFormData((prev) => ({ ...prev, phone: formatPhoneNumber(value) }));
             return;
         }
         if (field === 'code') {
@@ -102,6 +159,10 @@ const SignupPage = () => {
         try {
             const result = await requestSignupEmailVerification(formData.email.trim());
             if (!result.success) {
+                if (String(result.message || '').includes('이메일')) {
+                    setLocalError(result.message);
+                    return;
+                }
                 setVerificationError(result.message || '인증코드 발송에 실패했습니다.');
                 return;
             }
@@ -181,7 +242,7 @@ const SignupPage = () => {
         }
     };
 
-    const submitDisabled = loading || !emailValid || !passwordValid || !phoneValid || !emailVerified;
+    const submitDisabled = loading || !emailValid || !passwordValid || !passwordConfirmValid || !phoneValid || !emailVerified;
     const codeStatusText = emailVerified
         ? '이메일 인증이 완료되었습니다.'
         : codeExpired
@@ -245,12 +306,12 @@ const SignupPage = () => {
                                         required
                                         value={formData.email}
                                         onChange={(e) => handleFieldChange('email', e.target.value)}
-                                        className="tracera-input"
+                                        className={`tracera-input ${displayFieldErrors.email ? INPUT_ERROR_CLASS : ''}`}
                                         placeholder="name@company.com"
                                         disabled={emailVerified}
                                     />
                                 </div>
-                                {fieldErrors.email && <p className="mt-2 text-sm text-red-600">{fieldErrors.email}</p>}
+                                {displayFieldErrors.email && <p className="mt-2 text-sm text-red-600">{displayFieldErrors.email}</p>}
                             </div>
 
                             <div className="rounded-[1.35rem] border border-slate-200 bg-[linear-gradient(140deg,#ffffff,#f8fbff)] p-4 sm:p-5">
@@ -282,10 +343,10 @@ const SignupPage = () => {
                                             value={formData.code}
                                             onChange={(e) => handleFieldChange('code', e.target.value.replace(/\D/g, '').slice(0, 8))}
                                             placeholder="8자리 인증코드"
-                                            className="tracera-input !mt-0"
+                                            className={`tracera-input !mt-0 ${displayFieldErrors.code ? INPUT_ERROR_CLASS : ''}`}
                                             disabled={!verificationMeta || emailVerified}
                                         />
-                                        {fieldErrors.code && <p className="mt-2 text-sm text-red-600">{fieldErrors.code}</p>}
+                                        {displayFieldErrors.code && <p className="mt-2 text-sm text-red-600">{displayFieldErrors.code}</p>}
                                     </div>
                                     <button
                                         type="button"
@@ -320,13 +381,33 @@ const SignupPage = () => {
                                         required
                                         value={formData.password}
                                         onChange={(e) => handleFieldChange('password', e.target.value)}
-                                        className="tracera-input"
+                                        className={`tracera-input ${displayFieldErrors.password ? INPUT_ERROR_CLASS : ''}`}
                                         placeholder="대문자 포함 8자 이상"
                                     />
                                 </div>
-                                {fieldErrors.password
-                                    ? <p className="mt-2 text-sm text-red-600">{fieldErrors.password}</p>
-                                    : <p className="mt-2 text-sm text-slate-500">비밀번호는 8자 이상이며 영문 대문자를 1자 이상 포함해야 합니다.</p>}
+                                {displayFieldErrors.password
+                                    ? <p className="mt-2 text-sm text-red-600">{displayFieldErrors.password}</p>
+                                    : <p className="mt-2 text-sm text-slate-500">{PASSWORD_ERROR_MESSAGE}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700">비밀번호 확인</label>
+                                <div className="mt-2 relative">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <Lock className="h-5 w-5 text-slate-400" />
+                                    </div>
+                                    <input
+                                        type="password"
+                                        required
+                                        value={formData.passwordConfirm}
+                                        onChange={(e) => handleFieldChange('passwordConfirm', e.target.value)}
+                                        className={`tracera-input ${displayFieldErrors.passwordConfirm ? INPUT_ERROR_CLASS : ''}`}
+                                        placeholder="비밀번호를 다시 입력해주세요"
+                                    />
+                                </div>
+                                {displayFieldErrors.passwordConfirm
+                                    ? <p className="mt-2 text-sm text-red-600">{displayFieldErrors.passwordConfirm}</p>
+                                    : <p className="mt-2 text-sm text-slate-500">입력한 비밀번호를 한 번 더 확인합니다.</p>}
                             </div>
 
                             <div>
@@ -340,16 +421,18 @@ const SignupPage = () => {
                                         required
                                         value={formData.phone}
                                         onChange={(e) => handleFieldChange('phone', e.target.value)}
-                                        className="tracera-input"
+                                        className={`tracera-input ${displayFieldErrors.phone ? INPUT_ERROR_CLASS : ''}`}
                                         placeholder="010-0000-0000"
+                                        inputMode="numeric"
+                                        maxLength={13}
                                     />
                                 </div>
-                                {fieldErrors.phone && <p className="mt-2 text-sm text-red-600">{fieldErrors.phone}</p>}
+                                {displayFieldErrors.phone && <p className="mt-2 text-sm text-red-600">{displayFieldErrors.phone}</p>}
                             </div>
 
-                            {error && (
+                            {formError && (
                                 <div className="rounded-[1.1rem] border border-red-200 bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-600">
-                                    {error}
+                                    {formError}
                                 </div>
                             )}
 
