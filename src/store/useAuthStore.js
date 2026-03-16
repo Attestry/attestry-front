@@ -93,16 +93,18 @@ const useAuthStore = create((set, get) => ({
       localStorage.setItem('accessToken', token);
       if (user) {
         localStorage.setItem('user', JSON.stringify(user));
-        set({ accessToken: token, isAuthenticated: true, user });
+        set({ accessToken: token, isAuthenticated: true, user, error: null });
       } else {
-        set({ accessToken: token, isAuthenticated: true });
+        set({ accessToken: token, isAuthenticated: true, error: null });
       }
     } else {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
-      set({ accessToken: null, isAuthenticated: false, user: null });
+      set({ accessToken: null, isAuthenticated: false, user: null, error: null });
     }
   },
+
+  clearError: () => set({ error: null }),
 
   // Update user context manually if needed
   setUserContext: (userContext) => {

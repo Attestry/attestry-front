@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
 import { ChevronRight, Lock, Mail } from 'lucide-react';
@@ -15,7 +15,7 @@ const LoginPage = () => {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [notice] = useState(() => consumeAuthNotice());
-    const { login, error } = useAuthStore();
+    const { login, error, clearError } = useAuthStore();
     const navigate = useNavigate();
     const location = useLocation();
     const returnTo = new URLSearchParams(location.search).get('returnTo');
@@ -49,6 +49,10 @@ const LoginPage = () => {
     };
 
     const formError = emailServerError || passwordServerError ? '' : error;
+
+    useEffect(() => {
+        clearError();
+    }, [clearError]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
