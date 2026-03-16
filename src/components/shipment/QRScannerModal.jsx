@@ -69,7 +69,9 @@ const QRScannerModal = ({
         }
 
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: 'environment' } },
+            video: isMobile
+                ? { facingMode: { ideal: 'environment' } }
+                : true,
             audio: false
         });
         stream.getTracks().forEach((track) => track.stop());
@@ -103,8 +105,16 @@ const QRScannerModal = ({
             const rearCamera = cameras.find((camera) =>
                 /back|rear|environment/gi.test(`${camera.label || ''}`)
             );
+            const frontCamera = cameras.find((camera) =>
+                /front|user|facetime|webcam|integrated/gi.test(`${camera.label || ''}`)
+            );
             const mobileRearFallback = isMobile && cameras.length > 1 ? cameras[cameras.length - 1]?.id : null;
-            const cameraCandidates = [
+            const desktopCameraCandidates = [
+                frontCamera?.id || null,
+                cameras[0]?.id || null,
+                { facingMode: "user" },
+            ];
+            const mobileCameraCandidates = [
                 { facingMode: { exact: "environment" } },
                 { facingMode: { ideal: "environment" } },
                 { facingMode: "environment" },
@@ -112,7 +122,8 @@ const QRScannerModal = ({
                 mobileRearFallback,
                 cameras[0]?.id || null,
                 { facingMode: "user" },
-            ].filter(Boolean);
+            ];
+            const cameraCandidates = (isMobile ? mobileCameraCandidates : desktopCameraCandidates).filter(Boolean);
 
             let lastError = null;
             for (const cameraCandidate of cameraCandidates) {
@@ -131,9 +142,23 @@ const QRScannerModal = ({
 
             setScannerActive(true);
         } catch (err) {
-            console.error("Error starting scanner:", err);
+            console.error("Error starting scanner:", {
+                name: err?.name,
+                message: err?.message,
+                stack: err?.stack,
+            });
             if (`${err?.message || ''}`.includes('camera_unsupported')) {
                 setScanError("이 브라우저에서는 카메라 접근을 지원하지 않습니다. 이미지 업로드 방식으로 스캔해 주세요.");
+            } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+                setScanError("사용 가능한 카메라를 찾지 못했습니다. 웹캠 연결 상태를 확인해 주세요.");
+            } else if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
+                setScanError("카메라가 다른 앱에서 사용 중입니다. 화상회의 앱 등을 종료한 뒤 다시 시도해 주세요.");
+            } else if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+                setScanError("이 사이트의 카메라 권한이 차단되어 있습니다. 브라우저 사이트 설정에서 카메라를 허용해 주세요.");
+            } else if (err?.name === 'OverconstrainedError' || err?.name === 'ConstraintNotSatisfiedError') {
+                setScanError(isMobile
+                    ? "후면 카메라를 사용할 수 없습니다. 다른 카메라로 다시 시도해 주세요."
+                    : "이 장치에서 사용할 수 있는 웹캠 설정을 찾지 못했습니다. 기본 카메라 연결 상태를 확인해 주세요.");
             } else if (isSafari) {
                 setScanError("Safari에서 카메라 시작에 실패했습니다. 주소창 왼쪽의 카메라 권한을 허용한 뒤 다시 시도해 주세요.");
             } else {
