@@ -13,6 +13,7 @@ const EVENT_LABELS = {
   'SHIPMENT:RETURNED': '제품 반품 처리 완료',
   'SERVICE:SERVICE_CONFIRMED': '서비스 처리 완료',
   'LIFECYCLE:VOIDED': '제품 사용 중지 처리',
+  'LIFECYCLE:RETIRED': '제품 폐기 처리',
   'RISK:STOLEN_FLAGGED': '도난 신고 등록',
   'RISK:LOST_FLAGGED': '분실 신고 등록',
 };

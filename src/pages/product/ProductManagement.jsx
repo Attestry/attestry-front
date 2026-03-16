@@ -287,6 +287,7 @@ const ProductManagement = () => {
         switch (status) {
             case 'ACTIVE': return 'bg-green-100 text-green-700 border-green-200';
             case 'VOIDED': return 'bg-gray-100 text-gray-700 border-gray-200';
+            case 'RETIRED': return 'bg-slate-900 text-white border-slate-900';
             default: return 'bg-gray-100 text-gray-700 border-gray-200';
         }
     };
@@ -364,6 +365,7 @@ const ProductManagement = () => {
                         <option value="">모든 상태</option>
                         <option value="ACTIVE">ACTIVE</option>
                         <option value="VOIDED">VOIDED</option>
+                        <option value="RETIRED">RETIRED</option>
                     </select>
                     <div className="flex flex-col gap-2 rounded-xl border border-transparent bg-gray-50 px-3 py-2 focus-within:ring-2 focus-within:ring-indigo-100 sm:flex-row sm:items-center sm:gap-1 sm:py-1.5">
                         <Calendar size={16} className="text-gray-400 shrink-0" />
