@@ -153,6 +153,11 @@ const TransferReceiveView = () => {
     setScannerOpen(false);
   }, []);
 
+  const closeCompletionModal = React.useCallback(() => {
+    setResult(null);
+    setSuccess('');
+  }, []);
+
   const acceptTransfer = React.useCallback(async ({ acceptMethod, transferIdValue, nonceValue, passwordValue, auto = false }) => {
     setError('');
     setSuccess('');
@@ -384,32 +389,61 @@ const TransferReceiveView = () => {
           </div>
         )}
 
-        {success && (
-          <div className="inline-flex w-full items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            <CheckCircle2 size={16} /> {success}
-          </div>
-        )}
-
-        {result && (
-          <section className="tracera-page-card border border-emerald-200 bg-emerald-50/80 p-5 md:p-6">
-            <h2 className="mb-3 text-lg font-semibold text-emerald-900">이전 완료</h2>
-            <dl className="grid grid-cols-1 gap-2 text-sm text-emerald-900 md:grid-cols-2">
-              <div><dt className="font-medium">Transfer ID</dt><dd>{result.transferId || '-'}</dd></div>
-              <div><dt className="font-medium">Passport ID</dt><dd>{result.passportId || '-'}</dd></div>
-              <div><dt className="font-medium">상태</dt><dd>{result.status || '-'}</dd></div>
-              <div><dt className="font-medium">새 소유자</dt><dd>{result.toOwnerId || '-'}</dd></div>
-            </dl>
-            <div className="mt-4">
-              <Link
-                to="/mypage?tab=assets"
-                className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
-              >
-                내 디지털 자산 보기
-              </Link>
-            </div>
-          </section>
-        )}
       </div>
+
+      {result && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-4">
+          <div className="w-full max-w-xl rounded-[1.9rem] border border-emerald-200 bg-white shadow-[0_36px_90px_-42px_rgba(15,23,42,.45)]">
+            <div className="border-b border-emerald-100 bg-[linear-gradient(145deg,#ecfdf5,#ffffff)] px-6 py-5">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 shadow-[0_14px_30px_-22px_rgba(5,150,105,.7)]">
+                <CheckCircle2 size={28} />
+              </div>
+              <div className="mt-4 text-center">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-700">Transfer Completed</div>
+                <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900">양도가 성공적으로 완료되었습니다</div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  디지털 자산 소유권이 내 계정으로 안전하게 이전되었습니다.
+                  내 디지털 자산에서 최신 보유 상태를 바로 확인할 수 있습니다.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 px-6 py-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 px-4 py-3">
+                  <div className="text-[11px] font-medium text-emerald-800/80">Passport ID</div>
+                  <div className="mt-1 break-all text-sm font-semibold text-slate-900">{result.passportId || '-'}</div>
+                </div>
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 px-4 py-3">
+                  <div className="text-[11px] font-medium text-emerald-800/80">상태</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">{result.status || '-'}</div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                <div className="font-medium text-slate-800">처리 시각</div>
+                <div className="mt-1">{result.completedAt ? new Date(result.completedAt).toLocaleString() : '-'}</div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeCompletionModal}
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  닫기
+                </button>
+                <Link
+                  to="/mypage?tab=assets"
+                  className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                >
+                  내 디지털 자산 보기
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <QRScannerModal
         isOpen={scannerOpen}
