@@ -15,9 +15,10 @@ const MainLayout = () => {
   const homePath = isAuthenticated ? getRoleLandingPath(user?.role) : '/';
   const userQuickLinks = [
     { to: '/transfer/receive', label: '소유권 이전 받기' },
-    { to: '/purchase-claims', label: '제품 등록 신청' },
-    { to: '/service-request/providers', label: '서비스 신청' },
+    { to: '/purchase-claims', label: '제품 등록 신청', userOnly: true },
+    { to: '/service-request/providers', label: '서비스 신청', userOnly: true },
   ];
+  const visibleQuickLinks = userQuickLinks.filter((item) => !isAuthenticated || !item.userOnly || isUserProfile);
   const getFeatureHref = (to) => (isAuthenticated ? to : `/login?returnTo=${encodeURIComponent(to)}`);
 
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
@@ -31,7 +32,7 @@ const MainLayout = () => {
           </div>
 
           <div className="hidden items-center gap-2 md:flex">
-            {userQuickLinks.map((item) => (
+            {visibleQuickLinks.map((item) => (
               <Link key={item.to} to={getFeatureHref(item.to)} className="px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-950">
                 {item.label}
               </Link>
@@ -66,7 +67,7 @@ const MainLayout = () => {
         {isMobileMenuOpen && (
           <div className="border-t border-slate-200/80 bg-[rgba(248,246,241,0.96)] px-4 py-4 md:hidden">
             <div className="mx-auto flex max-w-7xl flex-col gap-3">
-              {userQuickLinks.map((item) => (
+              {visibleQuickLinks.map((item) => (
                 <Link key={item.to} to={getFeatureHref(item.to)} onClick={closeMobileMenu} className="tracera-panel-soft px-4 py-3 text-sm font-medium text-slate-700">
                   {item.label}
                 </Link>

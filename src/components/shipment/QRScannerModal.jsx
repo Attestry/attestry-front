@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { X, Camera, Upload, AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
 
@@ -14,7 +14,6 @@ const QRScannerModal = ({
 }) => {
     const [scanError, setScanError] = useState(null);
     const [scannerActive, setScannerActive] = useState(false);
-    const scannerRef = useRef(null);
     const html5QrCodeRef = useRef(null);
     const fileInputRef = useRef(null);
     const isStartingRef = useRef(false);
@@ -37,20 +36,40 @@ const QRScannerModal = ({
     const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
     const isSafari = /Safari/i.test(userAgent) && !/Chrome|CriOS|EdgiOS|FxiOS|Android/i.test(userAgent);
     const isMobile = /Android|iPhone|iPad|iPod/i.test(userAgent);
-
-    useEffect(() => {
-        if (isOpen) {
-            void startScanner();
-        } else {
-            void stopScanner();
+    const requestCameraPermission = useCallback(async () => {
+        if (!navigator?.mediaDevices?.getUserMedia) {
+            throw new Error('camera_unsupported');
         }
 
-        return () => {
-            void stopScanner();
-        };
-    }, [isOpen]);
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false
+        });
+        stream.getTracks().forEach((track) => track.stop());
+    }, []);
 
-    const startWithConfig = async (html5QrCode, cameraConfig, config) => {
+    const stopScanner = useCallback(async () => {
+        if (html5QrCodeRef.current) {
+            try {
+                if (html5QrCodeRef.current.isScanning) {
+                    await html5QrCodeRef.current.stop();
+                }
+                await html5QrCodeRef.current.clear();
+            } catch (err) {
+                console.error("Error stopping scanner:", err);
+            } finally {
+                html5QrCodeRef.current = null;
+            }
+        }
+        setScannerActive(false);
+    }, []);
+
+    const handleSuccess = useCallback((decodedText) => {
+        void stopScanner();
+        onScanSuccess(decodedText);
+    }, [onScanSuccess, stopScanner]);
+
+    const startWithConfig = useCallback(async (html5QrCode, cameraConfig, config) => {
         await html5QrCode.start(
             cameraConfig,
             config,
@@ -61,21 +80,9 @@ const QRScannerModal = ({
                 // Ignore noisy scan errors from the library while camera is running.
             }
         );
-    };
+    }, [handleSuccess]);
 
-    const requestCameraPermission = async () => {
-        if (!navigator?.mediaDevices?.getUserMedia) {
-            throw new Error('camera_unsupported');
-        }
-
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: 'environment' } },
-            audio: false
-        });
-        stream.getTracks().forEach((track) => track.stop());
-    };
-
-    const startScanner = async () => {
+    const startScanner = useCallback(async () => {
         if (isStartingRef.current) return;
         isStartingRef.current = true;
         setScanError(null);
@@ -103,31 +110,64 @@ const QRScannerModal = ({
             const rearCamera = cameras.find((camera) =>
                 /back|rear|environment/gi.test(`${camera.label || ''}`)
             );
+            const frontCamera = cameras.find((camera) =>
+                /front|user|face|webcam|facetime/gi.test(`${camera.label || ''}`)
+            );
             const mobileRearFallback = isMobile && cameras.length > 1 ? cameras[cameras.length - 1]?.id : null;
-            const cameraCandidates = [
-                { facingMode: { exact: "environment" } },
-                { facingMode: { ideal: "environment" } },
-                { facingMode: "environment" },
-                rearCamera?.id || null,
-                mobileRearFallback,
-                cameras[0]?.id || null,
-                { facingMode: "user" },
-            ].filter(Boolean);
+            const desktopFrontFallback = !isMobile && cameras.length > 1 ? cameras[0]?.id : null;
+            const cameraCandidates = isMobile
+                ? [
+                    { facingMode: { exact: 'environment' } },
+                    { facingMode: { ideal: 'environment' } },
+                    { facingMode: 'environment' },
+                    rearCamera?.id || null,
+                    mobileRearFallback,
+                    cameras[0]?.id || null,
+                    frontCamera?.id || null,
+                    { facingMode: 'user' },
+                ].filter(Boolean)
+                : [
+                    { facingMode: { exact: 'user' } },
+                    { facingMode: { ideal: 'user' } },
+                    { facingMode: 'user' },
+                    frontCamera?.id || null,
+                    desktopFrontFallback,
+                    cameras[0]?.id || null,
+                    rearCamera?.id || null,
+                    { facingMode: 'environment' },
+                ].filter(Boolean);
 
             let lastError = null;
+            let startedScanner = null;
             for (const cameraCandidate of cameraCandidates) {
+                const html5QrCode = new Html5Qrcode("qr-reader", {
+                    formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
+                });
+                html5QrCodeRef.current = html5QrCode;
                 try {
                     await startWithConfig(html5QrCode, cameraCandidate, config);
+                    startedScanner = html5QrCode;
                     lastError = null;
                     break;
                 } catch (error) {
                     lastError = error;
+                    try {
+                        await html5QrCode.clear();
+                    } catch (clearError) {
+                        console.error("Error clearing scanner after failed start:", clearError);
+                    } finally {
+                        if (html5QrCodeRef.current === html5QrCode) {
+                            html5QrCodeRef.current = null;
+                        }
+                    }
                 }
             }
 
             if (lastError) {
                 throw lastError;
             }
+
+            html5QrCodeRef.current = startedScanner;
 
             setScannerActive(true);
         } catch (err) {
@@ -143,28 +183,19 @@ const QRScannerModal = ({
         } finally {
             isStartingRef.current = false;
         }
-    };
+    }, [isMobile, isSafari, requestCameraPermission, startWithConfig, stopScanner]);
 
-    const stopScanner = async () => {
-        if (html5QrCodeRef.current) {
-            try {
-                if (html5QrCodeRef.current.isScanning) {
-                    await html5QrCodeRef.current.stop();
-                }
-                await html5QrCodeRef.current.clear();
-            } catch (err) {
-                console.error("Error stopping scanner:", err);
-            } finally {
-                html5QrCodeRef.current = null;
-            }
+    useEffect(() => {
+        if (isOpen) {
+            void startScanner();
+        } else {
+            void stopScanner();
         }
-        setScannerActive(false);
-    };
 
-    const handleSuccess = (decodedText) => {
-        stopScanner();
-        onScanSuccess(decodedText);
-    };
+        return () => {
+            void stopScanner();
+        };
+    }, [isOpen, startScanner, stopScanner]);
 
     const handleFileChange = async (e) => {
         const file = e.target.files[0];
@@ -184,37 +215,37 @@ const QRScannerModal = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] overflow-y-auto px-3 pb-3 pt-[max(env(safe-area-inset-top),0.75rem)] sm:flex sm:items-center sm:justify-center sm:p-4">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={onClose} />
-            <div className="relative w-full max-w-4xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_40px_100px_-36px_rgba(15,23,42,.28)] animate-in fade-in duration-300">
+            <div className="relative mx-auto w-full max-w-4xl overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-[0_40px_100px_-36px_rgba(15,23,42,.28)] animate-in fade-in duration-300 sm:rounded-[2rem]">
                 <div className={`pointer-events-none absolute right-0 top-0 h-56 w-56 rounded-full blur-3xl ${accentGlow}`} />
                 <div className="pointer-events-none absolute bottom-0 left-0 h-52 w-52 rounded-full bg-slate-200/40 blur-3xl" />
 
-                <div className={`relative border-b border-slate-100 px-6 py-5 md:px-7 ${accentHeader}`}>
+                <div className={`relative border-b border-slate-100 px-4 py-4 sm:px-6 sm:py-5 md:px-7 ${accentHeader}`}>
                     <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className={`rounded-2xl p-3 text-white ${accentIcon}`}>
-                                <Camera size={20} />
+                        <div className="flex min-w-0 items-center gap-3">
+                            <div className={`rounded-2xl p-2.5 text-white sm:p-3 ${accentIcon}`}>
+                                <Camera size={18} />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                                 <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold tracking-[0.16em] ${accentBadge}`}>
                                     <Sparkles size={12} />
                                     LIVE SCANNER
                                 </div>
-                                <h2 className="mt-3 text-xl font-bold leading-none text-slate-950">{title}</h2>
+                                <h2 className="mt-3 text-lg font-bold leading-tight text-slate-950 sm:text-xl">{title}</h2>
                                 <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
                             </div>
                         </div>
                         <button
                             onClick={onClose}
-                            className="rounded-full border border-slate-200 bg-white p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-900"
+                            className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-900"
                         >
                             <X size={20} />
                         </button>
                     </div>
                 </div>
 
-                <div className="relative grid gap-5 p-6 md:grid-cols-[minmax(0,1fr)_280px] md:p-7">
+                <div className="relative grid gap-4 p-4 sm:gap-5 sm:p-6 md:grid-cols-[minmax(0,1fr)_280px] md:p-7">
                     <div className="relative overflow-hidden rounded-[1.8rem] border border-slate-200 bg-slate-900 shadow-[0_24px_80px_-40px_rgba(15,23,42,.28)]">
                         <div id="qr-reader" className="aspect-square w-full md:aspect-auto md:min-h-[420px]" />
 
@@ -252,19 +283,19 @@ const QRScannerModal = ({
                         )}
                     </div>
 
-                    <div className="flex flex-col gap-4">
-                        <div className="rounded-[1.75rem] border border-slate-200 bg-[linear-gradient(180deg,#fffdf9,#ffffff)] p-5 text-slate-900">
+                    <div className="flex flex-col gap-3 sm:gap-4">
+                        <div className="rounded-[1.5rem] border border-slate-200 bg-[linear-gradient(180deg,#fffdf9,#ffffff)] p-4 text-slate-900 sm:rounded-[1.75rem] sm:p-5">
                             <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${accentBadge}`}>
                                 <Sparkles size={13} />
                                 실시간 인식
                             </div>
-                            <h3 className="mt-4 text-lg font-semibold">프레임 안에 QR을 맞춰주세요</h3>
+                            <h3 className="mt-3 text-base font-semibold sm:mt-4 sm:text-lg">프레임 안에 QR을 맞춰주세요</h3>
                             <p className="mt-2 text-sm leading-6 text-slate-500">
                                 조명이 어두우면 밝은 곳으로 이동하거나, 이미지 파일 업로드 방식을 사용해도 됩니다.
                             </p>
                         </div>
 
-                        <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 text-sm text-slate-600">
+                        <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 text-sm text-slate-600 sm:rounded-[1.75rem] sm:p-5">
                             <p className="leading-6">{tip}</p>
                         </div>
 
