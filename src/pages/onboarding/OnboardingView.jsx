@@ -150,9 +150,9 @@ const OnboardingView = () => {
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <div className="text-sm font-semibold tracking-[0.18em] text-slate-500">Step 01</div>
-                  <h2 className="mt-2 whitespace-nowrap text-2xl font-semibold tracking-[-0.04em] text-slate-950">어떤 유형의 파트너십을 원하시나요?</h2>
+                  <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-950 sm:whitespace-nowrap">어떤 유형의 파트너십을 원하시나요?</h2>
                 </div>
-                <div className="whitespace-nowrap text-sm leading-6 text-slate-500">원하는 운영 역할을 선택하면 다음 단계에서 필요한 입력만 보여줍니다.</div>
+                <div className="text-sm leading-6 text-slate-500 sm:whitespace-nowrap">원하는 운영 역할을 선택하면 다음 단계에서 필요한 입력만 보여줍니다.</div>
               </div>
 
               <div className="mt-6 grid gap-4">
@@ -169,7 +169,7 @@ const OnboardingView = () => {
                       </div>
                       <div className="min-w-0">
                         <h3 className="text-lg font-semibold tracking-[-0.03em] text-slate-950">{option.title}</h3>
-                        <p className="mt-2 whitespace-nowrap text-sm leading-7 text-slate-600">{option.desc}</p>
+                        <p className="mt-2 text-sm leading-7 text-slate-600">{option.desc}</p>
                       </div>
                     </div>
                   </button>
