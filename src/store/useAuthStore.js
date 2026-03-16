@@ -125,6 +125,34 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
+  requestSignupEmailVerification: async (email) => {
+    try {
+      set({ error: null });
+      const data = await apiFetchJson('/auth/signup/email-verifications', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }, { fallbackMessage: normalizeApiErrorMessage('', undefined) });
+      return { success: true, data };
+    } catch (error) {
+      set({ error: error.message });
+      return { success: false, message: error.message };
+    }
+  },
+
+  confirmSignupEmailVerification: async (email, code) => {
+    try {
+      set({ error: null });
+      const data = await apiFetchJson('/auth/signup/email-verifications/confirm', {
+        method: 'POST',
+        body: JSON.stringify({ email, code }),
+      }, { fallbackMessage: normalizeApiErrorMessage('', undefined) });
+      return { success: true, data };
+    } catch (error) {
+      set({ error: error.message });
+      return { success: false, message: error.message };
+    }
+  },
+
   login: async (email, password, tenantId = null) => {
     try {
       set({ error: null });
