@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Building2, Copy, Package, QrCode, RefreshCw, Search, X } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Building2, CheckCircle2, Copy, Package, QrCode, RefreshCw, Search, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
@@ -118,6 +118,8 @@ const RetailBrandInventoryDetail = () => {
   const [transferResult, setTransferResult] = useState(null);
   const [transferCancelLoading, setTransferCancelLoading] = useState(false);
   const [transferNow, setTransferNow] = useState(Date.now());
+  const [transferCompletionInfo, setTransferCompletionInfo] = useState(null);
+  const transferResolutionReasonRef = useRef('');
 
   const brandName = location.state?.brandName || '브랜드';
   const partnerLinkId = location.state?.partnerLinkId || '-';
@@ -188,6 +190,8 @@ const RetailBrandInventoryDetail = () => {
     setTransferError('');
     setTransferResult(null);
     setTransferCancelLoading(false);
+    setTransferCompletionInfo(null);
+    transferResolutionReasonRef.current = '';
   };
 
   const fetchPendingTransfer = async (passportId) => {
@@ -211,6 +215,8 @@ const RetailBrandInventoryDetail = () => {
     setTransferError('');
     setTransferResult(null);
     setTransferCancelLoading(false);
+    setTransferCompletionInfo(null);
+    transferResolutionReasonRef.current = '';
     setTransferResolveLoading(true);
 
     const serverExisting = await fetchPendingTransfer(product.passportId);
@@ -247,6 +253,7 @@ const RetailBrandInventoryDetail = () => {
     setTransferCancelLoading(true);
     setTransferError('');
     try {
+      transferResolutionReasonRef.current = 'cancel';
       await fetchWithAuth(`/workflows/transfers/${encodeURIComponent(transferResult.transferId)}/cancel`, {
         method: 'POST',
       });
@@ -267,6 +274,8 @@ const RetailBrandInventoryDetail = () => {
     setTransferError('');
     setTransferResult(null);
     setTransferCancelLoading(false);
+    setTransferCompletionInfo(null);
+    transferResolutionReasonRef.current = '';
 
     try {
       const oneTimeCode = transferMode === 'CODE' ? generateOneTimeCode() : null;
@@ -334,6 +343,7 @@ const RetailBrandInventoryDetail = () => {
     const sync = async () => {
       setTransferNow(Date.now());
       if (new Date(transferResult.expiresAt).getTime() <= Date.now()) {
+        transferResolutionReasonRef.current = 'expired';
         clearActiveTransfer(user?.tenantId, selectedProduct.passportId);
         setTransferResult(null);
         setTransferMode('QR');
@@ -347,11 +357,26 @@ const RetailBrandInventoryDetail = () => {
         setTransferMode('QR');
         fetchWithAuth(requestUrl)
           .then((data) => {
-            setProducts(Array.isArray(data?.content) ? data.content : []);
+            const nextProducts = Array.isArray(data?.content) ? data.content : [];
+            setProducts(nextProducts);
             setTotalPages(Math.max(1, data?.totalPages || 1));
             setTotalElements(data?.totalElements || 0);
           })
           .catch(() => {});
+
+        const resolutionReason = transferResolutionReasonRef.current;
+        if (!resolutionReason) {
+          setTransferCompletionInfo({
+            transferId: transferResult.transferId,
+            mode: transferResult.mode,
+            serialNumber: selectedProduct.serialNumber || '-',
+            modelName: selectedProduct.modelName || '-',
+            completedAt: new Date().toISOString(),
+          });
+          setTransferError('');
+          return;
+        }
+        transferResolutionReasonRef.current = '';
       }
     };
 
@@ -532,6 +557,48 @@ const RetailBrandInventoryDetail = () => {
 
               {transferResolveLoading ? (
                 <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-8 text-sm text-gray-500">기존 양도 수단을 확인하는 중...</div>
+              ) : transferCompletionInfo ? (
+                <div className="space-y-4 rounded-[1.75rem] border border-emerald-200 bg-[linear-gradient(160deg,#effcf6_0%,#ffffff_72%)] p-5 sm:p-6">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 shadow-[0_14px_30px_-22px_rgba(5,150,105,.7)]">
+                    <CheckCircle2 size={28} />
+                  </div>
+                  <div className="space-y-2 text-center">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-700">Transfer Completed</div>
+                    <div className="text-2xl font-bold tracking-tight text-slate-900">양도가 완료되었습니다</div>
+                    <p className="mx-auto max-w-xl text-sm leading-6 text-slate-600">
+                      고객이 {transferCompletionInfo.mode === 'QR' ? 'QR 스캔' : '수락코드 입력'}으로 소유권 이전을 완료했습니다.
+                      리테일 보유 제품 목록에서도 해당 자산이 즉시 정리됩니다.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-emerald-100 bg-white/95 px-4 py-3">
+                      <div className="text-[11px] text-slate-500">시리얼 번호</div>
+                      <div className="mt-1 break-all text-base font-semibold text-slate-900">
+                        {transferCompletionInfo.serialNumber}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-100 bg-white/95 px-4 py-3">
+                      <div className="text-[11px] text-slate-500">모델명</div>
+                      <div className="mt-1 break-words text-base font-semibold text-slate-900">
+                        {transferCompletionInfo.modelName}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-emerald-100 bg-white/90 px-4 py-3 text-sm text-slate-600">
+                    <div className="font-medium text-slate-800">처리 시각</div>
+                    <div className="mt-1">{new Date(transferCompletionInfo.completedAt).toLocaleString()}</div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={closeTransferModal}
+                    className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_-24px_rgba(5,150,105,.85)] transition hover:bg-emerald-700"
+                  >
+                    확인
+                  </button>
+                </div>
               ) : transferResult ? (
                 <div className="space-y-4">
                   {transferResult.mode === 'QR' ? (

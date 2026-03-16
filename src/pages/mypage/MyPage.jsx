@@ -638,13 +638,10 @@ const MyPage = () => {
       setTransferCreateResult(null);
       setTransferShareQrImage('');
 
-      const refreshedPassports = await loadMyPassports();
-      if (cancelled) return;
-
-      const stillOwned = refreshedPassports.some((passport) => passport.passportId === transferModalPassport.passportId);
       const resolutionReason = transferResolutionReasonRef.current;
 
-      if (!stillOwned && !resolutionReason) {
+      void loadMyPassports();
+      if (!resolutionReason) {
         setTransferCompletionInfo({
           transferId: activeTransfer.transferId,
           mode: activeTransfer.mode,
@@ -654,10 +651,6 @@ const MyPage = () => {
         });
         setTransferCreateError('');
         return;
-      }
-
-      if (!resolutionReason) {
-        setTransferCreateError('양도 요청 상태가 변경되었습니다. 다시 확인해주세요.');
       }
       transferResolutionReasonRef.current = '';
     };
