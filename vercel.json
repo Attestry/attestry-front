@@ -83,11 +83,11 @@
     },
     {
       "source": "/api/ledgers",
-      "destination": "https://ledger.proveny.live/ledgers"
+      "destination": "https://api.proveny.live/ledgers"
     },
     {
       "source": "/api/ledgers/:path*",
-      "destination": "https://ledger.proveny.live/ledgers/:path*"
+      "destination": "https://api.proveny.live/ledgers/:path*"
     },
     {
       "source": "/(.*)",
