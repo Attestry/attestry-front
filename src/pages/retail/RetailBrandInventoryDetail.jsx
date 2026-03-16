@@ -203,7 +203,7 @@ const RetailBrandInventoryDetail = () => {
       if (!response) return null;
       return toTransferState(response);
     } catch (e) {
-      if (e?.status === 204) return null;
+      if (e?.status === 204 || e?.status === 403 || e?.status === 404) return null;
       return undefined;
     }
   };

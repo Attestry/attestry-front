@@ -431,7 +431,7 @@ const MyPage = () => {
       const data = await apiFetchJson(`/workflows/passports/${encodeURIComponent(passportId)}/transfers/pending`, {}, { token: accessToken });
       return toTransferState(data);
     } catch (error) {
-      if (error?.status === 204) return null;
+      if (error?.status === 204 || error?.status === 403 || error?.status === 404) return null;
       return undefined;
     }
   }, [accessToken]);
