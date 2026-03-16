@@ -54,6 +54,23 @@ const assetActionDangerSoftClassName = `${assetActionPrimaryClassName}`;
 const assetLedgerButtonClassName = `${assetActionPrimaryClassName}`;
 const assetRiskLinkClassName = 'inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-medium tracking-[0.01em] text-slate-500 transition-colors duration-200 hover:border-slate-300 hover:text-slate-800';
 const assetActionDisabledClassName = `${assetActionButtonClassName} cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400`;
+const PHONE_REGEX = /^010-\d{4}-\d{4}$/;
+const PHONE_ERROR_MESSAGE = '전화번호는 010-0000-0000 형식으로 입력해주세요.';
+const PHONE_RANGE_ERROR_MESSAGE = '전화번호 가운데 4자리는 0000일 수 없습니다.';
+const PASSWORD_REGEX = /^(?=.*[A-Z]).{8,}$/;
+const PASSWORD_ERROR_MESSAGE = '비밀번호는 8자 이상이며 영문 대문자를 1자 이상 포함해야 합니다.';
+
+const formatPhoneNumber = (value) => {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+};
+
+const hasInvalidPhoneRange = (value) => {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.length >= 7 && digits.slice(3, 7) === '0000';
+};
 
 const MyPage = () => {
   const navigate = useNavigate();
@@ -70,6 +87,7 @@ const MyPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [phoneInput, setPhoneInput] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [isUpdatingPhone, setIsUpdatingPhone] = useState(false);
   const [selectedApp, setSelectedApp] = useState(null);
   const [selectedPurchaseClaim, setSelectedPurchaseClaim] = useState(null);
@@ -92,7 +110,6 @@ const MyPage = () => {
   const [transferCreating, setTransferCreating] = useState(false);
   const [transferCreateError, setTransferCreateError] = useState('');
   const [transferNotice, setTransferNotice] = useState('');
-  const [transferCreateResult, setTransferCreateResult] = useState(null);
   const [activeTransfer, setActiveTransfer] = useState(null);
   const [transferNow, setTransferNow] = useState(Date.now());
   const [transferShareQrImage, setTransferShareQrImage] = useState('');
@@ -113,9 +130,13 @@ const MyPage = () => {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const transferStorageUserKey = myAccount?.userId || user?.userId || user?.id || '';
   const transferResolutionReasonRef = useRef('');
+  const phoneRangeValid = !hasInvalidPhoneRange(phoneInput);
+  const phoneValid = PHONE_REGEX.test(phoneInput.trim()) && phoneRangeValid;
+  const newPasswordValid = PASSWORD_REGEX.test(newPassword);
 
   const loadMyPassports = useCallback(async () => {
     if (!accessToken) {
@@ -162,21 +183,36 @@ const MyPage = () => {
         fetchMyAccount().then(res => {
           if (res.success && res.data) {
             setPhoneInput(res.data.phone || '');
+            setPhoneError('');
           }
         })
       ]);
       setLoading(false);
     };
     loadData();
-  }, [accessToken, fetchMyMemberships, listMyApplications, fetchMyAccount]);
+  }, [accessToken, fetchMyMemberships, listMyApplications, fetchMyAccount, loadMyPassports]);
 
   const handlePhoneUpdate = async () => {
     if (!phoneInput || isUpdatingPhone) return;
+    if (!phoneRangeValid) {
+      setPhoneError(PHONE_RANGE_ERROR_MESSAGE);
+      return;
+    }
+    if (!phoneValid) {
+      setPhoneError(PHONE_ERROR_MESSAGE);
+      return;
+    }
     setIsUpdatingPhone(true);
     const result = await updateMyAccount({ phone: phoneInput });
     if (!result.success) {
-      alert(result.message || '전화번호 변경에 실패했습니다.');
+      const nextError = result.message || '전화번호 변경에 실패했습니다.';
+      if (nextError.includes('전화번호') || nextError.includes('휴대폰 번호')) {
+        setPhoneError(nextError);
+      } else {
+        alert(nextError);
+      }
     } else {
+      setPhoneError('');
       alert('전화번호가 성공적으로 변경되었습니다.');
     }
     setIsUpdatingPhone(false);
@@ -195,15 +231,25 @@ const MyPage = () => {
 
   const handlePasswordUpdate = async () => {
     if (!currentPassword || !newPassword || isUpdatingPassword) return;
+    if (!newPasswordValid) {
+      setPasswordError(PASSWORD_ERROR_MESSAGE);
+      return;
+    }
     setIsUpdatingPassword(true);
     const result = await updateMyAccount({ currentPassword, newPassword });
     if (!result.success) {
-      alert(result.message || '비밀번호 변경에 실패했습니다.');
+      const nextError = result.message || '비밀번호 변경에 실패했습니다.';
+      if (nextError.includes('비밀번호')) {
+        setPasswordError(nextError);
+      } else {
+        alert(nextError);
+      }
     } else {
       alert('비밀번호가 성공적으로 변경되었습니다.');
       setIsChangingPassword(false);
       setCurrentPassword('');
       setNewPassword('');
+      setPasswordError('');
     }
     setIsUpdatingPassword(false);
   };
@@ -220,7 +266,6 @@ const MyPage = () => {
     setTransferModalPassport(passport);
     setTransferCreateError('');
     setTransferNotice('');
-    setTransferCreateResult(null);
     setActiveTransfer(null);
     setTransferShareQrImage('');
     setTransferCompletionInfo(null);
@@ -240,7 +285,6 @@ const MyPage = () => {
           : null);
 
     setActiveTransfer(existing);
-    setTransferCreateResult(existing);
     setTransferCreateMode(existing?.mode || 'QR');
 
     if (existing) {
@@ -432,7 +476,7 @@ const MyPage = () => {
 
   const transferStorageKey = (passportId, userKey) => `active_transfer_${userKey}_${passportId}`;
 
-  const transferStorageKeysForPassport = (passportId, userKey) => {
+  const transferStorageKeysForPassport = useCallback((passportId, userKey) => {
     if (!passportId) return [];
     const normalizedUserKey = String(userKey || '').trim();
     const keys = normalizedUserKey ? [transferStorageKey(passportId, normalizedUserKey)] : [];
@@ -445,7 +489,7 @@ const MyPage = () => {
       if (!keys.includes(key)) keys.push(key);
     }
     return keys;
-  };
+  }, []);
 
   const readActiveTransfer = (passportId, userKey) => {
     if (!passportId) return null;
@@ -469,19 +513,19 @@ const MyPage = () => {
     return null;
   };
 
-  const saveActiveTransfer = (passportId, userKey, value) => {
+  const saveActiveTransfer = useCallback((passportId, userKey, value) => {
     if (!passportId || !value) return;
     const normalizedUserKey = String(userKey || '').trim() || 'anonymous';
     localStorage.setItem(transferStorageKey(passportId, normalizedUserKey), JSON.stringify(value));
-  };
+  }, []);
 
-  const clearActiveTransfer = (passportId, userKey) => {
+  const clearActiveTransfer = useCallback((passportId, userKey) => {
     if (!passportId) return;
     const keys = transferStorageKeysForPassport(passportId, userKey);
     keys.forEach((key) => localStorage.removeItem(key));
-  };
+  }, [transferStorageKeysForPassport]);
 
-  const toTransferState = (data, oneTimeCode = null) => ({
+  const toTransferState = useCallback((data, oneTimeCode = null) => ({
     ...data,
     mode: String(data?.acceptMethod || data?.mode || '').toUpperCase() || 'QR',
     oneTimeCode,
@@ -489,7 +533,7 @@ const MyPage = () => {
     shareUrl: String(data?.acceptMethod || data?.mode || '').toUpperCase() === 'QR'
       ? `${window.location.origin}/t/${encodeURIComponent(data.transferId)}/${encodeURIComponent(data.qrNonce || '')}`
       : `${window.location.origin}/t/${encodeURIComponent(data.transferId)}`,
-  });
+  }), []);
 
   const fetchPendingTransfer = useCallback(async (passportId) => {
     if (!passportId || !accessToken) return null;
@@ -500,7 +544,7 @@ const MyPage = () => {
       if (error?.status === 204 || error?.status === 403 || error?.status === 404) return null;
       return undefined;
     }
-  }, [accessToken]);
+  }, [accessToken, toTransferState]);
 
   const formatRemaining = (ms) => {
     const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -531,7 +575,6 @@ const MyPage = () => {
 
     setTransferCreating(true);
     setTransferCreateError('');
-    setTransferCreateResult(null);
     setActiveTransfer(null);
     setTransferShareQrImage('');
     setTransferCompletionInfo(null);
@@ -554,7 +597,6 @@ const MyPage = () => {
         : `${baseUrl}/${encodeURIComponent(data.transferId)}`;
 
       const result = toTransferState({ ...data, acceptMethod: transferCreateMode }, password);
-      setTransferCreateResult(result);
       setActiveTransfer(result);
       saveActiveTransfer(transferModalPassport.passportId, transferStorageUserKey, result);
 
@@ -579,7 +621,6 @@ const MyPage = () => {
             ? { ...pending, oneTimeCode: localExisting.oneTimeCode || null }
             : pending;
           setActiveTransfer(mergedPending);
-          setTransferCreateResult(mergedPending);
           setTransferCreateMode(mergedPending.mode);
           saveActiveTransfer(transferModalPassport.passportId, transferStorageUserKey, mergedPending);
           if (mergedPending.mode === 'QR') {
@@ -605,7 +646,6 @@ const MyPage = () => {
           const localExisting = readActiveTransfer(transferModalPassport.passportId, transferStorageUserKey);
           if (localExisting) {
             setActiveTransfer(localExisting);
-            setTransferCreateResult(localExisting);
             setTransferCreateMode(localExisting.mode);
             if (localExisting.mode === 'QR' && localExisting.shareUrl) {
               try {
@@ -642,7 +682,6 @@ const MyPage = () => {
       }, { token: accessToken });
       clearActiveTransfer(transferModalPassport.passportId, transferStorageUserKey);
       setActiveTransfer(null);
-      setTransferCreateResult(null);
       setTransferShareQrImage('');
       setTransferCreateError('');
       setTransferNotice('양도 요청이 정상적으로 취소되었습니다.');
@@ -663,11 +702,10 @@ const MyPage = () => {
       transferResolutionReasonRef.current = 'expired';
       clearActiveTransfer(transferModalPassport.passportId, transferStorageUserKey);
       setActiveTransfer(null);
-      setTransferCreateResult(null);
       setTransferShareQrImage('');
       setTransferCreateError('기존 양도 요청이 만료되었습니다. 새로 생성해주세요.');
     }
-  }, [activeTransfer, transferNow, transferModalPassport]);
+  }, [activeTransfer, clearActiveTransfer, transferNow, transferModalPassport, transferStorageUserKey]);
 
   useEffect(() => {
     if (!transferModalPassport?.passportId || !activeTransfer?.transferId || transferResolveLoading || transferCreating || transferCompletionInfo) {
@@ -693,7 +731,6 @@ const MyPage = () => {
 
         if (mergedPending.transferId !== activeTransfer.transferId || mergedPending.expiresAt !== activeTransfer.expiresAt) {
           setActiveTransfer(mergedPending);
-          setTransferCreateResult(mergedPending);
           saveActiveTransfer(transferModalPassport.passportId, transferStorageUserKey, mergedPending);
         }
         return;
@@ -701,7 +738,6 @@ const MyPage = () => {
 
       clearActiveTransfer(transferModalPassport.passportId, transferStorageUserKey);
       setActiveTransfer(null);
-      setTransferCreateResult(null);
       setTransferShareQrImage('');
 
       const resolutionReason = transferResolutionReasonRef.current;
@@ -738,6 +774,8 @@ const MyPage = () => {
     transferCreating,
     transferModalPassport,
     transferResolveLoading,
+    clearActiveTransfer,
+    saveActiveTransfer,
     transferStorageUserKey,
   ]);
 
@@ -805,7 +843,7 @@ const MyPage = () => {
   };
   const isRiskActive = (passport) => String(passport?.riskFlag || 'NONE').toUpperCase() !== 'NONE';
   const isRetiredPassport = (passport) => String(passport?.assetState || '').toUpperCase() === 'RETIRED';
-  const displayPurchaseClaims = myPurchaseClaims || [];
+  const displayPurchaseClaims = useMemo(() => myPurchaseClaims || [], [myPurchaseClaims]);
   const filteredPurchaseClaims = useMemo(() => {
     const keyword = purchaseClaimSearch.trim().toLowerCase();
     if (!keyword) return displayPurchaseClaims;
@@ -1012,9 +1050,14 @@ const MyPage = () => {
                         <input
                           type="text"
                           value={phoneInput}
-                          onChange={(e) => setPhoneInput(e.target.value)}
-                          className="flex-1 px-4 py-2 bg-white rounded-lg border border-gray-300 text-gray-900 font-medium focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all"
+                          onChange={(e) => {
+                            setPhoneError('');
+                            setPhoneInput(formatPhoneNumber(e.target.value));
+                          }}
+                          className={`flex-1 px-4 py-2 bg-white rounded-lg border text-gray-900 font-medium outline-none transition-all ${phoneError ? 'border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100 focus:border-red-400' : 'border-gray-300 focus:ring-2 focus:ring-gray-900 focus:border-transparent'}`}
                           placeholder="010-0000-0000"
+                          inputMode="numeric"
+                          maxLength={13}
                         />
                         <button
                           className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors whitespace-nowrap disabled:opacity-50"
@@ -1024,6 +1067,7 @@ const MyPage = () => {
                           {isUpdatingPhone ? '저장 중...' : '변경 저장'}
                         </button>
                       </div>
+                      {phoneError && <p className="text-sm text-red-600">{phoneError}</p>}
                     </div>
                     <div className="space-y-3 pt-4 border-t border-gray-100">
                       <label className="text-sm font-medium text-gray-700">비밀번호 변경</label>
@@ -1039,17 +1083,26 @@ const MyPage = () => {
                           <input
                             type="password"
                             value={currentPassword}
-                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            onChange={(e) => {
+                              setPasswordError('');
+                              setCurrentPassword(e.target.value);
+                            }}
                             placeholder="현재 비밀번호 입력"
                             className="w-full px-4 py-2 bg-white rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-gray-900 outline-none"
                           />
                           <input
                             type="password"
                             value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
+                            onChange={(e) => {
+                              setPasswordError('');
+                              setNewPassword(e.target.value);
+                            }}
                             placeholder="새 비밀번호 입력 (대문자 포함 8자 이상)"
-                            className="w-full px-4 py-2 bg-white rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-gray-900 outline-none"
+                            className={`w-full px-4 py-2 bg-white rounded-lg border text-gray-900 outline-none ${passwordError ? 'border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100 focus:border-red-400' : 'border-gray-300 focus:ring-2 focus:ring-gray-900'}`}
                           />
+                          {passwordError
+                            ? <div className="text-sm text-red-600">{passwordError}</div>
+                            : <div className="text-sm text-gray-500">{PASSWORD_ERROR_MESSAGE}</div>}
                           <div className="flex flex-col gap-2 pt-2 sm:flex-row">
                             <button
                               className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"

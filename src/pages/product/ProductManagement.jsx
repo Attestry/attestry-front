@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package, Search, Calendar, Filter, Download, Plus, FileDigit, Database, Factory, Hash, Code, Loader2, X, UploadCloud, FileText, AlertCircle } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 import { apiFetchJson } from '../../utils/api';
-import { PERMISSION_GUIDES, createHttpError, getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
+import { PERMISSION_GUIDES, getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
 
 // Role-based utility to fetch with Auth Token
 const fetchWithAuth = async (url, options = {}) => {
@@ -73,7 +73,7 @@ const ProductManagement = () => {
         return () => mediaQuery.removeEventListener('change', handleChange);
     }, []);
 
-    const fetchProducts = async (pageNum = 0, append = false) => {
+    const fetchProducts = useCallback(async (pageNum = 0, append = false) => {
         if (!user?.tenantId) return;
 
         if (append) {
@@ -122,18 +122,20 @@ const ProductManagement = () => {
             setLoadingMore(false);
             setHasLoadedOnce(true);
         }
-    };
+    }, [assetStateFilter, endDate, searchTerm, startDate, user?.tenantId]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchProducts(0, false); // Always fetch first page when filters change
         }, 300); // Debounce search and filter
         return () => clearTimeout(timer);
-    }, [user?.tenantId, searchTerm, assetStateFilter, startDate, endDate, isMobileView]);
+    }, [fetchProducts]);
 
     // Intersection Observer for infinite scrolling
     useEffect(() => {
         if (!isMobileView) return undefined;
+        const target = observerTarget.current;
+        if (!target) return undefined;
 
         const observer = new IntersectionObserver(
             entries => {
@@ -141,19 +143,16 @@ const ProductManagement = () => {
                     fetchProducts(page + 1, true);
                 }
             },
-            { threshold: 0.1 }
+            { threshold: 0, rootMargin: '200px 0px' }
         );
 
-        if (observerTarget.current) {
-            observer.observe(observerTarget.current);
-        }
+        observer.observe(target);
 
         return () => {
-            if (observerTarget.current) {
-                observer.unobserve(observerTarget.current);
-            }
+            observer.unobserve(target);
+            observer.disconnect();
         };
-    }, [hasMore, isMobileView, loading, loadingMore, page, searchTerm, assetStateFilter, startDate, endDate]); // Add dependencies for re-observing when filters change
+    }, [fetchProducts, hasMore, isMobileView, loading, loadingMore, page]);
 
     const visiblePageNumbers = (() => {
         if (totalPages <= 1) return [];
@@ -289,16 +288,6 @@ const ProductManagement = () => {
             case 'VOIDED': return 'bg-gray-100 text-gray-700 border-gray-200';
             case 'RETIRED': return 'bg-slate-900 text-white border-slate-900';
             default: return 'bg-gray-100 text-gray-700 border-gray-200';
-        }
-    };
-
-    const getRiskTheme = (riskFlag) => {
-        switch (riskFlag) {
-            case 'NONE': return 'text-gray-400';
-            case 'STOLEN': return 'text-red-500 font-bold';
-            case 'LOST': return 'text-orange-500 font-bold';
-            case 'DISPUTED': return 'text-yellow-600 font-bold';
-            default: return 'text-gray-400';
         }
     };
 
@@ -534,16 +523,19 @@ const ProductManagement = () => {
 
                 {/* Infinite Scroll trigger point & loader */}
                 {!showInitialLoading && isMobileView && (
-                    <div ref={observerTarget} className="flex justify-center py-6 border-t border-gray-50">
-                        {loadingMore && (
-                            <div className="flex items-center gap-2 text-gray-400">
-                                <Loader2 size={16} className="animate-spin" />
-                                <span className="text-sm font-medium">데이터를 불러오는 중...</span>
-                            </div>
-                        )}
-                        {!hasMore && products.length > 0 && (
-                            <span className="text-sm font-medium text-gray-400">모든 제품을 불러왔습니다.</span>
-                        )}
+                    <div className="border-t border-gray-50 px-4 py-4">
+                        <div ref={observerTarget} className="h-1 w-full" />
+                        <div className="flex min-h-[24px] items-center justify-center">
+                            {loadingMore && (
+                                <div className="flex items-center gap-2 text-gray-400">
+                                    <Loader2 size={16} className="animate-spin" />
+                                    <span className="text-sm font-medium">데이터를 불러오는 중...</span>
+                                </div>
+                            )}
+                            {!loadingMore && !hasMore && products.length > 0 && (
+                                <span className="text-sm font-medium text-gray-400">모든 제품을 불러왔습니다.</span>
+                            )}
+                        </div>
                     </div>
                 )}
 
