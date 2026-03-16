@@ -111,7 +111,7 @@ const MainLayout = () => {
           <div className="max-w-2xl">
             <TraceraLogo to={homePath} subtitle={false} compact tone="dark" />
             <p className="mt-5 max-w-xl text-sm leading-7 text-slate-300">
-              제품의 출시부터 소유 이전, 수리, 재활용까지 이어지는 전 생애주기 데이터를 더 명확하고 신뢰 가능하게 연결합니다.
+              제품 이력과 소유권, 서비스 흐름을 하나의 신뢰 가능한 기록으로 연결합니다.
             </p>
             <div className="mt-5 flex flex-wrap gap-3 text-xs text-slate-400">
               <span className="tracera-badge border-white/10 bg-white/5 text-slate-300 shadow-none">제품 생애주기</span>

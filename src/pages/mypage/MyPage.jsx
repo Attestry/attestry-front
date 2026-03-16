@@ -32,13 +32,13 @@ const getRiskFlagClassName = (riskFlag) => {
   return 'bg-emerald-100 text-emerald-700 border-emerald-200';
 };
 
-const assetActionButtonClassName = 'inline-flex min-h-[24px] items-center justify-center rounded px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] transition-all duration-200';
+const assetActionButtonClassName = 'inline-flex min-h-[38px] items-center justify-center rounded-xl px-3 py-2 text-[11px] font-semibold tracking-[0.02em] transition-all duration-200';
 const assetActionPrimaryClassName = `${assetActionButtonClassName} border border-[#162033] bg-[linear-gradient(180deg,#0b1220_0%,#0f172a_100%)] text-slate-100 shadow-[0_10px_18px_-18px_rgba(11,18,32,0.92)] hover:border-[#22314d] hover:text-white`;
 const assetActionWarmClassName = `${assetActionPrimaryClassName}`;
 const assetActionDangerClassName = `${assetActionPrimaryClassName}`;
 const assetActionDangerSoftClassName = `${assetActionPrimaryClassName}`;
 const assetLedgerButtonClassName = `${assetActionPrimaryClassName}`;
-const assetRiskLinkClassName = 'inline-flex items-center border-b border-slate-400/60 pb-px text-[4px] font-medium tracking-[0.12em] text-slate-400 transition-colors duration-200 hover:border-slate-700 hover:text-slate-700';
+const assetRiskLinkClassName = 'inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-medium tracking-[0.01em] text-slate-500 transition-colors duration-200 hover:border-slate-300 hover:text-slate-800';
 
 const MyPage = () => {
   const navigate = useNavigate();
@@ -968,50 +968,50 @@ const MyPage = () => {
                         tabIndex={0}
                         className="w-full rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
                       >
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
                             <div className="text-lg font-bold tracking-tight text-slate-900">{passport.serialNumber || '-'}</div>
                             <div className="mt-1 text-sm text-slate-600">모델: {passport.modelName || '-'}</div>
                             <div className="mt-2 text-xs text-slate-400 font-mono break-all">
                               Passport: {passport.passportId}
                             </div>
                           </div>
-                          <div className="flex flex-col items-end gap-2">
+                          <div className="flex flex-col gap-3 sm:items-end">
                             {isRiskActive(passport) && (
-                              <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getRiskFlagClassName(passport.riskFlag)}`}>
+                              <span className={`inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getRiskFlagClassName(passport.riskFlag)}`}>
                                 {getRiskFlagLabel(passport.riskFlag)}
                               </span>
                             )}
-                            <button
-                              type="button"
-                              onClick={(e) => handleRiskClick(e, passport)}
-                              className={assetRiskLinkClassName}
-                            >
-                              {isRiskActive(passport) ? '신고 취소' : '분실/도난 신고'}
-                            </button>
-                            <div className="flex flex-wrap items-center justify-end gap-1.5">
+                            <div className="grid grid-cols-2 gap-2 sm:w-[17rem]">
                               <button
                                 type="button"
                                 onClick={(e) => handleTransferClick(e, passport)}
-                                className={assetActionPrimaryClassName}
+                                className={`${assetActionPrimaryClassName} col-span-1`}
                               >
                                 양도하기
                               </button>
                               <button
                                 type="button"
                                 onClick={(e) => handleServiceRequestClick(e, passport)}
-                                className={assetActionWarmClassName}
+                                className={`${assetActionWarmClassName} col-span-1`}
                               >
                                 서비스 신청
                               </button>
                               <button
                                 type="button"
                                 onClick={(e) => handleLedgerHistoryClick(e, passport)}
-                                className={assetLedgerButtonClassName}
+                                className={`${assetLedgerButtonClassName} col-span-2`}
                               >
                                 원장 이력
                               </button>
                             </div>
+                            <button
+                              type="button"
+                              onClick={(e) => handleRiskClick(e, passport)}
+                              className={assetRiskLinkClassName}
+                            >
+                              {isRiskActive(passport) ? '분실/도난 신고 취소' : '분실/도난 신고'}
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -1608,7 +1608,7 @@ const MyPage = () => {
                           <>
                       <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
                         <div className="text-xs text-gray-500">수락코드</div>
-                        <div className="text-lg font-bold tracking-wider text-gray-900">
+                        <div className="mt-1 break-all font-mono text-base font-bold tracking-[0.18em] text-gray-900 sm:text-lg">
                           {displayReceiveCode || '보안상 재노출 불가'}
                         </div>
                       </div>
@@ -1616,7 +1616,7 @@ const MyPage = () => {
                         <button
                           type="button"
                           onClick={() => copyText(displayReceiveCode || '')}
-                          className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                          className="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 sm:w-auto"
                         >
                           <Copy size={13} /> 수락코드 복사
                         </button>

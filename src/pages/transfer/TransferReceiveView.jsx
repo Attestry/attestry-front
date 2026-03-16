@@ -316,7 +316,7 @@ const TransferReceiveView = () => {
               className={`group min-h-[112px] rounded-[1.5rem] border p-5 text-left transition ${mode === 'QR' ? 'border-amber-200 bg-[linear-gradient(160deg,#fffaf2,#f6efe6)] text-[#5f4637] shadow-[0_16px_40px_-28px_rgba(120,83,51,.24)]' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}
             >
               <div className="flex items-center gap-2 text-base font-semibold"><Camera size={18} /> QR 스캔</div>
-              <p className="mt-2 text-sm opacity-80">직원이 제시한 QR 코드를 카메라로 인식해 즉시 이전을 진행합니다.</p>
+              <p className="mt-2 text-sm opacity-80">직원이 제시한 QR 코드를 카메라로 스캔해 바로 소유권 이전을 진행합니다.</p>
             </button>
 
             <button
@@ -344,7 +344,7 @@ const TransferReceiveView = () => {
                   <ScanLine size={30} />
                 </span>
                 <span className="text-xl font-bold tracking-tight text-slate-900">스캐너 시작</span>
-                <span className="text-sm text-slate-600">카메라가 열리면 QR을 중앙 프레임에 맞춰주세요</span>
+                <span className="whitespace-nowrap text-sm text-slate-600">카메라가 열리면 QR을 중앙 프레임에 맞춰주세요</span>
               </button>
             </div>
 
