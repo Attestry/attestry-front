@@ -76,7 +76,7 @@ const MyPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, accessToken, myMemberships, myApplications, myAccount, fetchMyMemberships, listMyApplications, fetchMyAccount, updateMyAccount, getApplication } = useAuthStore();
-  const canViewMyServiceRequests = user?.role === ROLES.USER;
+  const canViewMyServiceRequests = (user?.availableRoles || []).includes(ROLES.USER);
   const [activeTab, setActiveTab] = useState(() => {
     const tab = searchParams.get('tab');
     const allowedTabs = ['membership', 'assets', 'account', 'applications'];

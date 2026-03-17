@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import QRScannerModal from '../../components/shipment/QRScannerModal';
 import useAuthStore from '../../store/useAuthStore';
 import ServicePassportDetailModal from './ServicePassportDetailModal';
+import ReasonModal from './ReasonModal';
 import {
   acceptProviderRequest,
   fetchAllProviderRequests,
@@ -38,6 +39,7 @@ const ServiceRequestsPage = () => {
   const [scanMatches, setScanMatches] = useState([]);
   const [scannedPassportId, setScannedPassportId] = useState('');
   const [detailPassportId, setDetailPassportId] = useState('');
+  const [rejectTarget, setRejectTarget] = useState(null);
 
   const load = async (pageNum = page) => {
     if (!user?.tenantId) return;
@@ -94,14 +96,14 @@ const ServiceRequestsPage = () => {
     await acceptAndMove(item);
   };
 
-  const handleReject = async (item) => {
-    const reason = window.prompt('반려 사유를 입력하세요.', '');
-    if (reason === null) return;
-    const actionKey = `reject-${item.serviceRequestId}`;
+  const confirmReject = async (reason) => {
+    if (!rejectTarget) return;
+    const actionKey = `reject-${rejectTarget.serviceRequestId}`;
     setActionLoading(actionKey);
     setError('');
     try {
-      await rejectProviderRequest(user.tenantId, item.serviceRequestId, { reason });
+      await rejectProviderRequest(user.tenantId, rejectTarget.serviceRequestId, { reason });
+      setRejectTarget(null);
       await load(page);
     } catch (e) {
       setError(toServiceErrorMessage(e, '서비스 요청 반려에 실패했습니다.'));
@@ -231,7 +233,7 @@ const ServiceRequestsPage = () => {
                             <CheckCircle2 size={16} />
                             확인
                           </button>
-                          <button type="button" onClick={() => handleReject(item)} disabled={!!actionLoading} className="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50">
+                          <button type="button" onClick={() => setRejectTarget(item)} disabled={!!actionLoading} className="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50">
                             <XCircle size={16} />
                             반려
                           </button>
@@ -287,6 +289,21 @@ const ServiceRequestsPage = () => {
         passportId={detailPassportId}
         isOpen={!!detailPassportId}
         onClose={() => setDetailPassportId('')}
+      />
+      <ReasonModal
+        key={rejectTarget?.serviceRequestId || 'reject-closed'}
+        isOpen={!!rejectTarget}
+        title="서비스 요청 반려"
+        description="반려 사유를 입력하면 요청자에게 그대로 전달되고 이력에도 남습니다."
+        confirmLabel="반려 확정"
+        placeholder="예: 첨부 자료가 부족하여 현재 요청을 접수할 수 없습니다."
+        initialValue=""
+        tone="danger"
+        loading={!!actionLoading}
+        onClose={() => {
+          if (!actionLoading) setRejectTarget(null);
+        }}
+        onConfirm={confirmReject}
       />
     </div>
   );

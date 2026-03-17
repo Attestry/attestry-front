@@ -14,7 +14,7 @@ const MainLayout = () => {
   const isUserProfile = isAuthenticated && user?.role === ROLES.USER;
   const homePath = isAuthenticated ? getRoleLandingPath(user?.role) : '/';
   const userQuickLinks = [
-    { to: '/transfer/receive', label: '소유권 이전 받기' },
+    { to: '/transfer/receive', label: '소유권 이전 받기', userOnly: true },
     { to: '/purchase-claims', label: '제품 등록 신청', userOnly: true },
     { to: '/service-request/providers', label: '서비스 신청', userOnly: true },
   ];
