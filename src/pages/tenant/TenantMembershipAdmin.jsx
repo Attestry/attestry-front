@@ -3,6 +3,8 @@ import { Users, UserPlus, ShieldAlert, Check, X, Shield, Settings, Key, Mail, Bu
 import useAuthStore, { ROLE_THEMES, TENANT_ROLES } from '../../store/useAuthStore';
 import { getCurrentMembership, hasEffectiveScope } from '../../utils/permissionUi';
 
+const LAST_ACTIVE_OWNER_MESSAGE = '시스템에 최소 한 명의 관리자가 필요합니다.';
+
 const TenantMembershipAdmin = () => {
     const {
         myMemberships, tenantMemberships, listMemberships, inviteMember, updateMembershipStatus, assignRole, revokeRole,
@@ -86,12 +88,28 @@ const TenantMembershipAdmin = () => {
         [TENANT_ROLES.STAFF]: { label: 'Staff', color: 'bg-slate-50 text-slate-700 border-slate-100' }
     };
 
+    const pendingMemberships = (tenantMemberships || []).filter(m => ['PENDING', 'INVITED'].includes(String(m.status).toUpperCase()));
+    const activeMemberships = (tenantMemberships || []).filter(m => !['PENDING', 'INVITED'].includes(String(m.status).toUpperCase()));
+    const activeOwnerMemberships = activeMemberships.filter((membership) =>
+        String(membership?.status).toUpperCase() === 'ACTIVE' &&
+        (membership?.roleCodes || []).some((roleCode) => String(roleCode).toUpperCase() === TENANT_ROLES.ADMIN)
+    );
+    const visibleMembershipCount = activeMemberships.length + pendingMemberships.length;
+
     const renderMembershipCard = (m) => {
         const membershipId = m.membershipId || m.id || null;
         const isStatusActive = m.status === 'ACTIVE';
         const isSuspended = m.status === 'SUSPENDED';
         const canManageMembership = hasManagePermission && !!membershipId;
         const canOpenDetail = !!membershipId;
+        const isOwner = (m.roleCodes || []).some((roleCode) => String(roleCode).toUpperCase() === TENANT_ROLES.ADMIN);
+        const isCurrentUserMembership = currentUserMembership?.membershipId === membershipId;
+        const isLastActiveOwner = isStatusActive
+            && isOwner
+            && activeOwnerMemberships.length === 1
+            && activeOwnerMemberships[0]?.membershipId === membershipId;
+        const isSelfSuspendBlocked = isLastActiveOwner && isCurrentUserMembership;
+        const suspendDisabled = actionLoading === `status-${membershipId}` || !canManageMembership || isLastActiveOwner;
 
         return (
             <div
@@ -129,7 +147,7 @@ const TenantMembershipAdmin = () => {
                             </button>
                         </div>
                         <div className="flex flex-wrap gap-1.5 mt-1">
-                            {Object.entries(TENANT_ROLES).map(([key, role]) => {
+                            {Object.entries(TENANT_ROLES).map(([, role]) => {
                                 const hasRole = (m.roleCodes || []).some(rc => rc.toUpperCase() === role.toUpperCase());
                                 if (!hasRole) return null;
                                 return (
@@ -155,12 +173,13 @@ const TenantMembershipAdmin = () => {
                                 {Object.values(TENANT_ROLES).map(role => {
                                     const hasRole = (m.roleCodes || []).some(rc => rc.toUpperCase() === role.toUpperCase());
                                     const isProcessing = actionLoading === `role-${membershipId}-${role}`;
+                                    const isOwnerRoleRevokeBlocked = isLastActiveOwner && hasRole && role === TENANT_ROLES.ADMIN;
                                     return (
                                         <button
                                             key={role}
                                             onClick={() => safeExecute(`role-${membershipId}-${role}`, () => hasRole ? revokeRole(membershipId, role) : assignRole(membershipId, role))}
-                                            disabled={isProcessing || !canManageMembership}
-                                            title={roleDisplay[role].label}
+                                            disabled={isProcessing || !canManageMembership || isOwnerRoleRevokeBlocked}
+                                            title={isOwnerRoleRevokeBlocked ? LAST_ACTIVE_OWNER_MESSAGE : roleDisplay[role].label}
                                             className={`p-1.5 rounded-md transition-all ${hasRole
                                                 ? 'bg-white shadow-sm'
                                                 : 'text-slate-400 hover:text-slate-600'
@@ -183,7 +202,8 @@ const TenantMembershipAdmin = () => {
 
                             <button
                                 onClick={() => safeExecute(`status-${membershipId}`, () => updateMembershipStatus(membershipId, isStatusActive ? 'SUSPENDED' : 'ACTIVE'))}
-                                disabled={actionLoading === `status-${membershipId}` || !canManageMembership}
+                                disabled={suspendDisabled}
+                                title={isLastActiveOwner ? LAST_ACTIVE_OWNER_MESSAGE : undefined}
                                 className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isStatusActive
                                     ? 'bg-white border-red-100 text-red-600 hover:bg-red-50'
                                     : 'bg-white border-green-100 text-green-600 hover:bg-green-50'
@@ -194,13 +214,14 @@ const TenantMembershipAdmin = () => {
                         </>
                     )}
                 </div>
+                {isLastActiveOwner && (
+                    <div className="w-full text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                        {isSelfSuspendBlocked ? LAST_ACTIVE_OWNER_MESSAGE : '마지막 활성 관리자 계정은 정지하거나 Owner 권한을 해제할 수 없습니다.'}
+                    </div>
+                )}
             </div>
         );
     };
-
-    const pendingMemberships = (tenantMemberships || []).filter(m => ['PENDING', 'INVITED'].includes(String(m.status).toUpperCase()));
-    const activeMemberships = (tenantMemberships || []).filter(m => !['PENDING', 'INVITED'].includes(String(m.status).toUpperCase()));
-    const visibleMembershipCount = activeMemberships.length + pendingMemberships.length;
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">

@@ -10,6 +10,15 @@ const TYPE_OPTIONS = [
 ];
 
 const STEPS = ['유형 선택', '정보 입력', '신청 완료'];
+const BIZ_REG_NO_REGEX = /^\d{3}-\d{2}-\d{5}$/;
+const BIZ_REG_NO_ERROR_MESSAGE = '사업자 등록번호는 123-45-67890 형식으로 입력해주세요.';
+
+const formatBizRegNo = (value) => {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 10);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
+};
 
 const OnboardingView = () => {
   const [loading, setLoading] = useState(false);
@@ -22,14 +31,20 @@ const OnboardingView = () => {
     country: 'KR',
     address: '',
   });
+  const [localError, setLocalError] = useState('');
 
   const { submitApplication, presignEvidence, completeEvidenceUpload, error } = useAuthStore();
   const navigate = useNavigate();
+  const bizRegNoValid = BIZ_REG_NO_REGEX.test(formData.bizRegNo.trim());
+  const bizRegNoServerError = String(localError || error || '').includes('사업자') ? String(localError || error || '') : '';
+  const bizRegNoFieldError = formData.bizRegNo && !bizRegNoValid ? BIZ_REG_NO_ERROR_MESSAGE : bizRegNoServerError;
+  const formError = bizRegNoServerError ? '' : (localError || error);
 
   const handleInputChange = (e) => {
+    setLocalError('');
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [e.target.name]: e.target.name === 'bizRegNo' ? formatBizRegNo(e.target.value) : e.target.value,
     });
   };
 
@@ -45,6 +60,11 @@ const OnboardingView = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLocalError('');
+    if (!bizRegNoValid) {
+      setLocalError(BIZ_REG_NO_ERROR_MESSAGE);
+      return;
+    }
     if (selectedType === ROLES.SERVICE && !formData.address.trim()) {
       alert('서비스 업체 신청은 주소를 반드시 입력해야 합니다.');
       return;
@@ -95,6 +115,10 @@ const OnboardingView = () => {
       if (submitRes.success) {
         setStep(3);
       } else {
+        if (String(submitRes.message || '').includes('사업자')) {
+          setLocalError(submitRes.message);
+          return;
+        }
         throw new Error(submitRes.message);
       }
     } catch (err) {
@@ -201,9 +225,9 @@ const OnboardingView = () => {
                 </span>
               </div>
 
-              {error && (
+              {formError && (
                 <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                  {error}
+                  {formError}
                 </div>
               )}
 
@@ -216,7 +240,20 @@ const OnboardingView = () => {
 
                   <label className="text-sm">
                     <span className="mb-2 block font-medium text-slate-700">사업자 등록번호</span>
-                    <input required type="text" name="bizRegNo" value={formData.bizRegNo} onChange={handleInputChange} className="tracera-workflow-field" placeholder="123-45-67890" />
+                    <input
+                      required
+                      type="text"
+                      name="bizRegNo"
+                      value={formData.bizRegNo}
+                      onChange={handleInputChange}
+                      className={`tracera-workflow-field ${bizRegNoFieldError ? '!border-red-400 !bg-red-50 focus:!border-red-500 focus:!ring-red-100' : ''}`}
+                      placeholder="123-45-67890"
+                      inputMode="numeric"
+                      maxLength={12}
+                    />
+                    {bizRegNoFieldError
+                      ? <p className="mt-2 text-sm text-red-600">{bizRegNoFieldError}</p>
+                      : <p className="mt-2 text-sm text-slate-500">사업자 등록번호는 123-45-67890 형식으로 입력해주세요.</p>}
                   </label>
 
                   <label className="text-sm">

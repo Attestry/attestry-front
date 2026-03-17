@@ -93,16 +93,18 @@ const useAuthStore = create((set, get) => ({
       localStorage.setItem('accessToken', token);
       if (user) {
         localStorage.setItem('user', JSON.stringify(user));
-        set({ accessToken: token, isAuthenticated: true, user });
+        set({ accessToken: token, isAuthenticated: true, user, error: null });
       } else {
-        set({ accessToken: token, isAuthenticated: true });
+        set({ accessToken: token, isAuthenticated: true, error: null });
       }
     } else {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
-      set({ accessToken: null, isAuthenticated: false, user: null });
+      set({ accessToken: null, isAuthenticated: false, user: null, error: null });
     }
   },
+
+  clearError: () => set({ error: null }),
 
   // Update user context manually if needed
   setUserContext: (userContext) => {
@@ -119,6 +121,34 @@ const useAuthStore = create((set, get) => ({
         body: JSON.stringify({ email, password, phone }),
       });
       return { success: true };
+    } catch (error) {
+      set({ error: error.message });
+      return { success: false, message: error.message };
+    }
+  },
+
+  requestSignupEmailVerification: async (email) => {
+    try {
+      set({ error: null });
+      const data = await apiFetchJson('/auth/signup/email-verifications', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }, { fallbackMessage: normalizeApiErrorMessage('', undefined) });
+      return { success: true, data };
+    } catch (error) {
+      set({ error: error.message });
+      return { success: false, message: error.message };
+    }
+  },
+
+  confirmSignupEmailVerification: async (email, code) => {
+    try {
+      set({ error: null });
+      const data = await apiFetchJson('/auth/signup/email-verifications/confirm', {
+        method: 'POST',
+        body: JSON.stringify({ email, code }),
+      }, { fallbackMessage: normalizeApiErrorMessage('', undefined) });
+      return { success: true, data };
     } catch (error) {
       set({ error: error.message });
       return { success: false, message: error.message };
@@ -144,9 +174,8 @@ const useAuthStore = create((set, get) => ({
       // Store token and user
       get().setToken(data.accessToken, userContext);
 
-      // Resolve the actual operating role from the user's memberships after login.
+      // Keep login landing on the general user profile; other roles remain switchable after membership load.
       await get().fetchMyMemberships({
-        resolveRoleFromMemberships: true,
         preferredTenantId: data.tenantId ?? tenantId ?? null,
       });
 
@@ -216,13 +245,13 @@ const useAuthStore = create((set, get) => ({
   logout: async () => {
     try {
       await apiFetch('/auth/logout', { method: 'POST' });
-    } catch (e) {
+    } catch {
       console.warn('Logout API failed, forcing local logout');
     }
     get().setToken(null);
   },
 
-  reissueToken: async (tenantId = get().user?.tenantId ?? null) => {
+  reissueToken: async () => {
     try {
       const data = await apiFetch('/auth/token-reissue', { method: 'POST' });
       // Update store with new token

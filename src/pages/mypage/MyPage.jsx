@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import QRCode from 'qrcode';
 import useAuthStore from '../../store/useAuthStore';
 import { apiFetchJson } from '../../utils/api';
-import { User, Shield, FileText, Settings, Loader2, WalletCards, Copy, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { User, Shield, FileText, Settings, Loader2, WalletCards, Copy, CheckCircle2, AlertTriangle, Trash2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ROLES } from '../../store/useAuthStore';
 import MyServiceRequestsUserPage from '../service/MyServiceRequestsUserPage';
@@ -32,6 +32,20 @@ const getRiskFlagClassName = (riskFlag) => {
   return 'bg-emerald-100 text-emerald-700 border-emerald-200';
 };
 
+const getAssetStateLabel = (assetState) => {
+  const normalized = String(assetState || 'ACTIVE').toUpperCase();
+  if (normalized === 'RETIRED') return '폐기 완료';
+  if (normalized === 'VOIDED') return '사용 중지';
+  return '사용 중';
+};
+
+const getAssetStateClassName = (assetState) => {
+  const normalized = String(assetState || 'ACTIVE').toUpperCase();
+  if (normalized === 'RETIRED') return 'bg-slate-900 text-white border-slate-900';
+  if (normalized === 'VOIDED') return 'bg-gray-100 text-gray-700 border-gray-200';
+  return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+};
+
 const assetActionButtonClassName = 'inline-flex min-h-[38px] items-center justify-center rounded-xl px-3 py-2 text-[11px] font-semibold tracking-[0.02em] transition-all duration-200';
 const assetActionPrimaryClassName = `${assetActionButtonClassName} border border-[#162033] bg-[linear-gradient(180deg,#0b1220_0%,#0f172a_100%)] text-slate-100 shadow-[0_10px_18px_-18px_rgba(11,18,32,0.92)] hover:border-[#22314d] hover:text-white`;
 const assetActionWarmClassName = `${assetActionPrimaryClassName}`;
@@ -39,12 +53,35 @@ const assetActionDangerClassName = `${assetActionPrimaryClassName}`;
 const assetActionDangerSoftClassName = `${assetActionPrimaryClassName}`;
 const assetLedgerButtonClassName = `${assetActionPrimaryClassName}`;
 const assetRiskLinkClassName = 'inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-medium tracking-[0.01em] text-slate-500 transition-colors duration-200 hover:border-slate-300 hover:text-slate-800';
+const assetActionDisabledClassName = `${assetActionButtonClassName} cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400`;
+const PHONE_REGEX = /^010-\d{4}-\d{4}$/;
+const PHONE_ERROR_MESSAGE = '전화번호는 010-0000-0000 형식으로 입력해주세요.';
+const PHONE_RANGE_ERROR_MESSAGE = '전화번호 가운데 4자리는 0000일 수 없습니다.';
+const PASSWORD_REGEX = /^(?=.*[A-Z]).{8,}$/;
+const PASSWORD_ERROR_MESSAGE = '비밀번호는 8자 이상이며 영문 대문자를 1자 이상 포함해야 합니다.';
+
+const formatPhoneNumber = (value) => {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+};
+
+const hasInvalidPhoneRange = (value) => {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.length >= 7 && digits.slice(3, 7) === '0000';
+};
+
+const normalizePurchaseClaim = (claim) => ({
+  ...claim,
+  rejectionReason: claim?.rejectionReason || claim?.rejectReason || '',
+});
 
 const MyPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, accessToken, myMemberships, myApplications, myAccount, fetchMyMemberships, listMyApplications, fetchMyAccount, updateMyAccount, getApplication } = useAuthStore();
-  const canViewMyServiceRequests = user?.role === ROLES.USER;
+  const canViewMyServiceRequests = (user?.availableRoles || []).includes(ROLES.USER);
   const [activeTab, setActiveTab] = useState(() => {
     const tab = searchParams.get('tab');
     const allowedTabs = ['membership', 'assets', 'account', 'applications'];
@@ -55,6 +92,7 @@ const MyPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [phoneInput, setPhoneInput] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [isUpdatingPhone, setIsUpdatingPhone] = useState(false);
   const [selectedApp, setSelectedApp] = useState(null);
   const [selectedPurchaseClaim, setSelectedPurchaseClaim] = useState(null);
@@ -77,7 +115,6 @@ const MyPage = () => {
   const [transferCreating, setTransferCreating] = useState(false);
   const [transferCreateError, setTransferCreateError] = useState('');
   const [transferNotice, setTransferNotice] = useState('');
-  const [transferCreateResult, setTransferCreateResult] = useState(null);
   const [activeTransfer, setActiveTransfer] = useState(null);
   const [transferNow, setTransferNow] = useState(Date.now());
   const [transferShareQrImage, setTransferShareQrImage] = useState('');
@@ -89,14 +126,22 @@ const MyPage = () => {
   const [riskActionLoading, setRiskActionLoading] = useState(false);
   const [riskActionError, setRiskActionError] = useState('');
   const [riskActionNotice, setRiskActionNotice] = useState('');
+  const [retireModalPassport, setRetireModalPassport] = useState(null);
+  const [retireActionLoading, setRetireActionLoading] = useState(false);
+  const [retireActionError, setRetireActionError] = useState('');
+  const [retireActionNotice, setRetireActionNotice] = useState('');
 
   // Password change state
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const transferStorageUserKey = myAccount?.userId || user?.userId || user?.id || '';
   const transferResolutionReasonRef = useRef('');
+  const phoneRangeValid = !hasInvalidPhoneRange(phoneInput);
+  const phoneValid = PHONE_REGEX.test(phoneInput.trim()) && phoneRangeValid;
+  const newPasswordValid = PASSWORD_REGEX.test(newPassword);
 
   const loadMyPassports = useCallback(async () => {
     if (!accessToken) {
@@ -116,22 +161,25 @@ const MyPage = () => {
     }
   }, [accessToken]);
 
-  useEffect(() => {
-    const loadMyPurchaseClaims = async () => {
-      if (!accessToken) {
-        setMyPurchaseClaims([]);
-        return;
-      }
-      try {
-        setPurchaseClaimError('');
-        const data = await apiFetchJson('/workflows/purchase-claims/me', {}, { token: accessToken });
-        setMyPurchaseClaims(Array.isArray(data) ? data : []);
-      } catch (e) {
-        setPurchaseClaimError(e.message || '디지털 자산 신청 내역을 불러오지 못했습니다.');
-        setMyPurchaseClaims([]);
-      }
-    };
+  const loadMyPurchaseClaims = useCallback(async () => {
+    if (!accessToken) {
+      setMyPurchaseClaims([]);
+      return [];
+    }
+    try {
+      setPurchaseClaimError('');
+      const data = await apiFetchJson('/workflows/purchase-claims/me', {}, { token: accessToken });
+      const nextClaims = Array.isArray(data) ? data.map(normalizePurchaseClaim) : [];
+      setMyPurchaseClaims(nextClaims);
+      return nextClaims;
+    } catch (e) {
+      setPurchaseClaimError(e.message || '디지털 자산 신청 내역을 불러오지 못했습니다.');
+      setMyPurchaseClaims([]);
+      return [];
+    }
+  }, [accessToken]);
 
+  useEffect(() => {
     const loadData = async () => {
       setLoading(true);
 
@@ -143,21 +191,43 @@ const MyPage = () => {
         fetchMyAccount().then(res => {
           if (res.success && res.data) {
             setPhoneInput(res.data.phone || '');
+            setPhoneError('');
           }
         })
       ]);
       setLoading(false);
     };
     loadData();
-  }, [accessToken, fetchMyMemberships, listMyApplications, fetchMyAccount]);
+  }, [accessToken, fetchMyMemberships, listMyApplications, fetchMyAccount, loadMyPassports, loadMyPurchaseClaims]);
+
+  useEffect(() => {
+    if (activeTab !== 'applications') {
+      return;
+    }
+    void loadMyPurchaseClaims();
+  }, [activeTab, loadMyPurchaseClaims]);
 
   const handlePhoneUpdate = async () => {
     if (!phoneInput || isUpdatingPhone) return;
+    if (!phoneRangeValid) {
+      setPhoneError(PHONE_RANGE_ERROR_MESSAGE);
+      return;
+    }
+    if (!phoneValid) {
+      setPhoneError(PHONE_ERROR_MESSAGE);
+      return;
+    }
     setIsUpdatingPhone(true);
     const result = await updateMyAccount({ phone: phoneInput });
     if (!result.success) {
-      alert(result.message || '전화번호 변경에 실패했습니다.');
+      const nextError = result.message || '전화번호 변경에 실패했습니다.';
+      if (nextError.includes('전화번호') || nextError.includes('휴대폰 번호')) {
+        setPhoneError(nextError);
+      } else {
+        alert(nextError);
+      }
     } else {
+      setPhoneError('');
       alert('전화번호가 성공적으로 변경되었습니다.');
     }
     setIsUpdatingPhone(false);
@@ -176,15 +246,25 @@ const MyPage = () => {
 
   const handlePasswordUpdate = async () => {
     if (!currentPassword || !newPassword || isUpdatingPassword) return;
+    if (!newPasswordValid) {
+      setPasswordError(PASSWORD_ERROR_MESSAGE);
+      return;
+    }
     setIsUpdatingPassword(true);
     const result = await updateMyAccount({ currentPassword, newPassword });
     if (!result.success) {
-      alert(result.message || '비밀번호 변경에 실패했습니다.');
+      const nextError = result.message || '비밀번호 변경에 실패했습니다.';
+      if (nextError.includes('비밀번호')) {
+        setPasswordError(nextError);
+      } else {
+        alert(nextError);
+      }
     } else {
       alert('비밀번호가 성공적으로 변경되었습니다.');
       setIsChangingPassword(false);
       setCurrentPassword('');
       setNewPassword('');
+      setPasswordError('');
     }
     setIsUpdatingPassword(false);
   };
@@ -201,7 +281,6 @@ const MyPage = () => {
     setTransferModalPassport(passport);
     setTransferCreateError('');
     setTransferNotice('');
-    setTransferCreateResult(null);
     setActiveTransfer(null);
     setTransferShareQrImage('');
     setTransferCompletionInfo(null);
@@ -221,7 +300,6 @@ const MyPage = () => {
           : null);
 
     setActiveTransfer(existing);
-    setTransferCreateResult(existing);
     setTransferCreateMode(existing?.mode || 'QR');
 
     if (existing) {
@@ -254,7 +332,7 @@ const MyPage = () => {
 
   const handleServiceRequestClick = (e, passport) => {
     e.stopPropagation();
-    if (!passport?.passportId) return;
+    if (!passport?.passportId || isRetiredPassport(passport)) return;
     navigate('/service-request/providers', {
       state: {
         selectedPassport: {
@@ -267,7 +345,7 @@ const MyPage = () => {
   };
 
   const openRiskModal = (passport) => {
-    if (!passport?.passportId) return;
+    if (!passport?.passportId || isRetiredPassport(passport)) return;
     setRiskModalPassport(passport);
     setRiskActionError('');
     setRiskReportType(passport.riskFlag === 'STOLEN' ? 'STOLEN' : 'LOST');
@@ -276,6 +354,23 @@ const MyPage = () => {
   const handleRiskClick = (e, passport) => {
     e.stopPropagation();
     openRiskModal(passport);
+  };
+
+  const openRetireModal = (passport) => {
+    if (!passport?.passportId || isRetiredPassport(passport)) return;
+    setRetireModalPassport(passport);
+    setRetireActionError('');
+  };
+
+  const handleRetireClick = (e, passport) => {
+    e.stopPropagation();
+    openRetireModal(passport);
+  };
+
+  const closeRetireModal = () => {
+    if (retireActionLoading) return;
+    setRetireModalPassport(null);
+    setRetireActionError('');
   };
 
   const closeRiskModal = () => {
@@ -317,11 +412,41 @@ const MyPage = () => {
           ? `${updatedPassport.modelName || updatedPassport.serialNumber || updatedPassport.passportId} 자산의 분실/도난 신고를 취소했습니다. 취소 이력도 공개 원장에 남습니다.`
           : `${updatedPassport.modelName || updatedPassport.serialNumber || updatedPassport.passportId} 자산을 ${getRiskFlagLabel(nextRiskFlag)} 상태로 기록했습니다. 공개 원장에서 이력을 확인할 수 있습니다.`
       );
+      setRetireActionNotice('');
       setRiskModalPassport(null);
     } catch (e) {
       setRiskActionError(e.message || '분실/도난 처리에 실패했습니다.');
     } finally {
       setRiskActionLoading(false);
+    }
+  };
+
+  const handleRetireAction = async () => {
+    if (!retireModalPassport?.passportId || !accessToken || retireActionLoading) return;
+
+    setRetireActionLoading(true);
+    setRetireActionError('');
+
+    try {
+      const response = await apiFetchJson(`/products/passports/${encodeURIComponent(retireModalPassport.passportId)}/retire`, {
+        method: 'POST',
+      }, { token: accessToken });
+
+      const nextPassports = await loadMyPassports();
+      const nextAssetState = String(response?.assetState || 'RETIRED').toUpperCase();
+      const updatedPassport = nextPassports.find((passport) => passport.passportId === retireModalPassport.passportId)
+        || { ...retireModalPassport, assetState: nextAssetState, riskFlag: 'NONE' };
+
+      setSelectedPassport((prev) => (prev?.passportId === updatedPassport.passportId ? updatedPassport : prev));
+      setRetireActionNotice(
+        `${updatedPassport.modelName || updatedPassport.serialNumber || updatedPassport.passportId} 자산을 폐기 처리했습니다. 취소할 수 없으며, 처리 이력은 공개 원장에 남습니다.`
+      );
+      setRiskActionNotice('');
+      setRetireModalPassport(null);
+    } catch (e) {
+      setRetireActionError(e.message || '제품 폐기 처리에 실패했습니다.');
+    } finally {
+      setRetireActionLoading(false);
     }
   };
 
@@ -366,7 +491,7 @@ const MyPage = () => {
 
   const transferStorageKey = (passportId, userKey) => `active_transfer_${userKey}_${passportId}`;
 
-  const transferStorageKeysForPassport = (passportId, userKey) => {
+  const transferStorageKeysForPassport = useCallback((passportId, userKey) => {
     if (!passportId) return [];
     const normalizedUserKey = String(userKey || '').trim();
     const keys = normalizedUserKey ? [transferStorageKey(passportId, normalizedUserKey)] : [];
@@ -379,7 +504,7 @@ const MyPage = () => {
       if (!keys.includes(key)) keys.push(key);
     }
     return keys;
-  };
+  }, []);
 
   const readActiveTransfer = (passportId, userKey) => {
     if (!passportId) return null;
@@ -403,19 +528,19 @@ const MyPage = () => {
     return null;
   };
 
-  const saveActiveTransfer = (passportId, userKey, value) => {
+  const saveActiveTransfer = useCallback((passportId, userKey, value) => {
     if (!passportId || !value) return;
     const normalizedUserKey = String(userKey || '').trim() || 'anonymous';
     localStorage.setItem(transferStorageKey(passportId, normalizedUserKey), JSON.stringify(value));
-  };
+  }, []);
 
-  const clearActiveTransfer = (passportId, userKey) => {
+  const clearActiveTransfer = useCallback((passportId, userKey) => {
     if (!passportId) return;
     const keys = transferStorageKeysForPassport(passportId, userKey);
     keys.forEach((key) => localStorage.removeItem(key));
-  };
+  }, [transferStorageKeysForPassport]);
 
-  const toTransferState = (data, oneTimeCode = null) => ({
+  const toTransferState = useCallback((data, oneTimeCode = null) => ({
     ...data,
     mode: String(data?.acceptMethod || data?.mode || '').toUpperCase() || 'QR',
     oneTimeCode,
@@ -423,7 +548,7 @@ const MyPage = () => {
     shareUrl: String(data?.acceptMethod || data?.mode || '').toUpperCase() === 'QR'
       ? `${window.location.origin}/t/${encodeURIComponent(data.transferId)}/${encodeURIComponent(data.qrNonce || '')}`
       : `${window.location.origin}/t/${encodeURIComponent(data.transferId)}`,
-  });
+  }), []);
 
   const fetchPendingTransfer = useCallback(async (passportId) => {
     if (!passportId || !accessToken) return null;
@@ -434,7 +559,7 @@ const MyPage = () => {
       if (error?.status === 204 || error?.status === 403 || error?.status === 404) return null;
       return undefined;
     }
-  }, [accessToken]);
+  }, [accessToken, toTransferState]);
 
   const formatRemaining = (ms) => {
     const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -465,7 +590,6 @@ const MyPage = () => {
 
     setTransferCreating(true);
     setTransferCreateError('');
-    setTransferCreateResult(null);
     setActiveTransfer(null);
     setTransferShareQrImage('');
     setTransferCompletionInfo(null);
@@ -488,7 +612,6 @@ const MyPage = () => {
         : `${baseUrl}/${encodeURIComponent(data.transferId)}`;
 
       const result = toTransferState({ ...data, acceptMethod: transferCreateMode }, password);
-      setTransferCreateResult(result);
       setActiveTransfer(result);
       saveActiveTransfer(transferModalPassport.passportId, transferStorageUserKey, result);
 
@@ -513,7 +636,6 @@ const MyPage = () => {
             ? { ...pending, oneTimeCode: localExisting.oneTimeCode || null }
             : pending;
           setActiveTransfer(mergedPending);
-          setTransferCreateResult(mergedPending);
           setTransferCreateMode(mergedPending.mode);
           saveActiveTransfer(transferModalPassport.passportId, transferStorageUserKey, mergedPending);
           if (mergedPending.mode === 'QR') {
@@ -539,7 +661,6 @@ const MyPage = () => {
           const localExisting = readActiveTransfer(transferModalPassport.passportId, transferStorageUserKey);
           if (localExisting) {
             setActiveTransfer(localExisting);
-            setTransferCreateResult(localExisting);
             setTransferCreateMode(localExisting.mode);
             if (localExisting.mode === 'QR' && localExisting.shareUrl) {
               try {
@@ -576,7 +697,6 @@ const MyPage = () => {
       }, { token: accessToken });
       clearActiveTransfer(transferModalPassport.passportId, transferStorageUserKey);
       setActiveTransfer(null);
-      setTransferCreateResult(null);
       setTransferShareQrImage('');
       setTransferCreateError('');
       setTransferNotice('양도 요청이 정상적으로 취소되었습니다.');
@@ -597,11 +717,10 @@ const MyPage = () => {
       transferResolutionReasonRef.current = 'expired';
       clearActiveTransfer(transferModalPassport.passportId, transferStorageUserKey);
       setActiveTransfer(null);
-      setTransferCreateResult(null);
       setTransferShareQrImage('');
       setTransferCreateError('기존 양도 요청이 만료되었습니다. 새로 생성해주세요.');
     }
-  }, [activeTransfer, transferNow, transferModalPassport]);
+  }, [activeTransfer, clearActiveTransfer, transferNow, transferModalPassport, transferStorageUserKey]);
 
   useEffect(() => {
     if (!transferModalPassport?.passportId || !activeTransfer?.transferId || transferResolveLoading || transferCreating || transferCompletionInfo) {
@@ -627,7 +746,6 @@ const MyPage = () => {
 
         if (mergedPending.transferId !== activeTransfer.transferId || mergedPending.expiresAt !== activeTransfer.expiresAt) {
           setActiveTransfer(mergedPending);
-          setTransferCreateResult(mergedPending);
           saveActiveTransfer(transferModalPassport.passportId, transferStorageUserKey, mergedPending);
         }
         return;
@@ -635,7 +753,6 @@ const MyPage = () => {
 
       clearActiveTransfer(transferModalPassport.passportId, transferStorageUserKey);
       setActiveTransfer(null);
-      setTransferCreateResult(null);
       setTransferShareQrImage('');
 
       const resolutionReason = transferResolutionReasonRef.current;
@@ -672,6 +789,8 @@ const MyPage = () => {
     transferCreating,
     transferModalPassport,
     transferResolveLoading,
+    clearActiveTransfer,
+    saveActiveTransfer,
     transferStorageUserKey,
   ]);
 
@@ -738,7 +857,8 @@ const MyPage = () => {
     return 'bg-blue-100 text-blue-700';
   };
   const isRiskActive = (passport) => String(passport?.riskFlag || 'NONE').toUpperCase() !== 'NONE';
-  const displayPurchaseClaims = myPurchaseClaims || [];
+  const isRetiredPassport = (passport) => String(passport?.assetState || '').toUpperCase() === 'RETIRED';
+  const displayPurchaseClaims = useMemo(() => myPurchaseClaims || [], [myPurchaseClaims]);
   const filteredPurchaseClaims = useMemo(() => {
     const keyword = purchaseClaimSearch.trim().toLowerCase();
     if (!keyword) return displayPurchaseClaims;
@@ -945,9 +1065,14 @@ const MyPage = () => {
                         <input
                           type="text"
                           value={phoneInput}
-                          onChange={(e) => setPhoneInput(e.target.value)}
-                          className="flex-1 px-4 py-2 bg-white rounded-lg border border-gray-300 text-gray-900 font-medium focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all"
+                          onChange={(e) => {
+                            setPhoneError('');
+                            setPhoneInput(formatPhoneNumber(e.target.value));
+                          }}
+                          className={`flex-1 px-4 py-2 bg-white rounded-lg border text-gray-900 font-medium outline-none transition-all ${phoneError ? 'border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100 focus:border-red-400' : 'border-gray-300 focus:ring-2 focus:ring-gray-900 focus:border-transparent'}`}
                           placeholder="010-0000-0000"
+                          inputMode="numeric"
+                          maxLength={13}
                         />
                         <button
                           className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors whitespace-nowrap disabled:opacity-50"
@@ -957,6 +1082,7 @@ const MyPage = () => {
                           {isUpdatingPhone ? '저장 중...' : '변경 저장'}
                         </button>
                       </div>
+                      {phoneError && <p className="text-sm text-red-600">{phoneError}</p>}
                     </div>
                     <div className="space-y-3 pt-4 border-t border-gray-100">
                       <label className="text-sm font-medium text-gray-700">비밀번호 변경</label>
@@ -972,17 +1098,26 @@ const MyPage = () => {
                           <input
                             type="password"
                             value={currentPassword}
-                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            onChange={(e) => {
+                              setPasswordError('');
+                              setCurrentPassword(e.target.value);
+                            }}
                             placeholder="현재 비밀번호 입력"
                             className="w-full px-4 py-2 bg-white rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-gray-900 outline-none"
                           />
                           <input
                             type="password"
                             value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
+                            onChange={(e) => {
+                              setPasswordError('');
+                              setNewPassword(e.target.value);
+                            }}
                             placeholder="새 비밀번호 입력 (대문자 포함 8자 이상)"
-                            className="w-full px-4 py-2 bg-white rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-gray-900 outline-none"
+                            className={`w-full px-4 py-2 bg-white rounded-lg border text-gray-900 outline-none ${passwordError ? 'border-red-300 bg-red-50 focus:ring-2 focus:ring-red-100 focus:border-red-400' : 'border-gray-300 focus:ring-2 focus:ring-gray-900'}`}
                           />
+                          {passwordError
+                            ? <div className="text-sm text-red-600">{passwordError}</div>
+                            : <div className="text-sm text-gray-500">{PASSWORD_ERROR_MESSAGE}</div>}
                           <div className="flex flex-col gap-2 pt-2 sm:flex-row">
                             <button
                               className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
@@ -1034,6 +1169,12 @@ const MyPage = () => {
                     </div>
                   )}
 
+                  {retireActionNotice && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                      {retireActionNotice}
+                    </div>
+                  )}
+
                   {ownedPassportsSorted.length > 0 ? (
                     ownedPassportsSorted.map((passport) => (
                       <div
@@ -1058,23 +1199,30 @@ const MyPage = () => {
                             </div>
                           </div>
                           <div className="flex flex-col gap-3 sm:items-end">
-                            {isRiskActive(passport) && (
-                              <span className={`inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getRiskFlagClassName(passport.riskFlag)}`}>
-                                {getRiskFlagLabel(passport.riskFlag)}
+                            <div className="flex flex-wrap gap-2 sm:justify-end">
+                              <span className={`inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getAssetStateClassName(passport.assetState)}`}>
+                                {getAssetStateLabel(passport.assetState)}
                               </span>
-                            )}
+                              {isRiskActive(passport) && !isRetiredPassport(passport) && (
+                                <span className={`inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getRiskFlagClassName(passport.riskFlag)}`}>
+                                  {getRiskFlagLabel(passport.riskFlag)}
+                                </span>
+                              )}
+                            </div>
                             <div className="grid grid-cols-2 gap-2 sm:w-[17rem]">
                               <button
                                 type="button"
                                 onClick={(e) => handleTransferClick(e, passport)}
-                                className={`${assetActionPrimaryClassName} col-span-1`}
+                                disabled={isRetiredPassport(passport)}
+                                className={`${isRetiredPassport(passport) ? assetActionDisabledClassName : assetActionPrimaryClassName} col-span-1`}
                               >
                                 양도하기
                               </button>
                               <button
                                 type="button"
                                 onClick={(e) => handleServiceRequestClick(e, passport)}
-                                className={`${assetActionWarmClassName} col-span-1`}
+                                disabled={isRetiredPassport(passport)}
+                                className={`${isRetiredPassport(passport) ? assetActionDisabledClassName : assetActionWarmClassName} col-span-1`}
                               >
                                 서비스 신청
                               </button>
@@ -1085,14 +1233,29 @@ const MyPage = () => {
                               >
                                 원장 이력
                               </button>
+                              {isRetiredPassport(passport) ? (
+                                <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-[11px] font-medium leading-5 text-slate-500">
+                                  폐기된 자산은 양도, 서비스 신청, 분실/도난 신고를 진행할 수 없습니다.
+                                </div>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleRetireClick(e, passport)}
+                                    className={assetRiskLinkClassName}
+                                  >
+                                    제품 폐기
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleRiskClick(e, passport)}
+                                    className={assetRiskLinkClassName}
+                                  >
+                                    {isRiskActive(passport) ? '분실/도난 신고 취소' : '분실/도난 신고'}
+                                  </button>
+                                </>
+                              )}
                             </div>
-                            <button
-                              type="button"
-                              onClick={(e) => handleRiskClick(e, passport)}
-                              className={assetRiskLinkClassName}
-                            >
-                              {isRiskActive(passport) ? '분실/도난 신고 취소' : '분실/도난 신고'}
-                            </button>
                           </div>
                         </div>
                       </div>
@@ -1454,6 +1617,14 @@ const MyPage = () => {
                 <div className="font-semibold text-gray-900 break-all">{selectedPassport.assetId || '-'}</div>
               </div>
               <div>
+                <div className="text-gray-500 mb-1">자산 상태</div>
+                <div>
+                  <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${getAssetStateClassName(selectedPassport.assetState)}`}>
+                    {getAssetStateLabel(selectedPassport.assetState)}
+                  </span>
+                </div>
+              </div>
+              <div>
                 <div className="text-gray-500 mb-1">리스크 상태</div>
                 <div className="flex items-center justify-between gap-3">
                   {isRiskActive(selectedPassport) ? (
@@ -1463,22 +1634,47 @@ const MyPage = () => {
                   ) : (
                     <span className="text-sm font-semibold text-slate-500">신고 이력 없음</span>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const passport = selectedPassport;
-                      setSelectedPassport(null);
-                      openRiskModal(passport);
-                    }}
-                    className={isRiskActive(selectedPassport)
-                      ? assetActionDangerSoftClassName
-                      : assetActionDangerClassName
-                    }
-                  >
-                    {isRiskActive(selectedPassport) ? '신고 취소' : '분실/도난 신고'}
-                  </button>
+                  {isRetiredPassport(selectedPassport) ? (
+                    <span className="text-xs font-medium text-slate-500">폐기된 자산은 리스크 상태를 변경할 수 없습니다.</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const passport = selectedPassport;
+                        setSelectedPassport(null);
+                        openRiskModal(passport);
+                      }}
+                      className={isRiskActive(selectedPassport)
+                        ? assetActionDangerSoftClassName
+                        : assetActionDangerClassName
+                      }
+                    >
+                      {isRiskActive(selectedPassport) ? '신고 취소' : '분실/도난 신고'}
+                    </button>
+                  )}
                 </div>
               </div>
+              {!isRetiredPassport(selectedPassport) && (
+                <div>
+                  <div className="text-gray-500 mb-1">제품 폐기</div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs leading-5 text-slate-500">
+                      폐기 처리 후에는 양도, 서비스 신청, 분실/도난 신고를 더 이상 진행할 수 없고, 취소도 불가능합니다.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const passport = selectedPassport;
+                        setSelectedPassport(null);
+                        openRetireModal(passport);
+                      }}
+                      className={assetRiskLinkClassName}
+                    >
+                      제품 폐기
+                    </button>
+                  </div>
+                </div>
+              )}
               <div>
                 <div className="text-gray-500 mb-1">보유 시작일</div>
                 <div className="font-semibold text-gray-900">
@@ -1601,6 +1797,68 @@ const MyPage = () => {
                   : (isRiskActive(riskModalPassport)
                     ? '신고 취소하기'
                     : (riskReportType === 'STOLEN' ? '도난 신고하기' : '분실 신고하기'))}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {retireModalPassport && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-in fade-in duration-200 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-[linear-gradient(135deg,#f8fafc,#ffffff)]">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Trash2 className="text-slate-700" />
+                제품 폐기
+              </h3>
+              <button
+                onClick={closeRetireModal}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors"
+              >
+                <span className="text-2xl leading-none">&times;</span>
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-5 text-sm">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
+                <div className="text-xs font-semibold tracking-wide text-slate-600 uppercase">폐기 대상 자산</div>
+                <div className="mt-3 space-y-2">
+                  <div className="text-lg font-bold tracking-tight text-gray-900">
+                    {retireModalPassport.modelName || retireModalPassport.serialNumber || retireModalPassport.passportId}
+                  </div>
+                  <div className="text-xs text-gray-600">Serial: {retireModalPassport.serialNumber || '-'}</div>
+                  <div className="text-xs text-gray-500 font-mono break-all">Passport: {retireModalPassport.passportId}</div>
+                </div>
+              </div>
+
+              {retireActionError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {retireActionError}
+                </div>
+              )}
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-900">
+                폐기 처리 후에는 소유권 이전, 서비스 신청, 분실/도난 신고를 더 이상 진행할 수 없습니다.
+                이 작업은 취소할 수 없으며, 처리 이력은 공개 원장에 영구적으로 남습니다.
+              </div>
+            </div>
+
+            <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeRetireModal}
+                disabled={retireActionLoading}
+                className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-colors disabled:opacity-50"
+              >
+                닫기
+              </button>
+              <button
+                type="button"
+                onClick={handleRetireAction}
+                disabled={retireActionLoading}
+                className="px-6 py-2 rounded-lg font-medium text-white transition-colors disabled:opacity-50 bg-slate-900 hover:bg-slate-800"
+              >
+                {retireActionLoading ? '처리 중...' : '폐기하기'}
               </button>
             </div>
           </div>

@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { cancelMyServiceRequest, listMyServiceRequests } from './consumerServiceApi';
 import { formatDateTime } from './serviceApi';
 import { getServiceRequestMethodLabel, getServiceTypeLabel } from './serviceOptions';
+import ReasonModal from './ReasonModal';
 
 const STATUS_META = {
   PENDING: { label: '요청 전송', badge: 'bg-amber-50 text-amber-700 border-amber-100' },
@@ -28,6 +29,7 @@ const MyServiceRequestsUserPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
   const [actionLoading, setActionLoading] = useState('');
+  const [cancelTarget, setCancelTarget] = useState(null);
 
   const highlightedId = useMemo(() => createdRequestId, [createdRequestId]);
 
@@ -52,15 +54,14 @@ const MyServiceRequestsUserPage = () => {
     load(activeStatus, 0).catch(() => {});
   }, [activeStatus]);
 
-  const handleCancel = async (item) => {
-    const cancelReason = window.prompt('취소 사유를 입력하세요.', '');
-    if (cancelReason === null) return;
-
-    const actionKey = `cancel-${item.serviceRequestId}`;
+  const confirmCancel = async (cancelReason) => {
+    if (!cancelTarget) return;
+    const actionKey = `cancel-${cancelTarget.serviceRequestId}`;
     setActionLoading(actionKey);
     setError('');
     try {
-      await cancelMyServiceRequest(item.serviceRequestId, cancelReason);
+      await cancelMyServiceRequest(cancelTarget.serviceRequestId, cancelReason);
+      setCancelTarget(null);
       await load(activeStatus, page);
     } catch (e) {
       setError(e?.message || '서비스 요청 취소에 실패했습니다.');
@@ -205,14 +206,14 @@ const MyServiceRequestsUserPage = () => {
                           )}
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2 xl:flex-col xl:items-end">
+                        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
                           <span className={`inline-flex min-h-[32px] items-center rounded-full border px-3 py-1 text-xs font-semibold ${meta.badge}`}>
                             {meta.label}
                           </span>
-                          {item.status === 'PENDING' && (
+                              {item.status === 'PENDING' && (
                             <button
                               type="button"
-                              onClick={() => handleCancel(item)}
+                              onClick={() => setCancelTarget(item)}
                               disabled={!!actionLoading}
                               className="inline-flex min-h-[32px] items-center gap-2 rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                             >
@@ -251,6 +252,21 @@ const MyServiceRequestsUserPage = () => {
             </>
           )}
         </section>
+        <ReasonModal
+          key={cancelTarget?.serviceRequestId || 'cancel-closed'}
+          isOpen={!!cancelTarget}
+          title="서비스 요청 취소"
+          description="서비스 업체에 전달할 취소 사유를 남겨주세요. 입력한 내용은 요청 이력에 함께 표시됩니다."
+          confirmLabel="취소 요청 확정"
+          placeholder="예: 일정이 변경되어 서비스 요청을 취소합니다."
+          initialValue=""
+          tone="danger"
+          loading={!!actionLoading}
+          onClose={() => {
+            if (!actionLoading) setCancelTarget(null);
+          }}
+          onConfirm={confirmCancel}
+        />
       </div>
     </div>
   );

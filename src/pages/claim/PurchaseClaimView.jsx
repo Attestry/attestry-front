@@ -4,22 +4,6 @@ import useAuthStore from '../../store/useAuthStore';
 import { apiFetchJson } from '../../utils/api';
 import { normalizeApiErrorMessage } from '../../utils/permissionUi';
 
-const parseErrorMessage = async (response) => {
-  const prefix = `[${response.status}]`;
-  const contentType = response.headers.get('content-type') || '';
-  try {
-    if (contentType.includes('application/json')) {
-      const data = await response.json();
-      const message = data?.message || data?.error || data?.code || data?.path;
-      return normalizeApiErrorMessage(message ? `${prefix} ${message}` : '', response.status, '요청 처리에 실패했습니다.');
-    }
-    const text = await response.text();
-    return normalizeApiErrorMessage(text?.trim() ? `${prefix} ${text.slice(0, 160)}` : '', response.status, '요청 처리에 실패했습니다.');
-  } catch {
-    return normalizeApiErrorMessage('', response.status, '요청 처리에 실패했습니다.');
-  }
-};
-
 const apiJson = async (url, token, options = {}) => {
   try {
     return await apiFetchJson(url, options, { token });
@@ -70,16 +54,15 @@ const PurchaseClaimView = () => {
 
   const handleUploadEvidence = async (selectedFilesOverride = null) => {
     setError('');
-    setSuccess('');
 
     if (!accessToken) {
       openModal('안내', '로그인이 필요합니다.', 'alert');
-      return;
+      throw new Error('로그인이 필요합니다.');
     }
     const filesToUpload = selectedFilesOverride || selectedFiles;
     if (filesToUpload.length === 0) {
       openModal('증빙 파일 확인', '업로드할 파일을 선택해주세요.', 'alert');
-      return;
+      throw new Error('업로드할 파일을 선택해주세요.');
     }
 
     const pendingFiles = [...filesToUpload];
@@ -140,15 +123,11 @@ const PurchaseClaimView = () => {
 
       setSelectedFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      setSuccess(`${uploadedCount}개 증빙 파일 제출이 완료되었습니다.`);
-      openModal('증빙 제출 완료', `${uploadedCount}개 파일이 정상 제출되었습니다.`);
+      return currentGroupId;
     } catch (e) {
       const remaining = pendingFiles.slice(uploadedCount);
       setSelectedFiles(remaining);
-      setError(e.message);
-      if (uploadedCount > 0) {
-        setSuccess(`${uploadedCount}개 파일은 제출 완료, 나머지 파일은 다시 제출해주세요.`);
-      }
+      throw new Error(e.message);
     } finally {
       setUploading(false);
       setUploadProgress({ total: 0, done: 0, current: '' });
@@ -157,11 +136,18 @@ const PurchaseClaimView = () => {
 
   const handleSelectFiles = (files) => {
     const nextFiles = Array.from(files || []);
-    setSelectedFiles(nextFiles);
     if (nextFiles.length === 0) {
       return;
     }
-    handleUploadEvidence(nextFiles).catch(() => {});
+    setEvidenceGroupId('');
+    setUploadedEvidences([]);
+    setSelectedFiles((prev) => [...prev, ...nextFiles]);
+  };
+
+  const handleRemoveSelectedFile = (indexToRemove) => {
+    setEvidenceGroupId('');
+    setUploadedEvidences([]);
+    setSelectedFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
 
   const handleSubmitClaim = async () => {
@@ -176,19 +162,25 @@ const PurchaseClaimView = () => {
       openModal('입력 정보 확인', '시리얼 번호와 모델명을 모두 입력해주세요.', 'alert');
       return;
     }
-    if (!evidenceGroupId) {
-      openModal('증빙 파일 확인', '증빙 파일 제출을 먼저 완료해주세요.', 'alert');
+    if (!evidenceGroupId && selectedFiles.length === 0) {
+      openModal('증빙 파일 확인', '증빙 파일을 먼저 첨부해주세요.', 'alert');
       return;
     }
 
     setSubmitting(true);
     try {
+      let currentEvidenceGroupId = evidenceGroupId;
+
+      if (!currentEvidenceGroupId && selectedFiles.length > 0) {
+        currentEvidenceGroupId = await handleUploadEvidence(selectedFiles);
+      }
+
       const submitted = await apiJson('/workflows/purchase-claims', accessToken, {
         method: 'POST',
         body: JSON.stringify({
           serialNumber: serialNumber.trim(),
           modelName: modelName.trim(),
-          evidenceGroupId,
+          evidenceGroupId: currentEvidenceGroupId,
           note: null,
         }),
       });
@@ -318,6 +310,7 @@ const PurchaseClaimView = () => {
                   <p className="text-sm text-slate-500 mt-1">PNG, JPG, PDF 등 증빙 파일을 여러 개 선택할 수 있습니다.</p>
                 )}
                 <p className="text-xs text-slate-500 mt-1">(영수증, 인보이스 등 첨부해주세요.)</p>
+                <p className="text-xs text-slate-500 mt-1">파일은 선택만 보관되며, 최종 신청 시 업로드됩니다.</p>
                 {uploading && (
                   <p className="text-xs text-amber-700 mt-1">
                     업로드 진행: {uploadProgress.done}/{uploadProgress.total}
@@ -340,6 +333,8 @@ const PurchaseClaimView = () => {
                 <button
                   type="button"
                   onClick={() => {
+                    setEvidenceGroupId('');
+                    setUploadedEvidences([]);
                     setSelectedFiles([]);
                     if (fileInputRef.current) fileInputRef.current.value = '';
                   }}
@@ -364,7 +359,7 @@ const PurchaseClaimView = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setSelectedFiles((prev) => prev.filter((_, i) => i !== idx))}
+                  onClick={() => handleRemoveSelectedFile(idx)}
                   className="text-slate-400 hover:text-slate-700"
                   title="선택 목록에서 제거"
                 >
@@ -395,13 +390,13 @@ const PurchaseClaimView = () => {
 
         <div className="tracera-workflow-actionbar">
           <p className="text-sm leading-6 text-slate-600">
-            증빙 업로드가 완료되면 바로 등록 신청을 제출할 수 있습니다.
+            업체 신청과 동일하게 파일을 먼저 정리한 뒤, 등록 신청 시 업로드와 제출이 함께 진행됩니다.
           </p>
           <button
             onClick={handleSubmitClaim}
-            disabled={submitting || !evidenceGroupId}
+            disabled={submitting || uploading}
             className="tracera-workflow-button w-full md:w-auto shadow-[0_14px_30px_-16px_rgba(15,23,42,.8)]"
-            title={!evidenceGroupId ? '증빙 파일 제출 완료 후 신청할 수 있습니다.' : ''}
+            title={!evidenceGroupId && selectedFiles.length === 0 ? '증빙 파일을 첨부한 뒤 신청할 수 있습니다.' : ''}
           >
             {submitting ? '제출 중...' : '디지털 자산 등록 신청하기'}
           </button>

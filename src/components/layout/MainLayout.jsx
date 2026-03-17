@@ -6,6 +6,14 @@ import { getRoleLandingPath } from '../../utils/roleNavigation';
 import TraceraLogo from './TraceraLogo';
 import AccountMenu from './AccountMenu';
 
+const labelForRole = (role) => (
+  role === ROLES.USER ? '개인' :
+    role === ROLES.BRAND ? '브랜드' :
+      role === ROLES.RETAIL ? '리테일' :
+        role === ROLES.SERVICE ? '서비스' :
+          '플랫폼 관리자'
+);
+
 const MainLayout = () => {
   const { user, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
@@ -14,13 +22,23 @@ const MainLayout = () => {
   const isUserProfile = isAuthenticated && user?.role === ROLES.USER;
   const homePath = isAuthenticated ? getRoleLandingPath(user?.role) : '/';
   const userQuickLinks = [
-    { to: '/transfer/receive', label: '소유권 이전 받기' },
-    { to: '/purchase-claims', label: '제품 등록 신청' },
-    { to: '/service-request/providers', label: '서비스 신청' },
+    { to: '/transfer/receive', label: '소유권 이전 받기', userOnly: true },
+    { to: '/purchase-claims', label: '제품 등록 신청', userOnly: true },
+    { to: '/service-request/providers', label: '서비스 신청', userOnly: true },
   ];
+  const visibleQuickLinks = userQuickLinks.filter((item) => !isAuthenticated || !item.userOnly || isUserProfile);
   const getFeatureHref = (to) => (isAuthenticated ? to : `/login?returnTo=${encodeURIComponent(to)}`);
 
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
+  const changeMobileRole = async (role) => {
+    const result = await useAuthStore.getState().switchRole(role);
+    if (!result?.success) {
+      alert(result?.message || '프로필 전환에 실패했습니다.');
+      return;
+    }
+    closeMobileMenu();
+    navigate(getRoleLandingPath(role));
+  };
 
   return (
     <div className="min-h-screen bg-[var(--color-page)] flex flex-col text-slate-900">
@@ -31,7 +49,7 @@ const MainLayout = () => {
           </div>
 
           <div className="hidden items-center gap-2 md:flex">
-            {userQuickLinks.map((item) => (
+            {visibleQuickLinks.map((item) => (
               <Link key={item.to} to={getFeatureHref(item.to)} className="px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-950">
                 {item.label}
               </Link>
@@ -66,15 +84,40 @@ const MainLayout = () => {
         {isMobileMenuOpen && (
           <div className="border-t border-slate-200/80 bg-[rgba(248,246,241,0.96)] px-4 py-4 md:hidden">
             <div className="mx-auto flex max-w-7xl flex-col gap-3">
-              {userQuickLinks.map((item) => (
+              {visibleQuickLinks.map((item) => (
                 <Link key={item.to} to={getFeatureHref(item.to)} onClick={closeMobileMenu} className="tracera-panel-soft px-4 py-3 text-sm font-medium text-slate-700">
                   {item.label}
                 </Link>
               ))}
               {isAuthenticated ? (
                 <>
+                  {user?.availableRoles?.length > 1 && (
+                    <div className="tracera-panel-soft px-4 py-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">프로필 선택</div>
+                      <div className="mt-3 space-y-2">
+                        {user.availableRoles.map((role) => {
+                          const active = role === user.role;
+                          return (
+                            <button
+                              key={role}
+                              type="button"
+                              onClick={() => changeMobileRole(role)}
+                              className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-medium transition-all ${
+                                active
+                                  ? 'bg-slate-950 text-white shadow-sm'
+                                  : 'bg-white text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              <span>{labelForRole(role)}</span>
+                              {active && <span className="text-xs font-semibold text-slate-300">현재</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   <Link to="/mypage" onClick={closeMobileMenu} className="tracera-panel-soft px-4 py-3 text-sm font-medium text-slate-700">
-                    마이페이지
+                    마이페이지 {user?.role ? `(${labelForRole(user.role)})` : ''}
                   </Link>
                   <button
                     onClick={() => {

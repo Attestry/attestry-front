@@ -1,21 +1,58 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
 import { ChevronRight, Lock, Mail } from 'lucide-react';
 import TraceraLogo from '../../components/layout/TraceraLogo';
 import { consumeAuthNotice } from '../../utils/authSession';
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_REGEX = /^(?=.*[A-Z]).{8,}$/;
+const PASSWORD_ERROR_MESSAGE = '비밀번호는 8자 이상이며 영문 대문자를 1자 이상 포함해야 합니다.';
+const INPUT_ERROR_CLASS = '!border-red-400 !bg-red-50 focus:!border-red-500 focus:!ring-red-100';
+
 const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [notice] = useState(() => consumeAuthNotice());
-    const { login, error } = useAuthStore();
+    const { login, error, clearError } = useAuthStore();
     const navigate = useNavigate();
     const location = useLocation();
     const returnTo = new URLSearchParams(location.search).get('returnTo');
     const safeReturnTo = returnTo && returnTo.startsWith('/') ? returnTo : null;
     const signupHref = safeReturnTo ? `/signup?returnTo=${encodeURIComponent(safeReturnTo)}` : '/signup';
+    const emailValid = EMAIL_REGEX.test(email.trim());
+    const passwordValid = PASSWORD_REGEX.test(password);
+
+    const fieldErrors = useMemo(() => ({
+        email: email && !emailValid ? '올바른 이메일 형식을 입력해주세요.' : '',
+        password: password && !passwordValid ? PASSWORD_ERROR_MESSAGE : '',
+    }), [email, emailValid, password, passwordValid]);
+
+    const emailServerError = useMemo(() => {
+        const normalized = String(error || '').trim();
+        if (!normalized) return '';
+        if (normalized.includes('이메일')) return normalized;
+        return '';
+    }, [error]);
+
+    const passwordServerError = useMemo(() => {
+        const normalized = String(error || '').trim();
+        if (!normalized) return '';
+        if (normalized.includes('비밀번호')) return normalized;
+        return '';
+    }, [error]);
+
+    const displayFieldErrors = {
+        email: fieldErrors.email || emailServerError,
+        password: fieldErrors.password || passwordServerError,
+    };
+
+    const formError = emailServerError || passwordServerError ? '' : error;
+
+    useEffect(() => {
+        clearError();
+    }, [clearError]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -88,10 +125,11 @@ const LoginPage = () => {
                                 </div>
                                 <input
                                     type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                                    className="tracera-input"
+                                    className={`tracera-input ${displayFieldErrors.email ? INPUT_ERROR_CLASS : ''}`}
                                     placeholder="name@company.com"
                                 />
                             </div>
+                            {displayFieldErrors.email && <p className="mt-2 text-sm text-red-600">{displayFieldErrors.email}</p>}
                         </div>
 
                         <div>
@@ -102,15 +140,18 @@ const LoginPage = () => {
                                 </div>
                                 <input
                                     type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-                                    className="tracera-input"
+                                    className={`tracera-input ${displayFieldErrors.password ? INPUT_ERROR_CLASS : ''}`}
                                     placeholder="••••••••"
                                 />
                             </div>
+                            {displayFieldErrors.password
+                                ? <p className="mt-2 text-sm text-red-600">{displayFieldErrors.password}</p>
+                                : <p className="mt-2 text-sm text-slate-500">{PASSWORD_ERROR_MESSAGE}</p>}
                         </div>
 
-                        {(notice || error) && (
+                        {(notice || formError) && (
                             <div className="rounded-[1.1rem] border border-red-200 bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-600">
-                                {notice || error}
+                                {notice || formError}
                             </div>
                         )}
 

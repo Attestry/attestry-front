@@ -45,6 +45,14 @@ export const normalizeApiErrorMessage = (message, status, fallbackMessage = '') 
     return '현재 계정으로는 이 작업을 진행할 수 없습니다.';
   }
 
+  if (
+    rawMessage === 'SERVICE_REQUEST_ALREADY_SUBMITTED'
+    || /open service request already exists/i.test(rawMessage)
+    || /service request already submitted/i.test(rawMessage)
+  ) {
+    return '이미 처리 중인 서비스 요청이 있습니다.';
+  }
+
   return rawMessage;
 };
 
