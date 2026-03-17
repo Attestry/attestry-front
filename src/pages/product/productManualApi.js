@@ -40,9 +40,9 @@ export const completePassportManualEvidence = (tenantId, payload) => (
   )
 );
 
-export const sendPassportManual = (tenantId, passportId, payload) => (
+export const sendPassportManual = (tenantId, payload) => (
   fetchWithAuth(
-    `/workflows/tenants/${encodeURIComponent(tenantId)}/passports/${encodeURIComponent(passportId)}/manual-deliveries`,
+    `/workflows/tenants/${encodeURIComponent(tenantId)}/passport-manuals/manual-deliveries`,
     {
       method: 'POST',
       body: JSON.stringify(payload),
