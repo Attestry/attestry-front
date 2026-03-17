@@ -1,15 +1,17 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Package, ArrowLeft, Calendar, Hash, Factory, Database,
     ShieldCheck, AlertTriangle, FileText, Download, User,
     Clock, CheckCircle2, ChevronRight, Loader2, QrCode, Printer,
-    RefreshCw
+    RefreshCw, Send
 } from 'lucide-react';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import useAuthStore from '../../store/useAuthStore';
 import { apiFetchJson } from '../../utils/api';
-import { normalizeApiErrorMessage } from '../../utils/permissionUi';
+import { getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
+import ProductManualSendModal from './ProductManualSendModal';
+import { getPassportManualRecipient } from './productManualApi';
 
 // Role-based utility to fetch with Auth Token
 const fetchWithAuth = async (url, options = {}) => {
@@ -23,12 +25,15 @@ const fetchWithAuth = async (url, options = {}) => {
 const ProductDetail = () => {
     const { passportId } = useParams();
     const navigate = useNavigate();
-    const { user } = useAuthStore();
+    const { user, myMemberships } = useAuthStore();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [manualModalOpen, setManualModalOpen] = useState(false);
+    const [manualRecipient, setManualRecipient] = useState(null);
+    const [manualRecipientLoading, setManualRecipientLoading] = useState(false);
 
-    const fetchProductDetail = async () => {
+    const fetchProductDetail = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -40,21 +45,49 @@ const ProductDetail = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [passportId]);
 
     useEffect(() => {
         if (passportId) {
-            fetchProductDetail();
+            void fetchProductDetail();
         }
-    }, [passportId]);
+    }, [passportId, fetchProductDetail]);
 
     const publicPassportUrl = useMemo(() => {
         if (!passportId) return '';
         return `${window.location.origin}/products/passports/${encodeURIComponent(passportId)}`;
     }, [passportId]);
 
+    const currentMembership = getCurrentMembership(myMemberships, user?.tenantId, 'BRAND');
+    const canSendManual = user?.role === 'BRAND' && hasEffectiveScope(currentMembership, 'BRAND_RELEASE');
+
     const handleBack = () => {
         navigate(-1);
+    };
+
+    const handleOpenManualModal = async () => {
+        if (!passportId || !user?.tenantId) return;
+        if (!canSendManual) {
+            alert('현재 계정은 메뉴얼 발송 권한이 없습니다. 해당 권한이 있는 멤버에게 요청해주세요.');
+            return;
+        }
+
+        setManualRecipientLoading(true);
+        try {
+            const recipient = await getPassportManualRecipient(user.tenantId, passportId);
+            setManualRecipient(recipient);
+            if (!recipient.available) {
+                alert(recipient.message || '현재 소유주가 없습니다.');
+                return;
+            }
+            setManualModalOpen(true);
+        } catch (recipientError) {
+            console.error('Failed to load passport manual recipient:', recipientError);
+            const message = toPermissionMessage(recipientError, 'BRAND_RELEASE', '메뉴얼 수신 대상을 확인하지 못했습니다.');
+            alert(message);
+        } finally {
+            setManualRecipientLoading(false);
+        }
     };
 
     const downloadQRCode = () => {
@@ -183,6 +216,21 @@ const ProductDetail = () => {
                 </div>
 
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                    {user?.role === 'BRAND' && (
+                        <button
+                            type="button"
+                            onClick={handleOpenManualModal}
+                            disabled={manualRecipientLoading}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 shadow-sm transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                        >
+                            {manualRecipientLoading ? (
+                                <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                                <Send size={16} />
+                            )}
+                            메뉴얼 보내기
+                        </button>
+                    )}
                     <a
                         href={publicPassportUrl}
                         target="_blank"
@@ -416,6 +464,19 @@ const ProductDetail = () => {
                     </div>
                 </div>
             </div>
+
+            <ProductManualSendModal
+                isOpen={manualModalOpen}
+                onClose={() => setManualModalOpen(false)}
+                tenantId={user?.tenantId}
+                passportId={passportId}
+                productLabel={`${product.modelName} / ${product.serialNumber}`}
+                recipientEmailMasked={manualRecipient?.recipientEmailMasked || ''}
+                onSent={() => {
+                    setManualModalOpen(false);
+                    alert('메뉴얼 이메일을 전송했습니다.');
+                }}
+            />
         </div>
     );
 };
