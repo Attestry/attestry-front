@@ -174,9 +174,8 @@ const useAuthStore = create((set, get) => ({
       // Store token and user
       get().setToken(data.accessToken, userContext);
 
-      // Resolve the actual operating role from the user's memberships after login.
+      // Keep login landing on the general user profile; other roles remain switchable after membership load.
       await get().fetchMyMemberships({
-        resolveRoleFromMemberships: true,
         preferredTenantId: data.tenantId ?? tenantId ?? null,
       });
 
@@ -246,13 +245,13 @@ const useAuthStore = create((set, get) => ({
   logout: async () => {
     try {
       await apiFetch('/auth/logout', { method: 'POST' });
-    } catch (e) {
+    } catch {
       console.warn('Logout API failed, forcing local logout');
     }
     get().setToken(null);
   },
 
-  reissueToken: async (tenantId = get().user?.tenantId ?? null) => {
+  reissueToken: async () => {
     try {
       const data = await apiFetch('/auth/token-reissue', { method: 'POST' });
       // Update store with new token

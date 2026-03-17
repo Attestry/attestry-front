@@ -15,24 +15,6 @@ import { parseTransferQrPayload } from '../../utils/qrPayload';
 import { apiFetchJson } from '../../utils/api';
 import { normalizeApiErrorMessage } from '../../utils/permissionUi';
 
-const parseErrorMessage = async (response) => {
-  const prefix = `[${response.status}]`;
-  const contentType = response.headers.get('content-type') || '';
-
-  try {
-    if (contentType.includes('application/json')) {
-      const data = await response.json();
-      const message = data?.message || data?.error || data?.code || data?.path;
-      return normalizeApiErrorMessage(message ? `${prefix} ${message}` : '', response.status, '요청 처리에 실패했습니다.');
-    }
-
-    const text = await response.text();
-    return normalizeApiErrorMessage(text?.trim() ? `${prefix} ${text.slice(0, 180)}` : '', response.status, '요청 처리에 실패했습니다.');
-  } catch {
-    return normalizeApiErrorMessage('', response.status, '요청 처리에 실패했습니다.');
-  }
-};
-
 const apiJson = async (url, token, options = {}) => {
   try {
     return await apiFetchJson(url, options, { token });
@@ -98,7 +80,6 @@ const TransferReceiveView = () => {
 
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState('');
-  const [success, setSuccess] = React.useState('');
   const [result, setResult] = React.useState(null);
 
   const autoSubmittingRef = React.useRef(false);
@@ -155,12 +136,10 @@ const TransferReceiveView = () => {
 
   const closeCompletionModal = React.useCallback(() => {
     setResult(null);
-    setSuccess('');
   }, []);
 
   const acceptTransfer = React.useCallback(async ({ acceptMethod, transferIdValue, nonceValue, passwordValue, auto = false }) => {
     setError('');
-    setSuccess('');
     setResult(null);
 
     if (!accessToken) {
@@ -198,7 +177,6 @@ const TransferReceiveView = () => {
       if (auto) playScannerSuccessFeedback();
 
       setResult(data);
-      setSuccess('디지털 자산을 안전하게 이전 받았습니다.');
       setScannerStatus(auto ? 'QR 인식 및 소유권 인증이 완료되었습니다.' : '소유권 인증이 완료되었습니다.');
       setPassword('');
       closeScanner();
@@ -231,7 +209,7 @@ const TransferReceiveView = () => {
     setScannerStatus('');
     setError('');
     setScannerOpen(true);
-    setScannerStatus('직원이 제시한 QR 코드를 스캔하면 소유권 인증이 이어집니다.');
+    setScannerStatus('제시받은 QR 코드를 스캔하면 소유권 인증이 이어집니다.');
   }, []);
 
   React.useEffect(() => {
@@ -321,7 +299,7 @@ const TransferReceiveView = () => {
               className={`group min-h-[112px] rounded-[1.5rem] border p-5 text-left transition ${mode === 'QR' ? 'border-amber-200 bg-[linear-gradient(160deg,#fffaf2,#f6efe6)] text-[#5f4637] shadow-[0_16px_40px_-28px_rgba(120,83,51,.24)]' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}
             >
               <div className="flex items-center gap-2 text-base font-semibold"><Camera size={18} /> QR 스캔</div>
-              <p className="mt-2 text-sm opacity-80">직원이 제시한 QR 코드를 카메라로 스캔해 바로 소유권 이전을 진행합니다.</p>
+              <p className="mt-2 text-sm opacity-80">제시받은 QR 코드를 스캔하면 소유권 인증이 이어집니다.</p>
             </button>
 
             <button

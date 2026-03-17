@@ -17,6 +17,7 @@ const QRScannerModal = ({
     const html5QrCodeRef = useRef(null);
     const fileInputRef = useRef(null);
     const isStartingRef = useRef(false);
+    const stopPromiseRef = useRef(null);
 
     const isServiceAccent = accent === 'service';
     const accentColor = isServiceAccent ? '#C27A2C' : '#2856D8';
@@ -49,18 +50,44 @@ const QRScannerModal = ({
     }, []);
 
     const stopScanner = useCallback(async () => {
-        if (html5QrCodeRef.current) {
-            try {
-                if (html5QrCodeRef.current.isScanning) {
-                    await html5QrCodeRef.current.stop();
-                }
-                await html5QrCodeRef.current.clear();
-            } catch (err) {
-                console.error("Error stopping scanner:", err);
-            } finally {
-                html5QrCodeRef.current = null;
-            }
+        if (stopPromiseRef.current) {
+            await stopPromiseRef.current;
+            return;
         }
+
+        const scanner = html5QrCodeRef.current;
+        html5QrCodeRef.current = null;
+
+        if (!scanner) {
+            setScannerActive(false);
+            return;
+        }
+
+        stopPromiseRef.current = (async () => {
+            try {
+                if (scanner.isScanning) {
+                    await scanner.stop();
+                }
+            } catch (err) {
+                const message = String(err?.message || '');
+                if (!message.includes('already under transition')) {
+                    console.error("Error stopping scanner:", err);
+                }
+            }
+
+            try {
+                await scanner.clear();
+            } catch (err) {
+                const message = String(err?.message || '');
+                if (!message.includes('Cannot transition to a new state')) {
+                    console.error("Error clearing scanner:", err);
+                }
+            } finally {
+                stopPromiseRef.current = null;
+            }
+        })();
+
+        await stopPromiseRef.current;
         setScannerActive(false);
     }, []);
 
@@ -89,11 +116,6 @@ const QRScannerModal = ({
         try {
             await stopScanner();
             await requestCameraPermission();
-
-            const html5QrCode = new Html5Qrcode("qr-reader", {
-                formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
-            });
-            html5QrCodeRef.current = html5QrCode;
 
             const baseConfig = {
                 fps: 10,
@@ -143,7 +165,6 @@ const QRScannerModal = ({
                 const html5QrCode = new Html5Qrcode("qr-reader", {
                     formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
                 });
-                html5QrCodeRef.current = html5QrCode;
                 try {
                     await startWithConfig(html5QrCode, cameraCandidate, config);
                     startedScanner = html5QrCode;
@@ -155,10 +176,6 @@ const QRScannerModal = ({
                         await html5QrCode.clear();
                     } catch (clearError) {
                         console.error("Error clearing scanner after failed start:", clearError);
-                    } finally {
-                        if (html5QrCodeRef.current === html5QrCode) {
-                            html5QrCodeRef.current = null;
-                        }
                     }
                 }
             }
@@ -221,7 +238,7 @@ const QRScannerModal = ({
                 <div className={`pointer-events-none absolute right-0 top-0 h-56 w-56 rounded-full blur-3xl ${accentGlow}`} />
                 <div className="pointer-events-none absolute bottom-0 left-0 h-52 w-52 rounded-full bg-slate-200/40 blur-3xl" />
 
-                <div className={`relative border-b border-slate-100 px-4 py-4 sm:px-6 sm:py-5 md:px-7 ${accentHeader}`}>
+                <div className={`sticky top-0 z-10 relative border-b border-slate-100 px-4 py-4 backdrop-blur-md sm:px-6 sm:py-5 md:px-7 ${accentHeader}`}>
                     <div className="flex items-start justify-between gap-4">
                         <div className="flex min-w-0 items-center gap-3">
                             <div className={`rounded-2xl p-2.5 text-white sm:p-3 ${accentIcon}`}>
@@ -238,9 +255,10 @@ const QRScannerModal = ({
                         </div>
                         <button
                             onClick={onClose}
-                            className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-900"
+                            className="shrink-0 rounded-full border border-slate-200 bg-white p-2.5 text-slate-500 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+                            aria-label="스캐너 닫기"
                         >
-                            <X size={20} />
+                            <X size={22} />
                         </button>
                     </div>
                 </div>

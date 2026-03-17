@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import useAuthStore, { ROLE_THEMES } from '../../store/useAuthStore';
+import ReasonModal from '../service/ReasonModal';
 import {
     Users,
     Link as LinkIcon,
@@ -46,6 +47,7 @@ const PartnershipAdmin = () => {
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [selectedPartner, setSelectedPartner] = useState(null);
+    const [reasonModal, setReasonModal] = useState(null);
 
     const currentMembership = myMemberships.find(m => m.tenantId === user?.tenantId) || myMemberships[0];
     const theme = ROLE_THEMES[user?.role];
@@ -135,6 +137,30 @@ const PartnershipAdmin = () => {
         }
     };
 
+    const openReasonModal = (config) => {
+        setReasonModal(config);
+    };
+
+    const handleReasonConfirm = async (reason) => {
+        if (!reasonModal) return;
+        const { action, partnerLinkId } = reasonModal;
+        const actionFn = action === 'reject' ? rejectPartnerLink : terminatePartnerLink;
+        const successMessage = action === 'reject' ? '파트너 요청이 거절되었습니다.' : '파트너 연결이 해지되었습니다.';
+
+        setLoading(true);
+        try {
+            const result = await actionFn(partnerLinkId, reason);
+            if (!result.success) {
+                alert(result.message || '처리에 실패했습니다.');
+                return;
+            }
+            alert(successMessage);
+            setReasonModal(null);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
             <div className="mb-8">
@@ -197,10 +223,14 @@ const PartnershipAdmin = () => {
                                                 승인
                                             </button>
                                             <button
-                                                onClick={() => {
-                                                    const reason = prompt('거절 사유를 입력하세요:');
-                                                    if (reason) rejectPartnerLink(request.partnerLinkId, reason);
-                                                }}
+                                                onClick={() => openReasonModal({
+                                                    action: 'reject',
+                                                    partnerLinkId: request.partnerLinkId,
+                                                    title: '파트너 요청 거절',
+                                                    description: '거절 사유를 입력하면 요청 업체에 그대로 전달되고 이력에 남습니다.',
+                                                    confirmLabel: '거절 확정',
+                                                    placeholder: '예: 현재 운영 정책상 해당 유형의 제휴는 진행하지 않습니다.',
+                                                })}
                                                 className="flex-1 bg-white border border-red-200 text-red-600 py-1.5 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
                                             >
                                                 거절
@@ -263,10 +293,14 @@ const PartnershipAdmin = () => {
                                             )}
                                             {canTerminateLink && link.sourceTenantId === user?.tenantId && !['REJECTED', 'TERMINATED'].includes(link.status) && (
                                                 <button
-                                                    onClick={() => {
-                                                        const reason = prompt('해지 사유를 입력하세요:');
-                                                        if (reason) terminatePartnerLink(link.partnerLinkId, reason);
-                                                    }}
+                                                    onClick={() => openReasonModal({
+                                                        action: 'terminate',
+                                                        partnerLinkId: link.partnerLinkId,
+                                                        title: '파트너 연결 해지',
+                                                        description: '해지 사유를 입력하면 연결 이력에 함께 저장됩니다.',
+                                                        confirmLabel: '해지 확정',
+                                                        placeholder: '예: 제휴 기간 종료로 연결을 해지합니다.',
+                                                    })}
                                                     className="inline-flex flex-1 items-center justify-center rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-bold text-red-600"
                                                 >
                                                     연결 해지
@@ -340,10 +374,14 @@ const PartnershipAdmin = () => {
                                             )}
                                             {canTerminateLink && link.sourceTenantId === user?.tenantId && !['REJECTED', 'TERMINATED'].includes(link.status) && (
                                                 <button
-                                                    onClick={() => {
-                                                        const reason = prompt('해지 사유를 입력하세요:');
-                                                        if (reason) terminatePartnerLink(link.partnerLinkId, reason);
-                                                    }}
+                                                    onClick={() => openReasonModal({
+                                                        action: 'terminate',
+                                                        partnerLinkId: link.partnerLinkId,
+                                                        title: '파트너 연결 해지',
+                                                        description: '해지 사유를 입력하면 연결 이력에 함께 저장됩니다.',
+                                                        confirmLabel: '해지 확정',
+                                                        placeholder: '예: 제휴 기간 종료로 연결을 해지합니다.',
+                                                    })}
                                                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                     title="연결 해지 또는 요청 취소"
                                                 >
@@ -489,6 +527,22 @@ const PartnershipAdmin = () => {
                     </div>
                 </div>
             )}
+
+            <ReasonModal
+                key={reasonModal ? `${reasonModal.action}-${reasonModal.partnerLinkId}` : 'partner-reason-closed'}
+                isOpen={!!reasonModal}
+                title={reasonModal?.title || ''}
+                description={reasonModal?.description || ''}
+                confirmLabel={reasonModal?.confirmLabel || '확인'}
+                placeholder={reasonModal?.placeholder || ''}
+                initialValue=""
+                tone="danger"
+                loading={loading}
+                onClose={() => {
+                    if (!loading) setReasonModal(null);
+                }}
+                onConfirm={handleReasonConfirm}
+            />
         </div>
     );
 };

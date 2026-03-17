@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { AlertCircle, FileText, X } from 'lucide-react';
 
+const DEFAULT_REASON_MAX_LENGTH = 1000;
+
 const ReasonModal = ({
   isOpen,
   title,
@@ -12,6 +14,7 @@ const ReasonModal = ({
   errorMessage = '사유를 입력해주세요.',
   loading = false,
   tone = 'service',
+  maxLength = DEFAULT_REASON_MAX_LENGTH,
   onClose,
   onConfirm,
 }) => {
@@ -41,6 +44,20 @@ const ReasonModal = ({
     }
     setError('');
     onConfirm(trimmed);
+  };
+
+  const handlePaste = (event) => {
+    event.preventDefault();
+    const clipboardText = event.clipboardData?.getData('text') || '';
+    if (!clipboardText) {
+      return;
+    }
+    const target = event.currentTarget;
+    const selectionStart = target.selectionStart ?? value.length;
+    const selectionEnd = target.selectionEnd ?? selectionStart;
+    const nextValue = `${value.slice(0, selectionStart)}${clipboardText}${value.slice(selectionEnd)}`;
+    setValue(nextValue.slice(0, maxLength));
+    if (error) setError('');
   };
 
   return (
@@ -81,11 +98,13 @@ const ReasonModal = ({
             <textarea
               value={value}
               onChange={(e) => {
-                setValue(e.target.value);
+                setValue(e.target.value.slice(0, maxLength));
                 if (error) setError('');
               }}
+              onPaste={handlePaste}
               placeholder={placeholder}
               rows={5}
+              maxLength={maxLength}
               disabled={loading}
               className={`w-full resize-none rounded-[1.25rem] border px-4 py-3 text-sm leading-6 outline-none transition ${
                 error
@@ -96,7 +115,10 @@ const ReasonModal = ({
             {error ? (
               <p className="mt-2 text-sm text-rose-600">{error}</p>
             ) : (
-              <p className="mt-2 text-xs text-slate-500">간단하고 명확하게 사유를 남겨주세요.</p>
+              <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-500">
+                <span>간단하고 명확하게 사유를 남겨주세요.</span>
+                <span>{value.length}/{maxLength}</span>
+              </div>
             )}
           </div>
         </div>

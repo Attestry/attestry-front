@@ -19,24 +19,6 @@ import useAuthStore from '../../store/useAuthStore';
 import { apiFetchJson } from '../../utils/api';
 import { normalizeApiErrorMessage } from '../../utils/permissionUi';
 
-const parseErrorMessage = async (response) => {
-  const prefix = `[${response.status}]`;
-  const contentType = response.headers.get('content-type') || '';
-
-  try {
-    if (contentType.includes('application/json')) {
-      const data = await response.json();
-      const message = data?.message || data?.error || data?.code || data?.path;
-      return normalizeApiErrorMessage(message ? `${prefix} ${message}` : '', response.status, '요청 처리에 실패했습니다.');
-    }
-
-    const text = await response.text();
-    return normalizeApiErrorMessage(text?.trim() ? `${prefix} ${text.slice(0, 160)}` : '', response.status, '요청 처리에 실패했습니다.');
-  } catch {
-    return normalizeApiErrorMessage('', response.status, '요청 처리에 실패했습니다.');
-  }
-};
-
 const apiJson = async (url, token, options = {}) => {
   try {
     return await apiFetchJson(url, options, { token });
@@ -126,8 +108,11 @@ const DataField = ({ label, value, mono = false }) => (
   </div>
 );
 
+const REJECT_REASON_MAX_LENGTH = 1000;
+const trimToMaxLength = (value, maxLength) => String(value || '').slice(0, maxLength);
+
 const PurchaseClaimAdminView = () => {
-  const { accessToken, user } = useAuthStore();
+  const { accessToken } = useAuthStore();
   const storageKey = React.useMemo(() => `purchase_claim_admin_history_platform`, []);
 
   const [claims, setClaims] = React.useState([]);
@@ -153,6 +138,19 @@ const PurchaseClaimAdminView = () => {
   const openModal = React.useCallback((title, message, tone = 'success') => {
     setModal({ open: true, title, message, tone });
   }, []);
+
+  const handleRejectReasonPaste = React.useCallback((event) => {
+    event.preventDefault();
+    const clipboardText = event.clipboardData?.getData('text') || '';
+    if (!clipboardText) {
+      return;
+    }
+    const target = event.currentTarget;
+    const selectionStart = target.selectionStart ?? rejectReason.length;
+    const selectionEnd = target.selectionEnd ?? selectionStart;
+    const nextValue = `${rejectReason.slice(0, selectionStart)}${clipboardText}${rejectReason.slice(selectionEnd)}`;
+    setRejectReason(trimToMaxLength(nextValue, REJECT_REASON_MAX_LENGTH));
+  }, [rejectReason]);
 
   React.useEffect(() => {
     try {
@@ -699,10 +697,15 @@ const PurchaseClaimAdminView = () => {
                   id="rejectReason"
                   rows={4}
                   value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
+                  onChange={(e) => setRejectReason(trimToMaxLength(e.target.value, REJECT_REASON_MAX_LENGTH))}
+                  onPaste={handleRejectReasonPaste}
+                  maxLength={REJECT_REASON_MAX_LENGTH}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-slate-900/15 focus:border-slate-700"
                   placeholder="신청자에게 보여줄 반려 사유를 입력하세요"
                 />
+                <div className="flex justify-end text-xs text-slate-500">
+                  {rejectReason.length}/{REJECT_REASON_MAX_LENGTH}
+                </div>
                 <button
                   onClick={handleReject}
                   disabled={processing}

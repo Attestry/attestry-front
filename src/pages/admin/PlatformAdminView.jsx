@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import useAuthStore from '../../store/useAuthStore';
 import { Check, X, Clock, ShieldAlert, FileText, Download } from 'lucide-react';
+
+const REJECT_REASON_MAX_LENGTH = 1000;
+const trimToMaxLength = (value, maxLength) => String(value || '').slice(0, maxLength);
 
 const PlatformAdminView = () => {
     const { applications, listApplications, getAdminApplication, approveApplication, rejectApplication } = useAuthStore();
@@ -10,14 +13,15 @@ const PlatformAdminView = () => {
     const [rejectReason, setRejectReason] = useState('');
     const [showRejectInput, setShowRejectInput] = useState(false);
 
+    const fetchApps = useCallback(async () => {
+        setLoading(true);
+        await listApplications();
+        setLoading(false);
+    }, [listApplications]);
+
     React.useEffect(() => {
-        const fetchApps = async () => {
-            setLoading(true);
-            await listApplications();
-            setLoading(false);
-        };
         fetchApps();
-    }, []);
+    }, [fetchApps]);
 
     const handleAppClick = async (appId) => {
         setAppDetailLoading(true);
@@ -56,6 +60,19 @@ const PlatformAdminView = () => {
     const handleDownload = (url) => {
         if (!url) return;
         window.open(url, '_blank', 'noopener,noreferrer');
+    };
+
+    const handleRejectReasonPaste = (event) => {
+        event.preventDefault();
+        const clipboardText = event.clipboardData?.getData('text') || '';
+        if (!clipboardText) {
+            return;
+        }
+        const target = event.currentTarget;
+        const selectionStart = target.selectionStart ?? rejectReason.length;
+        const selectionEnd = target.selectionEnd ?? selectionStart;
+        const nextValue = `${rejectReason.slice(0, selectionStart)}${clipboardText}${rejectReason.slice(selectionEnd)}`;
+        setRejectReason(trimToMaxLength(nextValue, REJECT_REASON_MAX_LENGTH));
     };
 
     const pendingApps = applications.filter(app => app.status === 'PENDING');
@@ -312,9 +329,14 @@ const PlatformAdminView = () => {
                                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                                                     rows="3"
                                                     value={rejectReason}
-                                                    onChange={(e) => setRejectReason(e.target.value)}
+                                                    onChange={(e) => setRejectReason(trimToMaxLength(e.target.value, REJECT_REASON_MAX_LENGTH))}
+                                                    onPaste={handleRejectReasonPaste}
+                                                    maxLength={REJECT_REASON_MAX_LENGTH}
                                                     placeholder="업체에게 전달될 반려 사유를 상세히 적어주세요."
                                                 ></textarea>
+                                                <div className="flex justify-end text-xs text-gray-500">
+                                                    {rejectReason.length}/{REJECT_REASON_MAX_LENGTH}
+                                                </div>
                                                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                                                     <button
                                                         onClick={() => {

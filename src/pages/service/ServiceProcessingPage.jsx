@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Paperclip, RefreshCw, UploadCloud } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import QRScannerModal from '../../components/shipment/QRScannerModal';
@@ -25,6 +25,8 @@ import { formatBytes, uploadEvidenceFiles } from './serviceEvidenceUpload';
 import { extractPassportIdFromQr } from './serviceQr';
 
 const PAGE_SIZE = 20;
+const SERVICE_COMPLETE_TEXT_MAX_LENGTH = 2000;
+const trimToMaxLength = (value, maxLength) => String(value || '').slice(0, maxLength);
 
 const ServiceProcessingPage = () => {
   const navigate = useNavigate();
@@ -60,7 +62,7 @@ const ServiceProcessingPage = () => {
     };
   };
 
-  const load = async (pageNum = page) => {
+  const load = useCallback(async (pageNum = page) => {
     if (!user?.tenantId) return;
     if (!canViewService) {
       setItems([]);
@@ -84,11 +86,11 @@ const ServiceProcessingPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [canViewService, page, user?.tenantId]);
 
   useEffect(() => {
     load(0).catch(() => {});
-  }, [canManageService, canViewService, user?.tenantId]);
+  }, [load]);
 
   useEffect(() => {
     const selectedPassportId = location.state?.selectedPassportId;
@@ -111,7 +113,7 @@ const ServiceProcessingPage = () => {
     };
 
     focusSelectedPassport().catch(() => {});
-  }, [canViewService, location.state?.selectedPassportId, user?.tenantId]);
+  }, [canViewService, location.state?.selectedPassportId, updateForm, user?.tenantId]);
 
   const handleComplete = async (item) => {
     const form = completeForms[item.serviceRequestId] || buildDefaultCompleteForm();
@@ -157,7 +159,7 @@ const ServiceProcessingPage = () => {
     }
   };
 
-  const updateForm = (serviceRequestId, patch) => {
+  const updateForm = useCallback((serviceRequestId, patch) => {
     setCompleteForms((prev) => ({
       ...prev,
       [serviceRequestId]: {
@@ -166,13 +168,26 @@ const ServiceProcessingPage = () => {
         ...patch,
       },
     }));
-  };
+  }, []);
 
   const handleServiceTypeChange = (serviceRequestId, nextServiceType) => {
     updateForm(serviceRequestId, {
       serviceType: nextServiceType,
       serviceResult: getDefaultServiceResult(nextServiceType),
     });
+  };
+
+  const handleLimitedPaste = (event, currentValue, maxLength, updater) => {
+    event.preventDefault();
+    const clipboardText = event.clipboardData?.getData('text') || '';
+    if (!clipboardText) {
+      return;
+    }
+    const target = event.currentTarget;
+    const selectionStart = target.selectionStart ?? currentValue.length;
+    const selectionEnd = target.selectionEnd ?? selectionStart;
+    const nextValue = `${currentValue.slice(0, selectionStart)}${clipboardText}${currentValue.slice(selectionEnd)}`;
+    updater(trimToMaxLength(nextValue, maxLength));
   };
 
   const handleSelectFiles = (serviceRequestId, files) => {
@@ -366,20 +381,40 @@ const ServiceProcessingPage = () => {
                             <input
                               type="text"
                               value={completeForms[item.serviceRequestId]?.serviceResult || getDefaultServiceResult(completeForms[item.serviceRequestId]?.serviceType)}
-                              onChange={(e) => updateForm(item.serviceRequestId, { serviceResult: e.target.value })}
+                              onChange={(e) => updateForm(item.serviceRequestId, { serviceResult: trimToMaxLength(e.target.value, SERVICE_COMPLETE_TEXT_MAX_LENGTH) })}
+                              onPaste={(e) => handleLimitedPaste(
+                                e,
+                                completeForms[item.serviceRequestId]?.serviceResult || getDefaultServiceResult(completeForms[item.serviceRequestId]?.serviceType),
+                                SERVICE_COMPLETE_TEXT_MAX_LENGTH,
+                                (nextValue) => updateForm(item.serviceRequestId, { serviceResult: nextValue })
+                              )}
                               className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
                               placeholder="서비스 유형을 선택하면 기본 완료 문구가 자동 입력됩니다."
+                              maxLength={SERVICE_COMPLETE_TEXT_MAX_LENGTH}
                             />
+                            <div className="mt-1 flex justify-end text-[11px] text-gray-500">
+                              {(completeForms[item.serviceRequestId]?.serviceResult || getDefaultServiceResult(completeForms[item.serviceRequestId]?.serviceType)).length}/{SERVICE_COMPLETE_TEXT_MAX_LENGTH}
+                            </div>
                           </label>
                           <label className="block text-xs font-medium text-gray-700">
                             추가 메모
                             <textarea
                               rows={3}
                               value={completeForms[item.serviceRequestId]?.completionMemo || ''}
-                              onChange={(e) => updateForm(item.serviceRequestId, { completionMemo: e.target.value })}
+                              onChange={(e) => updateForm(item.serviceRequestId, { completionMemo: trimToMaxLength(e.target.value, SERVICE_COMPLETE_TEXT_MAX_LENGTH) })}
+                              onPaste={(e) => handleLimitedPaste(
+                                e,
+                                completeForms[item.serviceRequestId]?.completionMemo || '',
+                                SERVICE_COMPLETE_TEXT_MAX_LENGTH,
+                                (nextValue) => updateForm(item.serviceRequestId, { completionMemo: nextValue })
+                              )}
                               className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
                               placeholder="예: 차주 정기 점검 권장"
+                              maxLength={SERVICE_COMPLETE_TEXT_MAX_LENGTH}
                             />
+                            <div className="mt-1 flex justify-end text-[11px] text-gray-500">
+                              {(completeForms[item.serviceRequestId]?.completionMemo || '').length}/{SERVICE_COMPLETE_TEXT_MAX_LENGTH}
+                            </div>
                           </label>
                           <div className="rounded-lg border border-gray-200 bg-white p-3">
                             <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">

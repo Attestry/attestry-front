@@ -6,6 +6,14 @@ import { getRoleLandingPath } from '../../utils/roleNavigation';
 import TraceraLogo from './TraceraLogo';
 import AccountMenu from './AccountMenu';
 
+const labelForRole = (role) => (
+  role === ROLES.USER ? '개인' :
+    role === ROLES.BRAND ? '브랜드' :
+      role === ROLES.RETAIL ? '리테일' :
+        role === ROLES.SERVICE ? '서비스' :
+          '플랫폼 관리자'
+);
+
 const MainLayout = () => {
   const { user, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
@@ -22,6 +30,15 @@ const MainLayout = () => {
   const getFeatureHref = (to) => (isAuthenticated ? to : `/login?returnTo=${encodeURIComponent(to)}`);
 
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
+  const changeMobileRole = async (role) => {
+    const result = await useAuthStore.getState().switchRole(role);
+    if (!result?.success) {
+      alert(result?.message || '프로필 전환에 실패했습니다.');
+      return;
+    }
+    closeMobileMenu();
+    navigate(getRoleLandingPath(role));
+  };
 
   return (
     <div className="min-h-screen bg-[var(--color-page)] flex flex-col text-slate-900">
@@ -74,8 +91,33 @@ const MainLayout = () => {
               ))}
               {isAuthenticated ? (
                 <>
+                  {user?.availableRoles?.length > 1 && (
+                    <div className="tracera-panel-soft px-4 py-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">프로필 선택</div>
+                      <div className="mt-3 space-y-2">
+                        {user.availableRoles.map((role) => {
+                          const active = role === user.role;
+                          return (
+                            <button
+                              key={role}
+                              type="button"
+                              onClick={() => changeMobileRole(role)}
+                              className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-medium transition-all ${
+                                active
+                                  ? 'bg-slate-950 text-white shadow-sm'
+                                  : 'bg-white text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              <span>{labelForRole(role)}</span>
+                              {active && <span className="text-xs font-semibold text-slate-300">현재</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   <Link to="/mypage" onClick={closeMobileMenu} className="tracera-panel-soft px-4 py-3 text-sm font-medium text-slate-700">
-                    마이페이지
+                    마이페이지 {user?.role ? `(${labelForRole(user.role)})` : ''}
                   </Link>
                   <button
                     onClick={() => {

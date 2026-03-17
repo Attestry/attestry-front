@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { RefreshCw, Search, ChevronLeft, ChevronRight, QrCode, PackageCheck, X } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 import QRScannerModal from '../../components/shipment/QRScannerModal';
 import { apiFetchJson } from '../../utils/api';
-import { createHttpError, getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
+import { getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
 import { parsePassportIdFromQr } from '../../utils/qrPayload';
 
 const apiFetch = async (url, options = {}) => {
@@ -36,12 +36,17 @@ const DistributionManagement = () => {
     const [partnerSearchTerm, setPartnerSearchTerm] = useState('');
     const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
     const [grantLoading, setGrantLoading] = useState(false);
+    const searchTermRef = useRef('');
 
     const currentMembership = getCurrentMembership(myMemberships, user?.tenantId);
 
     const hasDistributionPermission = hasEffectiveScope(currentMembership, 'DELEGATION_GRANT');
 
-    const fetchHistory = async (p = 0, k = '') => {
+    useEffect(() => {
+        searchTermRef.current = searchTerm;
+    }, [searchTerm]);
+
+    const fetchHistory = useCallback(async (p = 0, k = '') => {
         if (!user?.tenantId) return;
 
         setLoading(true);
@@ -81,7 +86,7 @@ const DistributionManagement = () => {
             setLoading(false);
             setHasLoadedOnce(true);
         }
-    };
+    }, [activeTab, currentMembership?.tenantId, pageSize, user?.tenantId]);
 
     const fetchPartnerLinks = async () => {
         setPartnerLoading(true);
@@ -110,8 +115,8 @@ const DistributionManagement = () => {
 
     useEffect(() => {
         setPage(0);
-        fetchHistory(0, searchTerm);
-    }, [user?.tenantId, activeTab]);
+        fetchHistory(0, searchTermRef.current);
+    }, [activeTab, fetchHistory, user?.tenantId]);
 
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -119,7 +124,7 @@ const DistributionManagement = () => {
             fetchHistory(0, searchTerm);
         }, 500);
         return () => clearTimeout(handler);
-    }, [searchTerm]);
+    }, [fetchHistory, searchTerm]);
 
     const handlePageChange = (newPage) => {
         if (newPage < 0 || newPage >= totalPages) return;
@@ -184,6 +189,11 @@ const DistributionManagement = () => {
     const handleGrantDelegation = async (partnerLink) => {
         if (!scannedPassportId || !currentMembership?.tenantId) return;
 
+        if (String(partnerLink?.partnerType).toUpperCase() !== 'RETAIL') {
+            alert('해당 파트너는 유통(판매) 권한이 없는 서비스 타입 업체입니다.');
+            return;
+        }
+
         const partnerName = partnerLink.targetTenantName || partnerLink.targetTenantId;
         if (!window.confirm(`${partnerName} 업체에게 이 제품의 판매 권한을 위임하시겠습니까?`)) {
             return;
@@ -238,7 +248,8 @@ const DistributionManagement = () => {
         }
     };
 
-    const filteredPartners = partnerLinks.filter(p =>
+    const retailPartnerLinks = partnerLinks.filter((partnerLink) => String(partnerLink?.partnerType).toUpperCase() === 'RETAIL');
+    const filteredPartners = retailPartnerLinks.filter(p =>
         p.targetTenantId.toLowerCase().includes(partnerSearchTerm.toLowerCase()) ||
         (p.targetTenantName && p.targetTenantName.toLowerCase().includes(partnerSearchTerm.toLowerCase()))
     );
@@ -611,7 +622,11 @@ const DistributionManagement = () => {
                             {partnerLoading ? (
                                 <div className="text-center py-8 text-gray-400 text-sm">파트너 목록 로딩 중...</div>
                             ) : filteredPartners.length === 0 ? (
-                                <div className="text-center py-8 text-gray-400 text-sm">검색 결과가 없습니다.</div>
+                                <div className="text-center py-8 text-gray-400 text-sm">
+                                    {retailPartnerLinks.length === 0
+                                        ? '유통 가능한 리테일(RETAIL) 파트너가 없습니다.'
+                                        : '검색 결과가 없습니다.'}
+                                </div>
                             ) : (
                                 filteredPartners.map((p) => (
                                     <button

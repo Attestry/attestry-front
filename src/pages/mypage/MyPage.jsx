@@ -72,6 +72,11 @@ const hasInvalidPhoneRange = (value) => {
   return digits.length >= 7 && digits.slice(3, 7) === '0000';
 };
 
+const normalizePurchaseClaim = (claim) => ({
+  ...claim,
+  rejectionReason: claim?.rejectionReason || claim?.rejectReason || '',
+});
+
 const MyPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -156,22 +161,25 @@ const MyPage = () => {
     }
   }, [accessToken]);
 
-  useEffect(() => {
-    const loadMyPurchaseClaims = async () => {
-      if (!accessToken) {
-        setMyPurchaseClaims([]);
-        return;
-      }
-      try {
-        setPurchaseClaimError('');
-        const data = await apiFetchJson('/workflows/purchase-claims/me', {}, { token: accessToken });
-        setMyPurchaseClaims(Array.isArray(data) ? data : []);
-      } catch (e) {
-        setPurchaseClaimError(e.message || '디지털 자산 신청 내역을 불러오지 못했습니다.');
-        setMyPurchaseClaims([]);
-      }
-    };
+  const loadMyPurchaseClaims = useCallback(async () => {
+    if (!accessToken) {
+      setMyPurchaseClaims([]);
+      return [];
+    }
+    try {
+      setPurchaseClaimError('');
+      const data = await apiFetchJson('/workflows/purchase-claims/me', {}, { token: accessToken });
+      const nextClaims = Array.isArray(data) ? data.map(normalizePurchaseClaim) : [];
+      setMyPurchaseClaims(nextClaims);
+      return nextClaims;
+    } catch (e) {
+      setPurchaseClaimError(e.message || '디지털 자산 신청 내역을 불러오지 못했습니다.');
+      setMyPurchaseClaims([]);
+      return [];
+    }
+  }, [accessToken]);
 
+  useEffect(() => {
     const loadData = async () => {
       setLoading(true);
 
@@ -190,7 +198,14 @@ const MyPage = () => {
       setLoading(false);
     };
     loadData();
-  }, [accessToken, fetchMyMemberships, listMyApplications, fetchMyAccount, loadMyPassports]);
+  }, [accessToken, fetchMyMemberships, listMyApplications, fetchMyAccount, loadMyPassports, loadMyPurchaseClaims]);
+
+  useEffect(() => {
+    if (activeTab !== 'applications') {
+      return;
+    }
+    void loadMyPurchaseClaims();
+  }, [activeTab, loadMyPurchaseClaims]);
 
   const handlePhoneUpdate = async () => {
     if (!phoneInput || isUpdatingPhone) return;

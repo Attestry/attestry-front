@@ -13,6 +13,10 @@ import { formatBytes, uploadEvidenceFiles } from './serviceEvidenceUpload';
 import { SERVICE_REQUEST_METHOD_OPTIONS, toApiDateTime } from './serviceOptions';
 import { extractPassportIdFromQr } from './serviceQr';
 
+const SYMPTOM_DESCRIPTION_MAX_LENGTH = 1000;
+const CONTACT_MEMO_MAX_LENGTH = 300;
+const getTrimmedText = (value, maxLength) => String(value || '').slice(0, maxLength);
+
 const ServiceProviderDetailPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -84,10 +88,6 @@ const ServiceProviderDetailPage = () => {
       setError('업체 주소가 등록되지 않아 서비스 신청을 진행할 수 없습니다.');
       return;
     }
-    if (!beforeEvidenceGroupId) {
-      setError('신청 첨부파일을 먼저 업로드해주세요.');
-      return;
-    }
     if (!symptomDescription.trim()) {
       setError('증상 설명을 입력해주세요.');
       return;
@@ -100,13 +100,24 @@ const ServiceProviderDetailPage = () => {
       setError('직접 방문 요청은 희망 방문 일시를 입력해야 합니다.');
       return;
     }
+    if (!beforeEvidenceGroupId && selectedFiles.length === 0) {
+      setError('신청 첨부파일을 선택해주세요.');
+      return;
+    }
 
     setSubmitting(true);
     setError('');
     setSubmitMessage('');
     try {
+      let evidenceGroupId = beforeEvidenceGroupId || null;
+
+      if (!evidenceGroupId && selectedFiles.length > 0) {
+        const uploadResult = await handleUploadEvidence(selectedFiles);
+        evidenceGroupId = uploadResult?.evidenceGroupId || null;
+      }
+
       const response = await submitServiceRequest(selectedPassportId, provider.tenantId, {
-        beforeEvidenceGroupId: beforeEvidenceGroupId || null,
+        beforeEvidenceGroupId: evidenceGroupId,
         serviceRequestMethod,
         symptomDescription: symptomDescription.trim() || null,
         requestedReservationAt: serviceRequestMethod === 'VISIT' ? toApiDateTime(requestedReservationAt) : null,
@@ -129,13 +140,11 @@ const ServiceProviderDetailPage = () => {
   const handleUploadEvidence = async (selectedFilesOverride = null) => {
     const filesToUpload = selectedFilesOverride || selectedFiles;
     if (filesToUpload.length === 0) {
-      setError('업로드할 첨부파일을 선택해주세요.');
-      return;
+      throw new Error('업로드할 첨부파일을 선택해주세요.');
     }
 
     setUploading(true);
     setError('');
-    setSubmitMessage('');
     try {
       const result = await uploadEvidenceFiles({
         files: filesToUpload,
@@ -145,12 +154,12 @@ const ServiceProviderDetailPage = () => {
         onProgress: setUploadProgress,
       });
       setBeforeEvidenceGroupId(result.evidenceGroupId || '');
-      setUploadedFiles((prev) => [...prev, ...result.uploadedFiles]);
+      setUploadedFiles(result.uploadedFiles);
       setSelectedFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      setSubmitMessage('신청 첨부파일 업로드가 완료되었습니다.');
+      return result;
     } catch (e) {
-      setError(e?.message || '첨부파일 업로드에 실패했습니다.');
+      throw new Error(e?.message || '첨부파일 업로드에 실패했습니다.');
     } finally {
       setUploading(false);
       setUploadProgress({ total: 0, done: 0, current: '' });
@@ -159,11 +168,15 @@ const ServiceProviderDetailPage = () => {
 
   const handleSelectFiles = (files) => {
     const nextFiles = Array.from(files || []);
-    setSelectedFiles(nextFiles);
-    if (nextFiles.length === 0) {
-      return;
-    }
-    handleUploadEvidence(nextFiles).catch(() => {});
+    setBeforeEvidenceGroupId('');
+    setUploadedFiles([]);
+    setSelectedFiles((prev) => [...prev, ...nextFiles]);
+  };
+
+  const handleRemoveSelectedFile = (indexToRemove) => {
+    setBeforeEvidenceGroupId('');
+    setUploadedFiles([]);
+    setSelectedFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
 
   const handleQrScanSuccess = (decodedText) => {
@@ -180,6 +193,23 @@ const ServiceProviderDetailPage = () => {
     setError('');
     setSubmitMessage(`QR로 ${matchedPassport.modelName || matchedPassport.serialNumber || matchedPassport.passportId} 자산을 선택했습니다.`);
   };
+
+  const handleLimitedPaste = (event, currentValue, maxLength, setter) => {
+    event.preventDefault();
+    const clipboardText = event.clipboardData?.getData('text') || '';
+    if (!clipboardText) {
+      return;
+    }
+
+    const target = event.currentTarget;
+    const selectionStart = target.selectionStart ?? currentValue.length;
+    const selectionEnd = target.selectionEnd ?? selectionStart;
+    const nextValue = `${currentValue.slice(0, selectionStart)}${clipboardText}${currentValue.slice(selectionEnd)}`;
+    setter(getTrimmedText(nextValue, maxLength));
+  };
+
+  const symptomDescriptionLength = symptomDescription.length;
+  const contactMemoLength = contactMemo.length;
 
   return (
     <div className="tracera-workflow-page mx-auto max-w-5xl space-y-6 px-4 py-8 md:px-6 md:py-10">
@@ -332,11 +362,17 @@ const ServiceProviderDetailPage = () => {
               <label className="mb-2 block text-sm font-semibold text-slate-700">증상 설명</label>
               <textarea
                 value={symptomDescription}
-                onChange={(e) => setSymptomDescription(e.target.value)}
+                onChange={(e) => setSymptomDescription(getTrimmedText(e.target.value, SYMPTOM_DESCRIPTION_MAX_LENGTH))}
+                onPaste={(e) => handleLimitedPaste(e, symptomDescription, SYMPTOM_DESCRIPTION_MAX_LENGTH, setSymptomDescription)}
                 rows={4}
                 placeholder="예: 전원이 켜지지 않음, 화면이 깜빡임"
                 className="tracera-workflow-field"
+                maxLength={SYMPTOM_DESCRIPTION_MAX_LENGTH}
               />
+              <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-500">
+                <span>최대 {SYMPTOM_DESCRIPTION_MAX_LENGTH}자까지 입력할 수 있습니다.</span>
+                <span>{symptomDescriptionLength}/{SYMPTOM_DESCRIPTION_MAX_LENGTH}</span>
+              </div>
             </div>
 
             {serviceRequestMethod === 'VISIT' && (
@@ -356,10 +392,16 @@ const ServiceProviderDetailPage = () => {
               <textarea
                 rows={3}
                 value={contactMemo}
-                onChange={(e) => setContactMemo(e.target.value)}
+                onChange={(e) => setContactMemo(getTrimmedText(e.target.value, CONTACT_MEMO_MAX_LENGTH))}
+                onPaste={(e) => handleLimitedPaste(e, contactMemo, CONTACT_MEMO_MAX_LENGTH, setContactMemo)}
                 placeholder="예: 연락받을 연락처를 기재하세요. 가능한 시간대도 넣어주세요."
                 className="tracera-workflow-field"
+                maxLength={CONTACT_MEMO_MAX_LENGTH}
               />
+              <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-500">
+                <span>최대 {CONTACT_MEMO_MAX_LENGTH}자까지 입력할 수 있습니다.</span>
+                <span>{contactMemoLength}/{CONTACT_MEMO_MAX_LENGTH}</span>
+              </div>
             </div>
 
             <div className="tracera-workflow-subtle">
@@ -368,7 +410,7 @@ const ServiceProviderDetailPage = () => {
                 신청 첨부파일
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                고장 사진, 참고 문서 등을 첨부할 수 있습니다. 파일을 선택하면 바로 업로드되고, 업로드 완료 후 `서비스 요청하기`로 제출합니다.
+                고장 사진, 참고 문서 등을 첨부할 수 있습니다. 업체 신청과 동일하게 파일을 먼저 고른 뒤, `서비스 요청하기`를 누를 때 업로드와 제출이 함께 진행됩니다.
               </p>
               {beforeEvidenceGroupId && (
                 <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs text-slate-600">
@@ -393,10 +435,39 @@ const ServiceProviderDetailPage = () => {
               </button>
               {selectedFiles.length > 0 && (
                 <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white px-3 py-3 text-xs text-slate-600">
-                  <div className="mb-2 font-semibold text-slate-700">선택한 파일</div>
-                  {selectedFiles.map((file) => (
-                    <div key={`${file.name}-${file.size}`}>{file.name} ({formatBytes(file.size)})</div>
-                  ))}
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <div className="font-semibold text-slate-700">선택한 파일</div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFiles([]);
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      className="text-xs font-medium text-slate-500 transition hover:text-slate-900"
+                    >
+                      전체 취소
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {selectedFiles.map((file, index) => (
+                      <div
+                        key={`${file.name}-${file.size}-${index}`}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium text-slate-800">{file.name}</div>
+                          <div className="text-xs text-slate-500">{formatBytes(file.size)}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSelectedFile(index)}
+                          className="rounded-md px-2 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                        >
+                          취소
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               {uploadedFiles.length > 0 && (
@@ -414,7 +485,7 @@ const ServiceProviderDetailPage = () => {
                 </div>
               )}
               <div className="mt-2 text-xs text-slate-500">
-                파일 선택 후 자동 업로드됩니다. 업로드 완료 후 아래 `서비스 요청하기`로 최종 제출됩니다.
+                첨부파일은 최종 제출 시 업로드됩니다. 제출 전까지 파일 목록에서 자유롭게 취소할 수 있습니다.
               </div>
             </div>
 
