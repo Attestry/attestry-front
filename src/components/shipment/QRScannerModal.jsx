@@ -109,6 +109,7 @@ const QRScannerModal = ({
         );
     }, [handleSuccess]);
 
+
     const startScanner = useCallback(async () => {
         if (isStartingRef.current) return;
         isStartingRef.current = true;
