@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, Search, Calendar, Filter, Download, Plus, FileDigit, Database, Factory, Hash, Code, Loader2, X, UploadCloud, FileText, AlertCircle } from 'lucide-react';
+import { Package, Search, Calendar, Filter, Download, Plus, FileDigit, Database, Factory, Hash, Code, Loader2, X, UploadCloud, FileText, AlertCircle, Send } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 import { apiFetchJson } from '../../utils/api';
 import { PERMISSION_GUIDES, getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
+import ProductManualSendModal from './ProductManualSendModal';
 
 // Role-based utility to fetch with Auth Token
 const fetchWithAuth = async (url, options = {}) => {
@@ -38,7 +39,9 @@ const ProductManagement = () => {
     // Modal states
     const [isMintModalOpen, setIsMintModalOpen] = useState(false);
     const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
+    const [isManualModalOpen, setIsManualModalOpen] = useState(false);
     const [selectedPassportId, setSelectedPassportId] = useState(null);
+    const [selectedPassportIds, setSelectedPassportIds] = useState([]);
     const [voidForm, setVoidForm] = useState({ reason: 'COUNTERFEIT_DETECTED', note: '' });
     const [mintMode, setMintMode] = useState('single'); // 'single' or 'batch'
     const [mintLoading, setMintLoading] = useState(false);
@@ -64,6 +67,7 @@ const ProductManagement = () => {
 
     // Void 버튼 노출 조건: BRAND_VOID 스코프
     const hasVoidPermission = hasEffectiveScope(currentMembership, 'BRAND_VOID');
+    const hasReleasePermission = hasEffectiveScope(currentMembership, 'BRAND_RELEASE');
 
     useEffect(() => {
         const mediaQuery = window.matchMedia('(max-width: 767px)');
@@ -103,6 +107,7 @@ const ProductManagement = () => {
                 setProducts(prev => [...prev, ...newProducts]);
             } else {
                 setProducts(newProducts);
+                setSelectedPassportIds([]);
             }
 
             // Check if there are more pages
@@ -293,6 +298,32 @@ const ProductManagement = () => {
 
     const showInitialLoading = loading && !hasLoadedOnce;
     const showRefreshing = loading && hasLoadedOnce && !loadingMore;
+    const selectedProducts = products.filter((product) => selectedPassportIds.includes(product.passportId));
+    const allVisibleSelected = products.length > 0 && selectedProducts.length === products.length;
+
+    const togglePassportSelection = (passportId) => {
+        setSelectedPassportIds((prev) =>
+            prev.includes(passportId)
+                ? prev.filter((id) => id !== passportId)
+                : [...prev, passportId]
+        );
+    };
+
+    const toggleSelectAllVisible = () => {
+        if (allVisibleSelected) {
+            setSelectedPassportIds([]);
+            return;
+        }
+        setSelectedPassportIds(products.map((product) => product.passportId));
+    };
+
+    const openBulkManualModal = () => {
+        if (selectedPassportIds.length === 0) {
+            alert('메뉴얼을 보낼 제품을 먼저 선택해주세요.');
+            return;
+        }
+        setIsManualModalOpen(true);
+    };
 
     return (
         <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
@@ -308,6 +339,18 @@ const ProductManagement = () => {
                     </p>
                 </div>
                 <div className="flex w-full gap-3 sm:w-auto">
+                    {hasReleasePermission && (
+                        <button
+                            type="button"
+                            onClick={openBulkManualModal}
+                            disabled={selectedPassportIds.length === 0}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 shadow-sm transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-2 cursor-pointer"
+                        >
+                            <Send size={16} />
+                            메뉴얼 보내기
+                            {selectedPassportIds.length > 0 ? ` (${selectedPassportIds.length})` : ''}
+                        </button>
+                    )}
                     {hasMintPermission && (
                         <button
                             type="button"
@@ -382,6 +425,18 @@ const ProductManagement = () => {
                         목록을 업데이트하는 중입니다...
                     </div>
                 )}
+                {hasReleasePermission && (
+                    <div className="flex items-center justify-between rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                        <span>목록에서 제품을 선택한 뒤 메뉴얼을 일괄 발송할 수 있습니다.</span>
+                        <button
+                            type="button"
+                            onClick={toggleSelectAllVisible}
+                            className="font-semibold underline underline-offset-4"
+                        >
+                            {allVisibleSelected ? '전체 해제' : '현재 목록 전체 선택'}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Main Table */}
@@ -398,6 +453,17 @@ const ProductManagement = () => {
                         <div className="space-y-3 p-3">
                             {products.map((p) => (
                                 <div key={p.passportId} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                                    {hasReleasePermission && (
+                                        <label className="mb-3 flex items-center gap-2 text-xs font-semibold text-gray-500">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedPassportIds.includes(p.passportId)}
+                                                onChange={() => togglePassportSelection(p.passportId)}
+                                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            일괄 발송 선택
+                                        </label>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={() => navigate(`/brand/products/${p.passportId}`)}
@@ -456,6 +522,17 @@ const ProductManagement = () => {
                 <table className="min-w-[860px] w-full text-left">
                     <thead className="bg-gray-50 border-b border-gray-100">
                         <tr>
+                            {hasReleasePermission && (
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                    <input
+                                        type="checkbox"
+                                        checked={allVisibleSelected}
+                                        onChange={toggleSelectAllVisible}
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        aria-label="현재 목록 전체 선택"
+                                    />
+                                </th>
+                            )}
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">제품 정보</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">DPP ID</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">발행일</th>
@@ -466,11 +543,11 @@ const ProductManagement = () => {
                     <tbody className="divide-y divide-gray-50">
                         {showInitialLoading ? (
                             <tr>
-                                <td colSpan="5" className="px-6 py-12 text-center text-gray-400">데이터를 불러오는 중입니다...</td>
+                                <td colSpan={hasReleasePermission ? "6" : "5"} className="px-6 py-12 text-center text-gray-400">데이터를 불러오는 중입니다...</td>
                             </tr>
                         ) : products.length === 0 ? (
                             <tr>
-                                <td colSpan="5" className="px-6 py-12 text-center text-gray-400">
+                                <td colSpan={hasReleasePermission ? "6" : "5"} className="px-6 py-12 text-center text-gray-400">
                                     <Package size={32} className="mx-auto mb-3 opacity-50" />
                                     발행된 제품 내역이 없습니다.
                                 </td>
@@ -478,6 +555,17 @@ const ProductManagement = () => {
                         ) : (
                             products.map((p) => (
                                 <tr key={p.passportId} className="hover:bg-gray-50 transition-colors group">
+                                    {hasReleasePermission && (
+                                        <td className="px-6 py-4">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedPassportIds.includes(p.passportId)}
+                                                onChange={() => togglePassportSelection(p.passportId)}
+                                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                aria-label={`${p.modelName} 선택`}
+                                            />
+                                        </td>
+                                    )}
                                     <td
                                         className="px-6 py-4 cursor-pointer"
                                         onClick={() => navigate(`/brand/products/${p.passportId}`)}
@@ -579,6 +667,22 @@ const ProductManagement = () => {
                     </div>
                 )}
             </div>
+
+            <ProductManualSendModal
+                isOpen={isManualModalOpen}
+                onClose={() => setIsManualModalOpen(false)}
+                tenantId={user?.tenantId}
+                passportIds={selectedPassportIds}
+                productLabel={selectedProducts.length === 1
+                    ? `${selectedProducts[0].modelName} / ${selectedProducts[0].serialNumber}`
+                    : `선택된 ${selectedProducts.length}개 제품`}
+                recipientEmailMasked=""
+                onSent={() => {
+                    setIsManualModalOpen(false);
+                    setSelectedPassportIds([]);
+                    alert('선택한 제품에 대한 메뉴얼 전송 요청을 등록했습니다.');
+                }}
+            />
 
             {/* Mint Modal */}
             {isMintModalOpen && (

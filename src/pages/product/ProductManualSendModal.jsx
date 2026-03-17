@@ -16,6 +16,7 @@ const ProductManualSendModal = ({
   onClose,
   tenantId,
   passportId,
+  passportIds,
   productLabel,
   recipientEmailMasked,
   onSent,
@@ -31,6 +32,11 @@ const ProductManualSendModal = ({
   if (!isOpen) {
     return null;
   }
+
+  const targetPassportIds = (passportIds && passportIds.length > 0)
+    ? passportIds.filter(Boolean)
+    : [passportId].filter(Boolean);
+  const isBulkSend = targetPassportIds.length > 1;
 
   const resetState = () => {
     setMessage('');
@@ -83,6 +89,10 @@ const ProductManualSendModal = ({
       setError('메뉴얼 내용을 입력하거나 첨부 파일을 추가해주세요.');
       return;
     }
+    if (targetPassportIds.length === 0) {
+      setError('전송할 제품을 다시 확인해주세요.');
+      return;
+    }
 
     setSubmitting(true);
     setError('');
@@ -106,7 +116,8 @@ const ProductManualSendModal = ({
         setFiles([]);
       }
 
-      await sendPassportManual(tenantId, passportId, {
+      await sendPassportManual(tenantId, {
+        passportIds: targetPassportIds,
         message: normalizedMessage || null,
         evidenceGroupId,
       });
@@ -128,7 +139,9 @@ const ProductManualSendModal = ({
           <div>
             <h2 className="text-lg font-bold text-slate-900">메뉴얼 보내기</h2>
             <p className="mt-1 text-sm text-slate-500">
-              현재 소유자 {recipientEmailMasked ? `(${recipientEmailMasked})` : ''}에게 제품 메뉴얼을 전달합니다.
+              {isBulkSend
+                ? `${targetPassportIds.length}개 제품의 현재 소유자에게 메뉴얼을 전달합니다.`
+                : `현재 소유자 ${recipientEmailMasked ? `(${recipientEmailMasked})` : ''}에게 제품 메뉴얼을 전달합니다.`}
             </p>
           </div>
           <button
