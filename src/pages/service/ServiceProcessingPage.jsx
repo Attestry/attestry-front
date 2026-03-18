@@ -62,6 +62,17 @@ const ServiceProcessingPage = () => {
     };
   };
 
+  const updateForm = useCallback((serviceRequestId, patch) => {
+    setCompleteForms((prev) => ({
+      ...prev,
+      [serviceRequestId]: {
+        ...buildDefaultCompleteForm(),
+        ...(prev[serviceRequestId] || {}),
+        ...patch,
+      },
+    }));
+  }, []);
+
   const load = useCallback(async (pageNum = page) => {
     if (!user?.tenantId) return;
     if (!canViewService) {
@@ -158,17 +169,6 @@ const ServiceProcessingPage = () => {
       setActionLoading('');
     }
   };
-
-  const updateForm = useCallback((serviceRequestId, patch) => {
-    setCompleteForms((prev) => ({
-      ...prev,
-      [serviceRequestId]: {
-        ...buildDefaultCompleteForm(),
-        ...(prev[serviceRequestId] || {}),
-        ...patch,
-      },
-    }));
-  }, []);
 
   const handleServiceTypeChange = (serviceRequestId, nextServiceType) => {
     updateForm(serviceRequestId, {
