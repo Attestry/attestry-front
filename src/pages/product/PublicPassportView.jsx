@@ -326,10 +326,10 @@ const PublicPassportView = () => {
               <p className="tracera-keepall mt-3 max-w-2xl text-sm leading-7 text-slate-600">제품의 핵심 이력과 원장 검증 상태를 외부에서도 같은 톤으로 읽을 수 있게 정리했습니다.</p>
             </div>
             {verification && (
-              <div className={`inline-flex items-center gap-1.5 self-start rounded-full px-3 py-1 text-xs font-bold ring-1 ${verification.valid ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'
+              <div className={`inline-flex items-center gap-1.5 self-start rounded-full px-3 py-1 text-xs font-bold ring-1 ${verification.valid ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-emerald-50 text-emerald-700 ring-emerald-200'
                 }`}>
                 <CheckCircle2 className="h-4 w-4" />
-                {verification.valid ? '원장 무결성 검증 완료' : '원장 무결성 확인 필요'}
+                {verification.valid ? '원장 무결성 검증 완료' : '원장 무결성 확인'}
               </div>
             )}
           </div>
