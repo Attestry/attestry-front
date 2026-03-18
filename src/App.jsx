@@ -58,7 +58,7 @@ const DashboardRedirector = () => {
   useEffect(() => {
     if (!isAuthenticated || !user) return;
     navigate(getRoleLandingPath(user.role), { replace: true });
-  }, [user?.role, isAuthenticated, navigate]);
+  }, [user, isAuthenticated, navigate]);
 
   return null;
 };

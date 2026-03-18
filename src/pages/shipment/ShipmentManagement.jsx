@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { PackageCheck, UploadCloud, X, Loader2, FileText, Search, ChevronLeft, ChevronRight, QrCode } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 import QRScannerModal from '../../components/shipment/QRScannerModal';
 import { apiFetchJson } from '../../utils/api';
-import { PERMISSION_GUIDES, createHttpError, getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
+import { PERMISSION_GUIDES, getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
 import { parsePassportIdFromQr } from '../../utils/qrPayload';
 
 // Local API Fetch Helper matching the store
@@ -56,7 +56,7 @@ const ShipmentManagement = () => {
     // Release permission check: SCOPE_BRAND_RELEASE
     const hasReleasePermission = hasEffectiveScope(currentMembership, 'BRAND_RELEASE');
 
-    const fetchCandidates = async (p = 0, k = '') => {
+    const fetchCandidates = useCallback(async (p = 0, k = '') => {
         if (!user?.tenantId) return;
         setLoading(true);
         setError('');
@@ -80,9 +80,9 @@ const ShipmentManagement = () => {
             setLoading(false);
             setHasLoadedOnce(true);
         }
-    };
+    }, [pageSize, user?.tenantId]);
 
-    const fetchHistory = async (p = 0, k = '') => {
+    const fetchHistory = useCallback(async (p = 0, k = '') => {
         if (!user?.tenantId) return;
         setLoading(true);
         setError('');
@@ -106,7 +106,7 @@ const ShipmentManagement = () => {
             setLoading(false);
             setHasLoadedOnce(true);
         }
-    };
+    }, [pageSize, user?.tenantId]);
 
     // Initial fetch and Tab switch
     useEffect(() => {
@@ -116,7 +116,7 @@ const ShipmentManagement = () => {
         } else {
             fetchHistory(0, searchTerm);
         }
-    }, [user?.tenantId, activeTab]);
+    }, [user?.tenantId, activeTab, fetchCandidates, fetchHistory, searchTerm]);
 
     // Debounced search fetch
     useEffect(() => {
@@ -129,7 +129,7 @@ const ShipmentManagement = () => {
             }
         }, 500);
         return () => clearTimeout(handler);
-    }, [searchTerm]);
+    }, [searchTerm, activeTab, fetchCandidates, fetchHistory]);
 
     const handlePageChange = (newPage) => {
         if (newPage < 0 || newPage >= totalPages) return;

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw, Sparkles, Wrench, XCircle } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { cancelMyServiceRequest, listMyServiceRequests } from './consumerServiceApi';
@@ -33,7 +33,7 @@ const MyServiceRequestsUserPage = () => {
 
   const highlightedId = useMemo(() => createdRequestId, [createdRequestId]);
 
-  const load = async (status = activeStatus, pageNum = page) => {
+  const load = useCallback(async (status = activeStatus, pageNum = page) => {
     setLoading(true);
     setError('');
     try {
@@ -48,11 +48,11 @@ const MyServiceRequestsUserPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeStatus, page]);
 
   useEffect(() => {
     load(activeStatus, 0).catch(() => {});
-  }, [activeStatus]);
+  }, [activeStatus, load]);
 
   const confirmCancel = async (cancelReason) => {
     if (!cancelTarget) return;

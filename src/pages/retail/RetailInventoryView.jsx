@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Building2, ChevronRight, RefreshCw, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
@@ -11,37 +11,44 @@ const RetailInventoryView = () => {
   const { user, myMemberships, partnerLinks, fetchPartnerLinks } = useAuthStore();
   const currentMembership = getCurrentMembership(myMemberships, user?.tenantId, 'RETAIL');
   const canReadRetailInventory = hasEffectiveScope(currentMembership, 'TENANT_READ_ONLY');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [loadState, setLoadState] = useState({ key: null, error: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [brandPage, setBrandPage] = useState(0);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const loadKey = `${canReadRetailInventory}:${refreshTick}`;
+  const loading = loadState.key !== loadKey;
+  const error = loadState.key === loadKey ? loadState.error : '';
 
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      setLoading(true);
-      setError('');
+  const load = useCallback(async () => {
+    try {
       if (!canReadRetailInventory) {
-        setError(toPermissionMessage({ status: 403, message: 'Access denied' }, 'DEFAULT'));
-        setLoading(false);
+        setLoadState({
+          key: loadKey,
+          error: toPermissionMessage({ status: 403, message: 'Access denied' }, 'DEFAULT'),
+        });
         return;
       }
       const partnerRes = await fetchPartnerLinks('ACTIVE');
-      if (!mounted) return;
-      if (!partnerRes?.success) {
-        setError(partnerRes?.message || '브랜드 목록을 불러오지 못했습니다.');
-      }
-      setLoading(false);
-    };
-    load().catch((e) => {
-      if (!mounted) return;
-      setError(e?.message || '데이터를 불러오지 못했습니다.');
-      setLoading(false);
-    });
+      setLoadState({
+        key: loadKey,
+        error: partnerRes?.success ? '' : (partnerRes?.message || '브랜드 목록을 불러오지 못했습니다.'),
+      });
+    } catch (e) {
+      setLoadState({
+        key: loadKey,
+        error: e?.message || '데이터를 불러오지 못했습니다.',
+      });
+    }
+  }, [canReadRetailInventory, fetchPartnerLinks, loadKey]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      load().catch(() => {});
+    }, 0);
     return () => {
-      mounted = false;
+      window.clearTimeout(timer);
     };
-  }, [canReadRetailInventory, fetchPartnerLinks]);
+  }, [load]);
 
   const groupedBrands = useMemo(() => {
     const myTenantId = user?.tenantId;
@@ -68,10 +75,6 @@ const RetailInventoryView = () => {
       }));
   }, [partnerLinks, searchTerm, user?.tenantId]);
 
-  useEffect(() => {
-    setBrandPage(0);
-  }, [searchTerm]);
-
   const totalBrandPages = Math.max(1, Math.ceil(groupedBrands.length / BRANDS_PAGE_SIZE));
   const currentBrandPage = Math.min(brandPage, totalBrandPages - 1);
   const pagedBrands = groupedBrands.slice(
@@ -89,22 +92,7 @@ const RetailInventoryView = () => {
 
         <button
           type="button"
-          onClick={async () => {
-            setLoading(true);
-            setError('');
-            if (!canReadRetailInventory) {
-              setError(toPermissionMessage({ status: 403, message: 'Access denied' }, 'DEFAULT'));
-              setLoading(false);
-              return;
-            }
-            try {
-              const partnerRes = await fetchPartnerLinks('ACTIVE');
-              if (!partnerRes?.success) setError(partnerRes?.message || '새로고침에 실패했습니다.');
-            } catch (e) {
-              setError(e?.message || '새로고침에 실패했습니다.');
-            }
-            setLoading(false);
-          }}
+          onClick={() => setRefreshTick((prev) => prev + 1)}
           className="inline-flex w-full items-center justify-center gap-2 px-3 py-2 border border-gray-200 bg-white rounded-lg text-sm font-medium hover:bg-gray-50 md:w-auto"
         >
           <RefreshCw size={16} />
@@ -117,7 +105,10 @@ const RetailInventoryView = () => {
           <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
           <input
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setBrandPage(0);
+            }}
             placeholder="브랜드명 또는 Tenant ID 검색"
             className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
           />

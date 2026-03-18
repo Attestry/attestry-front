@@ -1,10 +1,13 @@
+/* global process */
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
+const cwd = typeof process !== 'undefined' ? process.cwd() : undefined;
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+  const env = loadEnv(mode, cwd ?? '', '');
   const apiUrl = env.VITE_API_URL || 'http://localhost:8080';
   const ledgerUrl = env.VITE_LEDGER_API_URL || 'http://localhost:8081';
 

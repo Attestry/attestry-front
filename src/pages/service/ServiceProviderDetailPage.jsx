@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, CheckCircle2, MapPin, Paperclip, RefreshCw, UploadCloud, Wrench } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import QRScannerModal from '../../components/shipment/QRScannerModal';
@@ -46,7 +46,7 @@ const ServiceProviderDetailPage = () => {
     [passports, selectedPassportId]
   );
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -75,11 +75,11 @@ const ServiceProviderDetailPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [preselectedPassportId, provider, tenantId]);
 
   useEffect(() => {
     load().catch(() => {});
-  }, [tenantId, preselectedPassportId]);
+  }, [load]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

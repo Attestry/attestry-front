@@ -71,7 +71,7 @@ export const parseApiResponse = async (response, fallbackMessage = '') => {
     try {
       const payload = await readBody(response);
       rawMessage = extractErrorMessage(payload);
-    } catch (e) {
+    } catch {
       // ignore body parsing failure
     }
 

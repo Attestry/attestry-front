@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Building2, CheckCircle2, Copy, Package, QrCode, RefreshCw, Search, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -133,6 +133,9 @@ const RetailBrandInventoryDetail = () => {
     : null;
 
   const canCreateTransfer = hasEffectiveScope(currentRetailMembership, 'RETAIL_TRANSFER_CREATE');
+  const currentTenantId = user?.tenantId || null;
+  const selectedPassportId = selectedProduct?.passportId || null;
+  const transferExpiresAt = transferResult?.expiresAt || null;
 
   const requestUrl = useMemo(() => {
     const params = new URLSearchParams({
@@ -194,11 +197,11 @@ const RetailBrandInventoryDetail = () => {
     transferResolutionReasonRef.current = '';
   };
 
-  const fetchPendingTransfer = async (passportId) => {
-    if (!passportId || !user?.tenantId) return null;
+  const fetchPendingTransfer = useCallback(async (passportId) => {
+    if (!passportId || !currentTenantId) return null;
     try {
       const response = await fetchWithAuth(
-        `/workflows/tenants/${encodeURIComponent(user.tenantId)}/passports/${encodeURIComponent(passportId)}/transfers/pending`
+        `/workflows/tenants/${encodeURIComponent(currentTenantId)}/passports/${encodeURIComponent(passportId)}/transfers/pending`
       );
       if (!response) return null;
       return toTransferState(response);
@@ -206,7 +209,7 @@ const RetailBrandInventoryDetail = () => {
       if (e?.status === 204 || e?.status === 403 || e?.status === 404) return null;
       return undefined;
     }
-  };
+  }, [currentTenantId]);
 
   const openTransferModal = async (product) => {
     if (!canCreateTransfer) return;
@@ -337,55 +340,65 @@ const RetailBrandInventoryDetail = () => {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
-  useEffect(() => {
-    if (!transferResult?.expiresAt || !selectedProduct?.passportId) return undefined;
+  const syncTransferResult = useCallback(async () => {
+    if (!transferExpiresAt || !selectedPassportId) return undefined;
 
-    const sync = async () => {
-      setTransferNow(Date.now());
-      if (new Date(transferResult.expiresAt).getTime() <= Date.now()) {
-        transferResolutionReasonRef.current = 'expired';
-        clearActiveTransfer(user?.tenantId, selectedProduct.passportId);
-        setTransferResult(null);
-        setTransferMode('QR');
+    setTransferNow(Date.now());
+    if (new Date(transferExpiresAt).getTime() <= Date.now()) {
+      transferResolutionReasonRef.current = 'expired';
+      clearActiveTransfer(currentTenantId, selectedPassportId);
+      setTransferResult(null);
+      setTransferMode('QR');
+      return;
+    }
+
+    const pending = await fetchPendingTransfer(selectedPassportId);
+    if (pending === null) {
+      clearActiveTransfer(currentTenantId, selectedPassportId);
+      setTransferResult(null);
+      setTransferMode('QR');
+      fetchWithAuth(requestUrl)
+        .then((data) => {
+          const nextProducts = Array.isArray(data?.content) ? data.content : [];
+          setProducts(nextProducts);
+          setTotalPages(Math.max(1, data?.totalPages || 1));
+          setTotalElements(data?.totalElements || 0);
+        })
+        .catch(() => {});
+
+      const resolutionReason = transferResolutionReasonRef.current;
+      if (!resolutionReason) {
+        setTransferCompletionInfo({
+          transferId: transferResult.transferId,
+          mode: transferResult.mode,
+          serialNumber: selectedProduct.serialNumber || '-',
+          modelName: selectedProduct.modelName || '-',
+          completedAt: new Date().toISOString(),
+        });
+        setTransferError('');
         return;
       }
+      transferResolutionReasonRef.current = '';
+    }
+  }, [
+    currentTenantId,
+    fetchPendingTransfer,
+    requestUrl,
+    selectedPassportId,
+    selectedProduct,
+    transferExpiresAt,
+    transferResult,
+  ]);
 
-      const pending = await fetchPendingTransfer(selectedProduct.passportId);
-      if (pending === null) {
-        clearActiveTransfer(user?.tenantId, selectedProduct.passportId);
-        setTransferResult(null);
-        setTransferMode('QR');
-        fetchWithAuth(requestUrl)
-          .then((data) => {
-            const nextProducts = Array.isArray(data?.content) ? data.content : [];
-            setProducts(nextProducts);
-            setTotalPages(Math.max(1, data?.totalPages || 1));
-            setTotalElements(data?.totalElements || 0);
-          })
-          .catch(() => {});
+  useEffect(() => {
+    if (!transferExpiresAt || !selectedPassportId) return undefined;
 
-        const resolutionReason = transferResolutionReasonRef.current;
-        if (!resolutionReason) {
-          setTransferCompletionInfo({
-            transferId: transferResult.transferId,
-            mode: transferResult.mode,
-            serialNumber: selectedProduct.serialNumber || '-',
-            modelName: selectedProduct.modelName || '-',
-            completedAt: new Date().toISOString(),
-          });
-          setTransferError('');
-          return;
-        }
-        transferResolutionReasonRef.current = '';
-      }
-    };
-
-    sync().catch(() => {});
+    syncTransferResult().catch(() => {});
     const timer = window.setInterval(() => {
-      sync().catch(() => {});
+      syncTransferResult().catch(() => {});
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [requestUrl, selectedProduct, transferResult?.expiresAt, transferResult?.transferId, user?.tenantId]);
+  }, [selectedPassportId, syncTransferResult, transferExpiresAt]);
 
   const copyText = async (value) => {
     try {

@@ -25,9 +25,11 @@ const RetailDistributedProductDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { passportId } = useParams();
-  const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [detailState, setDetailState] = useState({
+    requestKey: null,
+    product: null,
+    error: '',
+  });
 
   const brandName = location.state?.brandName || '브랜드';
   const backTo = location.state?.from || '/retail/inventory';
@@ -35,37 +37,41 @@ const RetailDistributedProductDetail = () => {
   const publicUrl = useMemo(() => (
     passportId ? `${window.location.origin}/products/passports/${encodeURIComponent(passportId)}` : ''
   ), [passportId]);
+  const invalidPassport = !passportId;
+  const requestKey = invalidPassport ? null : `${detailMode}:${passportId}`;
+  const loading = Boolean(requestKey) && detailState.requestKey !== requestKey;
+  const error = detailState.requestKey === requestKey ? detailState.error : '';
+  const product = detailState.requestKey === requestKey ? detailState.product : null;
 
   useEffect(() => {
-    if (!passportId) {
-      setError('제품 정보가 올바르지 않습니다.');
-      setLoading(false);
-      return;
-    }
+    if (!requestKey || !passportId) return;
 
     let mounted = true;
-    setLoading(true);
-    setError('');
     const detailUrl = detailMode === 'completed-transfer'
       ? `/products/tenant/completed-transfers/${encodeURIComponent(passportId)}`
       : `/products/tenant/distributed-passports/${encodeURIComponent(passportId)}`;
     fetchWithAuth(detailUrl)
       .then((data) => {
         if (!mounted) return;
-        setProduct(data);
+        setDetailState({
+          requestKey,
+          product: data,
+          error: '',
+        });
       })
       .catch((e) => {
         if (!mounted) return;
-        setError(e?.message || '제품 상세 정보를 불러오지 못했습니다.');
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
+        setDetailState({
+          requestKey,
+          product: null,
+          error: e?.message || '제품 상세 정보를 불러오지 못했습니다.',
+        });
       });
 
     return () => {
       mounted = false;
     };
-  }, [detailMode, passportId]);
+  }, [detailMode, passportId, requestKey]);
 
   if (loading) {
     return (
@@ -78,7 +84,7 @@ const RetailDistributedProductDetail = () => {
     );
   }
 
-  if (error || !product) {
+  if (invalidPassport || error || !product) {
     return (
       <div className="p-8 max-w-5xl mx-auto space-y-6">
         <button
@@ -92,7 +98,7 @@ const RetailDistributedProductDetail = () => {
         <div className="rounded-2xl border border-red-100 bg-red-50 p-8 text-center">
           <AlertTriangle size={40} className="mx-auto mb-4 text-red-400" />
           <h2 className="text-lg font-bold text-red-900">상세 정보를 불러오지 못했습니다</h2>
-          <p className="mt-2 text-sm text-red-600">{error || '해당 제품을 찾을 수 없습니다.'}</p>
+          <p className="mt-2 text-sm text-red-600">{invalidPassport ? '제품 정보가 올바르지 않습니다.' : error || '해당 제품을 찾을 수 없습니다.'}</p>
         </div>
       </div>
     );

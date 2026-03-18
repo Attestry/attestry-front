@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
@@ -34,7 +34,7 @@ const ServiceHistoryPage = () => {
   const notice = location.state?.notice || '';
   const selectedPassportId = location.state?.selectedPassportId || '';
 
-  const load = async (status = activeStatus, pageNum = page) => {
+  const load = useCallback(async (status = activeStatus, pageNum = page) => {
     if (!user?.tenantId) return;
     if (!canViewService) {
       setItems([]);
@@ -58,12 +58,12 @@ const ServiceHistoryPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeStatus, canViewService, page, user?.tenantId]);
 
   useEffect(() => {
     setPage(0);
     load(activeStatus, 0).catch(() => {});
-  }, [activeStatus, canManageService, canViewService, user?.tenantId]);
+  }, [activeStatus, canManageService, canViewService, user?.tenantId, load]);
 
   return (
     <div className="space-y-6">

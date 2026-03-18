@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Building2, CheckCircle2, RefreshCw } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 import { apiFetchJson } from '../../utils/api';
-import { createHttpError, getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
+import { getCurrentMembership, hasEffectiveScope, normalizeApiErrorMessage, toPermissionMessage } from '../../utils/permissionUi';
 
 const PAGE_SIZE = 20;
 const BRANDS_PAGE_SIZE = 10;
@@ -65,7 +65,7 @@ const RetailCompletedTransfersView = () => {
     return `/workflows/tenants/${encodeURIComponent(user.tenantId)}/transfers/completed?${params.toString()}`;
   }, [page, user?.tenantId]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!requestUrl) {
       setItems([]);
       setTotalPages(1);
@@ -100,11 +100,11 @@ const RetailCompletedTransfersView = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [canReadRetailTransfers, fetchPartnerLinks, requestUrl]);
 
   useEffect(() => {
     load().catch(() => {});
-  }, [canReadRetailTransfers, requestUrl]);
+  }, [load]);
 
   useEffect(() => {
     setBrandPage(0);

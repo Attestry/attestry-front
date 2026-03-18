@@ -28,7 +28,7 @@ const PlatformTemplateAdmin = () => {
             setLoading(false);
         };
         fetchData();
-    }, []);
+    }, [listPlatformTemplates, listRootPermissions]);
 
     const handleTemplateSubmit = async (e) => {
         e.preventDefault();
