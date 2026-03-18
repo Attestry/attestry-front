@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Building2, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
@@ -40,7 +40,7 @@ const RetailBrandCompletedTransfersDetail = () => {
     return `/workflows/tenants/${encodeURIComponent(user.tenantId)}/transfers/completed?${params.toString()}`;
   }, [brandTenantId, page, user?.tenantId]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!requestUrl) {
       setItems([]);
       setTotalPages(1);
@@ -61,11 +61,11 @@ const RetailBrandCompletedTransfersDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [requestUrl]);
 
   useEffect(() => {
     load().catch(() => {});
-  }, [requestUrl]);
+  }, [load]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 p-4 sm:p-6 lg:p-8">

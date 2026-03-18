@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import QRScannerModal from '../../components/shipment/QRScannerModal';
@@ -41,7 +41,7 @@ const ServiceRequestsPage = () => {
   const [detailPassportId, setDetailPassportId] = useState('');
   const [rejectTarget, setRejectTarget] = useState(null);
 
-  const load = async (pageNum = page) => {
+  const load = useCallback(async (pageNum = page) => {
     if (!user?.tenantId) return;
     if (!canViewService) {
       setItems([]);
@@ -65,11 +65,11 @@ const ServiceRequestsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [canViewService, page, user?.tenantId]);
 
   useEffect(() => {
     load(0).catch(() => {});
-  }, [canManageService, canViewService, user?.tenantId]);
+  }, [canManageService, canViewService, user?.tenantId, load]);
 
   const acceptAndMove = async (item) => {
     const actionKey = `accept-${item.serviceRequestId}`;

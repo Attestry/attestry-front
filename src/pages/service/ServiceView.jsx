@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, ClipboardList, FileCheck, RefreshCw, Wrench } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore, { ROLE_THEMES } from '../../store/useAuthStore';
@@ -21,7 +21,7 @@ const ServiceView = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!user?.tenantId) {
       setLoading(false);
       return;
@@ -50,11 +50,11 @@ const ServiceView = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [canViewService, user?.tenantId]);
 
   useEffect(() => {
     load().catch(() => {});
-  }, [canManageService, canViewService, user?.tenantId]);
+  }, [canManageService, canViewService, user?.tenantId, load]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">

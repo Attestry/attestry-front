@@ -64,7 +64,7 @@ const InvitationAccept = () => {
                     navigate('/dashboard', { replace: true });
                 }, 1500);
 
-            } catch (err) {
+            } catch {
                 setStatus('error');
                 setError('통신 중 오류가 발생했습니다.');
             }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
     Package, ArrowLeft, Calendar, Hash, FileText, Download, User,
@@ -35,7 +35,7 @@ const ShipmentHistoryDetail = () => {
         )
         : null;
 
-    const fetchShipmentDetail = async () => {
+    const fetchShipmentDetail = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -47,13 +47,13 @@ const ShipmentHistoryDetail = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [shipmentId]);
 
     useEffect(() => {
         if (shipmentId) {
             fetchShipmentDetail();
         }
-    }, [shipmentId]);
+    }, [shipmentId, fetchShipmentDetail]);
 
     const handleBack = () => {
         navigate(-1);
